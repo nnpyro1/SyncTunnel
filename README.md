@@ -1,4 +1,4 @@
-本软件是一个极简主义跨平台文件同步工具
+本软件是一个极简主义跨平台文件同步工具 官网https://nnpyro.netlify.app/synctunnel.html
 
 # SyncTunnel 教程
 ## 1 软件下载与安装
