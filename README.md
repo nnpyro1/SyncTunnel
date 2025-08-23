@@ -1,3 +1,5 @@
+本软件是一个极简主义跨平台文件同步工具
+
 # SyncTunnel 教程
 ## 1 软件下载与安装
 想要下载软件，你可以访问 [SyncTunnel的官网](https://nnpyro.netlify.app/synctunnel.html) 进行下载。  
