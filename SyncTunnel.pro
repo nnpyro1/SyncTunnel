@@ -40,6 +40,7 @@ FORMS += \
 #INCLUDEPATH += $$PWD/../../libary/socket.io-client-cpp/lib/asio/asio/include
 #INCLUDEPATH += $$PWD/../../libary/socket.io-client-cpp/lib/Catch2-3.8.1/Catch2-3.8.1/src/catch2
 INCLUDEPATH += $$PWD../../libary/Qt-AES
+RC_FILE += rc_std.rc
 
 #CONFIG += console  #仅调试
 
@@ -49,3 +50,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 RESOURCES +=
+
+DISTFILES += \
+    rc_std.rc
