@@ -99,7 +99,7 @@ Storage::~Storage(){
 
 bool Storage::upload(const QByteArray &file){    
     //文件分片
-    const int SPC = 1024 /** 1024*/  *64 /** 0.75*/;
+    const int SPC = 1024 /** 1024*/  *1024 /** 0.75*/;
 //    const int SPC = 64;
     QList<QByteArray> list;
     for(int startpos=0;startpos<file.size();){
