@@ -37,10 +37,12 @@ MainWindow::MainWindow(QWidget *parent)
     resize(1200,900);
     setWindowTitle("SyncTunnel 同步隧道");
     ui->tabWidget->setTabEnabled(4,false);//禁用调试页面   //发布设置
-    ui->tabWidget->setCurrentIndex(2);
+    ui->tabWidget->setCurrentIndex(3);
     timer_is_uploading.setSingleShot(true);
     timer_clear_currentFileMap.setSingleShot(true);
     ui->tableWidget_deviceList->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);//设置自动列宽
+    ui->tableWidget_deviceList->horizontalHeader()->setSectionResizeMode(1,QHeaderView::ResizeToContents);//设置自动列宽
+    setAcceptDrops(true);//接收拖放
 //    ui->tableWidget_deviceList.
     //读取文件中的用户名密码
     QFile file1("config/1.nprivate0");
@@ -116,6 +118,8 @@ MainWindow::MainWindow(QWidget *parent)
         QJsonObject json;json.insert("pat",ui->lineEdit_settings_githubPAT->text());
         send(QJsonDocument(json).toJson());
     });
+    connect(ui->checkBox_settings_ipv6,&QCheckBox::clicked,this,[this](bool isCheck){if(isCheck)QProcess::startDetached(QApplication::applicationFilePath(),QApplication::arguments()<<("-ipv6"));else QProcess::startDetached(QApplication::applicationFilePath());close();});
+    connect(ui->actionRefresh,&QAction::triggered,this,[this]{show_dir();});
     
     
     //目录显示
@@ -129,7 +133,7 @@ MainWindow::MainWindow(QWidget *parent)
     label_status->setText("正在获取公网IP……");
     QCoreApplication::processEvents();
     public_ip = m_communication->stun();
-    if(public_ip == Communication::ipport{"",0} ||0/*调试 强制IPV6*/){
+    if(public_ip == Communication::ipport{"",0} || QApplication::arguments().contains("-ipv6")){
         QCoreApplication::processEvents();
         
         //开始用IPv6
@@ -694,6 +698,28 @@ void MainWindow::closeEvent(QCloseEvent *event){
     //退出窗口
     m_signalling->exit();//发布关闭消息
     event->accept();
+}
+
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event){
+    if(event->mimeData()->hasUrls()){
+        event->acceptProposedAction();
+        event->accept();
+    }
+}
+
+
+void MainWindow::dropEvent(QDropEvent *event){
+    QList<QUrl> list = event->mimeData()->urls();
+    if(list.empty()){
+        return;
+    }
+    foreach(auto i , list){
+        QFileInfo fileInfo(i.toLocalFile());
+        QString destPath = current_dir.absoluteFilePath(fileInfo.fileName());
+        QFile::copy(fileInfo.filePath(), destPath);
+    }
+    show_dir();
 }
 
 

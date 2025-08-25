@@ -5,6 +5,7 @@
 #include <../../libary/Qt-AES/qaesencryption.h>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QProgressDialog>
 
 
 Storage::Storage(){
@@ -98,7 +99,7 @@ Storage::~Storage(){
 
 bool Storage::upload(const QByteArray &file){    
     //文件分片
-    const int SPC = 1024 */* 1024 **/ 32;
+    const int SPC = 1024 /** 1024*/  *64 /** 0.75*/;
 //    const int SPC = 64;
     QList<QByteArray> list;
     for(int startpos=0;startpos<file.size();){
@@ -109,6 +110,14 @@ bool Storage::upload(const QByteArray &file){
     //创建对象
     QNetworkAccessManager *manager = new QNetworkAccessManager;
     QNetworkRequest request;
+    QProgressDialog pg;
+    pg.setRange(0,list.size()-1);
+    pg.setWindowTitle("挂起文件");
+    pg.setLabelText("正在挂起文件");
+    pg.setCancelButtonText(nullptr);
+    pg.setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowMinimizeButtonHint);
+    pg.resize(500,100);
+    pg.show();
     
     //构造请求
     request.setRawHeader("Authorization","Basic "+(QString("%1:%2").arg(username,pwd).toUtf8().toBase64()));
@@ -139,15 +148,19 @@ bool Storage::upload(const QByteArray &file){
     
     
     int count=0;
+    const int DELAY_LOOP = 1;
     foreach(auto i , list){
         request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/%2.nprivate").arg(username).arg(count)));
         json["content"]=QString((i).toBase64());
         QNetworkReply *reply = manager->put(request,QJsonDocument(json).toJson());
+        pg.setValue(count);
         
         //等待响应
-        QEventLoop loop;
-        connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-        loop.exec();
+        if(count%DELAY_LOOP==0||count<2){
+            QEventLoop loop;
+            connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
+            loop.exec();
+        }
         
         if(1)qDebug()<<"Storage::upload Debug var:reply="<<reply->readAll();
         if(reply->error() != QNetworkReply::NoError){
@@ -181,6 +194,16 @@ bool Storage::remove(){
     //解析
     int file_total = QString(QByteArray::fromBase64(QJsonDocument::fromJson(reply->readAll()).object()["content"].toString().toUtf8())).toInt();
     
+    QProgressDialog pg;
+    pg.setRange(0,file_total-1);
+    pg.setWindowTitle("挂起文件");
+    pg.setLabelText("正在操作……\n\n您现在可以使用刚刚下载的文件");
+    pg.setCancelButtonText(nullptr);
+    pg.setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowMinimizeButtonHint);
+    pg.resize(500,100);
+    pg.show();
+    
+    
     //获取文件sha&删除文件
     for(int i=0;i<file_total;i++){
         request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/%2.nprivate").arg(username).arg(i)));
@@ -210,6 +233,7 @@ bool Storage::remove(){
             flag=false; 
         }
         reply->deleteLater();
+        pg.setValue(i);
     }
     
     
@@ -265,7 +289,18 @@ QByteArray Storage::get(){
     //分别请求每个文件
     QByteArray return_value;
     int total = QString(QByteArray::fromBase64(QJsonDocument::fromJson(reply->readAll()).object()["content"].toString().toUtf8())).toInt();
+    
+    QProgressDialog pg;
+    pg.setRange(0,total);
+    pg.setWindowTitle("挂起文件");
+    pg.setLabelText("正在下载挂起的文件");
+    pg.setCancelButtonText(nullptr);
+    pg.setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowMinimizeButtonHint);
+    pg.resize(500,100);
+    pg.show();
+    
     for(int i=0;i<total;i++){
+        pg.setValue(i);
         request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/%2.nprivate").arg(username).arg(i)));
         QNetworkReply *reply = manager->get(request);
         QEventLoop loop;

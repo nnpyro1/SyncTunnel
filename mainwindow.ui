@@ -50,12 +50,25 @@ QPushButton:click{
 }
 
 
-QMainWindow QLineEdit, QTabWidget QLineEdit,QLineEdit,QMainWindow QSpinBox, QTabWidget QSpinBox,QSpinBox,QPushButton{
+QMainWindow QLineEdit, QTabWidget QLineEdit,QLineEdit,QMainWindow QSpinBox, QTabWidget QSpinBox,QSpinBox,QPushButton,QCheckBox{
 	border-radius:8px;
 	min-height:30px;
 	border-color:rgb(236, 240, 241);
 	border-style:solid;
 	border:1px solid rgb(236, 240, 241);
+}
+
+QCheckBox{
+	border:none;
+}
+QCheckBox::indicator{
+	border-radius:3px;
+	border:1px solid rgb(236, 240, 241);
+}
+QCheckBox::indicator:checked{
+	border-radius:3px;
+	border:1px solid rgb(236, 240, 241);
+	background-color: rgb(52, 152, 219);
 }
 
 QLabel{
@@ -69,6 +82,14 @@ QMenu,QHeaderView,QHeaderView::section{
 QToolTip,QMenu::QToolTip{
 	
 	color: rgb(0,0,0);
+}
+
+QAction{
+	background-color:rgb(44, 62, 80);
+}
+QAction:hover{
+	
+	background-color: rgb(56, 80, 103);
 }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -85,7 +106,7 @@ QToolTip,QMenu::QToolTip{
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tab_file">
        <attribute name="title">
@@ -183,14 +204,21 @@ QToolTip,QMenu::QToolTip{
               </property>
              </widget>
             </item>
-            <item row="5" column="0">
+            <item row="4" column="1">
+             <widget class="QLineEdit" name="lineEdit_settings_mqttServer">
+              <property name="text">
+               <string>broker.emqx.io</string>
+              </property>
+             </widget>
+            </item>
+            <item row="6" column="0">
              <widget class="QLabel" name="label_6">
               <property name="text">
                <string>MQTT服务器端口</string>
               </property>
              </widget>
             </item>
-            <item row="5" column="1">
+            <item row="6" column="1">
              <widget class="QSpinBox" name="spinBox_settings_mqttPort">
               <property name="maximum">
                <number>65535</number>
@@ -200,39 +228,52 @@ QToolTip,QMenu::QToolTip{
               </property>
              </widget>
             </item>
-            <item row="4" column="1">
-             <widget class="QLineEdit" name="lineEdit_settings_mqttServer">
-              <property name="text">
-               <string>broker.emqx.io</string>
-              </property>
-             </widget>
-            </item>
-            <item row="6" column="0" colspan="2">
+            <item row="9" column="0" colspan="2">
              <widget class="QLabel" name="label_7">
               <property name="text">
                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;文件挂起服务设置&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
              </widget>
             </item>
-            <item row="7" column="0">
+            <item row="10" column="0">
              <widget class="QLabel" name="label_8">
               <property name="text">
                <string>Github账号</string>
               </property>
              </widget>
             </item>
-            <item row="8" column="0">
+            <item row="10" column="1">
+             <widget class="QLineEdit" name="lineEdit_settings_gitubUser"/>
+            </item>
+            <item row="11" column="0">
              <widget class="QLabel" name="label_9">
               <property name="text">
                <string>GitHub PAT</string>
               </property>
              </widget>
             </item>
-            <item row="7" column="1">
-             <widget class="QLineEdit" name="lineEdit_settings_gitubUser"/>
-            </item>
-            <item row="8" column="1">
+            <item row="11" column="1">
              <widget class="QLineEdit" name="lineEdit_settings_githubPAT"/>
+            </item>
+            <item row="7" column="0">
+             <widget class="QLabel" name="label_10">
+              <property name="text">
+               <string>IP设置</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="1">
+             <widget class="QCheckBox" name="checkBox_settings_ipv6">
+              <property name="text">
+               <string>强制使用IPv6</string>
+              </property>
+              <property name="checked">
+               <bool>false</bool>
+              </property>
+              <property name="tristate">
+               <bool>false</bool>
+              </property>
+             </widget>
             </item>
            </layout>
           </widget>
@@ -666,7 +707,14 @@ p, li { white-space: pre-wrap; }
     <addaction name="actionDownload"/>
     <addaction name="actionSync_PAT"/>
    </widget>
+   <widget class="QMenu" name="menuApplication_A">
+    <property name="title">
+     <string>应用程序(&amp;A)</string>
+    </property>
+    <addaction name="actionRefresh"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuApplication_A"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionOpen">
@@ -721,6 +769,17 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;向已上线的客户端同步设置好的Github PAT&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionRefresh">
+   <property name="text">
+    <string>刷新</string>
+   </property>
+   <property name="toolTip">
+    <string>刷新应用程序</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
    </property>
   </action>
  </widget>

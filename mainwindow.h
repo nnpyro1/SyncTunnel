@@ -11,6 +11,9 @@
 #include "modules/signalling/signalling.h"
 #include <QCloseEvent>
 #include <QLabel>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -45,6 +48,8 @@ private slots://槽函数
     
 protected://继承
     virtual void closeEvent(QCloseEvent *event) override;
+    virtual void dragEnterEvent(QDragEnterEvent *event) override;
+    virtual void dropEvent(QDropEvent *event) override;
     
 private://模块
     Communication *m_communication;
