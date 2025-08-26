@@ -14,9 +14,10 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
+#include <QProcess>
 
 QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
+namespace Ui { class MainWindow; class Dialog; }
 QT_END_NAMESPACE
 
 class MainWindow : public QMainWindow
@@ -43,6 +44,7 @@ private slots://槽函数
     void on_settings_saved();                   //设置的保存按钮被点击
     void on_hangup();                           //当文件挂起
     void on_download();                         //当文件下载
+    void on_proxy();                            //当开始/停止网络加速
     
     void on_pushButton_debug1_clicked();//当调试
     
@@ -74,6 +76,9 @@ private://私有变量
     ipport mqtt_server;
     QString user_github_name;
     QString user_github_PAT;
+    QProcess *process_proxy;//代理进程
+    QProcess *process_proxy_ui;//代理UI进程
+    Ui::Dialog *ui_dialog_diviceList;
     
 private:
     

@@ -32,6 +32,7 @@ HEADERS += \
     modules/storage/storage.h
 
 FORMS += \
+    dialog_deviceList.ui \
     mainwindow.ui
 
 #INCLUDEPATH += $$PWD/../../libary/socket.io-client-cpp/lib/rapidjson/include/rapidjson

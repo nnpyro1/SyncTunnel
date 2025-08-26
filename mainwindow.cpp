@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "ui_dialog_deviceList.h"
 #include <QFileInfoList>
 #include <QDesktopServices>
 #include <QProcess>
@@ -16,6 +17,8 @@
 #include <QElapsedTimer>
 #include <QMessageBox>
 #include <QFileIconProvider>
+#include <windows.h>
+#include <shlobj.h>
 
 #define ndb qDebug()<<__FILE__<<__func__<<__LINE__<<"\n"
 using namespace std;
@@ -30,19 +33,23 @@ MainWindow::MainWindow(QWidget *parent)
     m_signalling = new Signalling;
     m_storage = new Storage;
     label_status = new QLabel(this);
+    process_proxy = new QProcess(this);
+    process_proxy_ui = new QProcess(this);
     
     
     //基本设置
     ui->setupUi(this);
     resize(1200,900);
     setWindowTitle("SyncTunnel 同步隧道");
-    ui->tabWidget->setTabEnabled(4,false);//禁用调试页面   //发布设置
-    ui->tabWidget->setCurrentIndex(3);
+    ui->tabWidget->setTabEnabled(5,false);//禁用调试页面   //发布设置
+    ui->tabWidget->setCurrentIndex(4);
     timer_is_uploading.setSingleShot(true);
     timer_clear_currentFileMap.setSingleShot(true);
     ui->tableWidget_deviceList->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);//设置自动列宽
     ui->tableWidget_deviceList->horizontalHeader()->setSectionResizeMode(1,QHeaderView::ResizeToContents);//设置自动列宽
     setAcceptDrops(true);//接收拖放
+    ui->listWidget_file->setAcceptDrops(true);// 允许接收拖放事件
+    ui->listWidget_file->setDragDropMode(QAbstractItemView::NoDragDrop);//让事件传递到MainWindow
 //    ui->tableWidget_deviceList.
     //读取文件中的用户名密码
     QFile file1("config/1.nprivate0");
@@ -118,8 +125,18 @@ MainWindow::MainWindow(QWidget *parent)
         QJsonObject json;json.insert("pat",ui->lineEdit_settings_githubPAT->text());
         send(QJsonDocument(json).toJson());
     });
-    connect(ui->checkBox_settings_ipv6,&QCheckBox::clicked,this,[this](bool isCheck){if(isCheck)QProcess::startDetached(QApplication::applicationFilePath(),QApplication::arguments()<<("-ipv6"));else QProcess::startDetached(QApplication::applicationFilePath());close();});
+    connect(ui->checkBox_settings_ipv6,&QCheckBox::clicked,this,[this](bool isCheck){
+        if(isCheck)QProcess::startDetached(QApplication::applicationFilePath(),QApplication::arguments()<<("-ipv6"));
+        else{
+            QStringList l=QApplication::arguments();l.removeAll("-ipv6");
+            QProcess::startDetached(QApplication::applicationFilePath(),l);
+        }close();
+    });
     connect(ui->actionRefresh,&QAction::triggered,this,[this]{show_dir();});
+    connect(ui->pushButton_switchProxy,&QPushButton::clicked,this,&MainWindow::on_proxy);
+    connect(process_proxy,&QProcess::readyRead,this,[this]{ui->textBrowser_proxy->append(QString::fromLocal8Bit(process_proxy->readAll()));});
+//    connect(ui->tableWidget_deviceList,&QTableWidget::doubleClicked,this,)
+    
     
     
     //目录显示
@@ -170,6 +187,18 @@ MainWindow::MainWindow(QWidget *parent)
     
     //设置文件挂起
     m_storage->setUser(user_github_name,user_github_PAT);
+    
+    
+    //参数处理
+    ndb<<"Application arguments:"<<QApplication::arguments();
+    auto args = QApplication::arguments();
+    
+    if(args.contains("-proxy")){//加速
+        on_proxy();
+    }
+    if(args.contains("-ipv6")){//强制使用ipv6
+        ui->checkBox_settings_ipv6->setChecked(true);
+    }
     
 }
 
@@ -677,6 +706,60 @@ void MainWindow::on_download(){
     else{
         label_status->setText("文件下载失败");
         QMessageBox::critical(this,"文件挂起","文件下载失败");
+    }
+}
+
+
+void MainWindow::on_proxy(){
+    if(ui->pushButton_switchProxy->text() == "开始加速"){
+        //开启加速进程
+        process_proxy->setProcessChannelMode(QProcess::MergedChannels);
+        process_proxy->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args){args->flags=args->flags|CREATE_NO_WINDOW;});
+/*        process_proxy->start("tools/fastgithub.exe");
+        process_proxy->waitForStarted();*/
+        //开启UI进程
+//        process_proxy_ui->start("tools/FastGithub.UI.exe");
+        ui->pushButton_switchProxy->setText("停止加速");
+        //开启加速进程
+        process_proxy->start("tools/fastgithub.exe");
+        process_proxy->waitForStarted();
+//        ndb<<"process_proxy_ui->errorString()="<<process_proxy_ui->errorString();
+        if(process_proxy->state() == QProcess::Running){
+            label_status->setText("加速启动成功");
+        }
+        else{
+            label_status->setText("加速启动失败。状态："+QString::number(process_proxy->state())+process_proxy->errorString());
+            //启动管理员权限
+            HINSTANCE hs = ShellExecuteA(nullptr,"runas",QApplication::applicationFilePath().toStdString().c_str(),(QApplication::arguments()<<"-proxy").join(" ").toStdString().c_str(),nullptr,SW_SHOWNORMAL);
+            if(hs > (HINSTANCE)32){
+                ndb<<"成功申请管理员权限";
+                process_proxy->terminate();
+                process_proxy->waitForFinished();
+//                process_proxy_ui->terminate();
+//                process_proxy_ui->waitForFinished();
+                close();
+            }
+            
+        }
+    }
+    else if(ui->pushButton_switchProxy->text() == "停止加速"){
+        QProcess::startDetached("tools/fastgithub.exe",{"stop"});
+        QThread::msleep(1000);
+        QCoreApplication::processEvents();
+//        process_proxy_ui->terminate();
+//        process_proxy_ui->waitForFinished();
+        process_proxy->terminate();
+        process_proxy->waitForFinished(3000);
+        if(process_proxy->state()==QProcess::Running)process_proxy->kill();
+        ui->pushButton_switchProxy->setText("开始加速");
+        QCoreApplication::processEvents();
+        /*process_proxy->start("tools/fastgithub.exe",{"stop"});
+        process_proxy->waitForStarted();
+        process_proxy->terminate();*/
+//        process_proxy_ui->terminate();
+//        process_proxy_ui->waitForFinished();
+        QProcess::startDetached("ipconfig",{"/flushdns"});
+        ui->textBrowser_proxy->clear();
     }
 }
 
