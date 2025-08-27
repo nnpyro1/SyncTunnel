@@ -19,6 +19,9 @@
 #include <QFileIconProvider>
 #include <windows.h>
 #include <shlobj.h>
+#include <QScreen>
+#include <QInputDialog>
+#include <winuser.h>
 
 #define ndb qDebug()<<__FILE__<<__func__<<__LINE__<<"\n"
 using namespace std;
@@ -41,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     resize(1200,900);
     setWindowTitle("SyncTunnel 同步隧道");
-    ui->tabWidget->setTabEnabled(5,false);//禁用调试页面   //发布设置
+    ui->tabWidget->setTabEnabled(5,true);//禁用调试页面   //发布设置
     ui->tabWidget->setCurrentIndex(4);
     timer_is_uploading.setSingleShot(true);
     timer_clear_currentFileMap.setSingleShot(true);
@@ -85,6 +88,10 @@ MainWindow::MainWindow(QWidget *parent)
     }
     else{
         dir_empty_label1.mkpath(".");
+    }
+    QDir dir_emty_label2("config/empty/label2");//不启用关机阻止
+    if(!dir_emty_label2.exists()){
+        ShutdownBlockReasonCreate((HWND)winId(),L"请不要关机！！！！立即点击取消关机！！！ SyncTunnel 离线文件同步服务");
     }
     
     
@@ -136,6 +143,13 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButton_switchProxy,&QPushButton::clicked,this,&MainWindow::on_proxy);
     connect(process_proxy,&QProcess::readyRead,this,[this]{ui->textBrowser_proxy->append(QString::fromLocal8Bit(process_proxy->readAll()));});
 //    connect(ui->tableWidget_deviceList,&QTableWidget::doubleClicked,this,)
+    connect(&timer_savePower,&QTimer::timeout,this,[this]{
+        label_status->setText(QString("SyncTunnel正在等待文件传输请求……\n如果没有请求，计算机将会在%1后关闭\n您也可以用Alt+F4关闭此窗口后手动关机").arg(QTime().addMSecs(timer_savePower_finish.remainingTime()).toString("HH时mm分ss秒")));
+    });
+    connect(&timer_savePower_finish,&QTimer::timeout,this,[this]{
+        ShutdownBlockReasonDestroy((HWND)winId());
+        QProcess::startDetached("cmd.exe",{"shutdown","-s","-t","10000"});(void)this;
+    });
     
     
     
@@ -461,6 +475,25 @@ void MainWindow::releaseFile(QString msg){
 }
 
 
+void MainWindow::savePower(){
+    if(!widget_savePower) widget_savePower = new QWidget;
+    widget_savePower->installEventFilter(this);
+    
+    //创建黑色窗口
+    widget_savePower->setObjectName("savePW");
+    widget_savePower->setWindowFlags(Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
+    widget_savePower->setStyleSheet("#savePW { background-color: black; }\nQLabel{ color: white; }");
+    widget_savePower->setGeometry(QApplication::primaryScreen()->geometry());
+    
+    //添加label
+    auto layout = (new QVBoxLayout);layout->addWidget(label_status);
+    widget_savePower->setLayout(layout);
+    
+    widget_savePower->show();
+    timer_savePower.start(1000);
+}
+
+
 void MainWindow::on_folder_change(){
     QListWidgetItem currentItem = *ui->listWidget_file->currentItem();
     
@@ -772,13 +805,28 @@ void MainWindow::on_pushButton_debug1_clicked(){
 //    releaseFile(ui->textEdit_debug1->toPlainText());
 //    m_storage->upload(QString("123abc*#NEW?&===NEW12345NEW45678===============================================================================================================================================================1234567890-/QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1AQ2WS3ED4RF5TG6YH7UJ8IK9OL0QAZWSXEDCRFVTGBYHNUJMIK,OVTBNCMEX,O.BYCUNEX,1222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222 \nEND").toUtf8());
 //    m_storage->remove();
-    ui->textBrowser_debug1->append(m_storage->get());
+//    ui->textBrowser_debug1->append(m_storage->get());
+    ndb << "模拟关机事件";
+    
+    // 模拟WM_QUERYENDSESSION消息
+    MSG msg;
+    msg.hwnd = (HWND)winId();
+    msg.message = WM_QUERYENDSESSION;
+    msg.wParam = 0;
+    msg.lParam = 0;
+    msg.time = GetTickCount();
+    msg.pt = {0, 0};
+    
+    long result = 0;
+    nativeEvent("windows_generic_MSG", &msg, &result);
+    ndb<<"var result ="<<result;
 }
 
 
 
 void MainWindow::closeEvent(QCloseEvent *event){
     //退出窗口
+    ndb<<"spontaneous "<<event->spontaneous();
     m_signalling->exit();//发布关闭消息
     event->accept();
 }
@@ -803,6 +851,58 @@ void MainWindow::dropEvent(QDropEvent *event){
         QFile::copy(fileInfo.filePath(), destPath);
     }
     show_dir();
+}
+
+
+bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result){
+    MSG *msg = (MSG*)message;
+    
+    if((msg->message == WM_QUERYENDSESSION||msg->message == WM_ENDSESSION)&&(!is_accept_shutdown)){//关机事件
+        *result=FALSE;
+        
+        QFile flagFile("shutdown_intercepted.flag");
+        if (flagFile.open(QIODevice::WriteOnly)) {
+            flagFile.write("1");
+            flagFile.close();
+        }
+        ndb<<"IN2";
+        QMetaObject::invokeMethod(this,[this]{
+            is_accept_shutdown = true;
+            long btn= QMessageBox::warning(this,"文件同步关机警告：请不要关机","SyncTunnel检测到您正在关机\n\n如果您有文件同步需求（在此设备离线后仍然可以在其他设备上看到此设备上的文件），请不要关机，而是进入“低功耗模式”，让系统保持低功耗运行，文件同步后自动关机。\n\n如果您想进入上述“低功耗模式”，请点击“是”\n如果您想彻底关闭这台计算机，请点击“否”。\n\n您可以在“设置”页面配置关机时的行为。",(QMessageBox::Yes|QMessageBox::No));
+            if(btn==QMessageBox::Yes){
+                int min = QInputDialog::getInt(this,"设置关机时间","请输入关机时间 单位：分钟。\n关机时间指在您输入的分钟之后，即使没有文件同步请求，也直接关机。\n默认：5小时",300,0,35791,60);
+                timer_savePower_finish.start(min * 60 * 1000);
+                savePower();
+                
+            }
+            else if(btn==QMessageBox::No){
+                ShutdownBlockReasonDestroy((HWND)winId());
+                QProcess::startDetached("cmd.exe",{"shutdown","-s","-t","10000"});
+                close();
+            }
+        },Qt::QueuedConnection);
+        return true;
+    }
+    
+    return QWidget::nativeEvent(eventType,message,result);
+}
+
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event){
+    if (obj == widget_savePower && event->type() == QEvent::Close) {
+        // 处理省电模式窗口的关闭事件
+        if (widget_savePower) {
+            widget_savePower->hide();
+        }
+        this->show(); // 显示主窗口
+        timer_savePower_finish.stop(); // 停止关机倒计时
+        
+        // 解除关机阻止
+            ShutdownBlockReasonDestroy((HWND)winId());
+        
+        return true; // 事件已处理
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 

@@ -35,6 +35,7 @@ public://公有函数
     QString mergeFile(QDir folder);             //合并文件
     void sendFile();                            //自动分包并发送
     void releaseFile(QString msg);              //释放文件
+    void savePower();                           //省电模式
     
 private slots://槽函数
     void on_folder_change();                    //当前目录改变（双击打开）
@@ -52,6 +53,8 @@ protected://继承
     virtual void closeEvent(QCloseEvent *event) override;
     virtual void dragEnterEvent(QDragEnterEvent *event) override;
     virtual void dropEvent(QDropEvent *event) override;
+    virtual bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+    virtual bool eventFilter(QObject *obj, QEvent *event) override;
     
 private://模块
     Communication *m_communication;
@@ -79,6 +82,10 @@ private://私有变量
     QProcess *process_proxy;//代理进程
     QProcess *process_proxy_ui;//代理UI进程
     Ui::Dialog *ui_dialog_diviceList;
+    bool is_accept_shutdown = false;
+    QWidget *widget_savePower=nullptr;//省电模式窗口
+    QTimer timer_savePower;//省电模式刷新定时器
+    QTimer timer_savePower_finish;//省电模式结束定时器
     
 private:
     
