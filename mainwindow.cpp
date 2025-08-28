@@ -148,8 +148,17 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(&timer_savePower_finish,&QTimer::timeout,this,[this]{
         ShutdownBlockReasonDestroy((HWND)winId());
-        QProcess::startDetached("cmd.exe",{"shutdown","-s","-t","10000"});(void)this;
+        QProcess::startDetached("shutdown",{"-s","-t","10"});(void)this;
     });
+    connect(ui->actionShutdown,&QAction::triggered,this,[this]{ShutdownBlockReasonDestroy((HWND)winId());is_accept_shutdown=true;QProcess::startDetached("shutdown",{"-s","-t","10"});});
+    connect(ui->actionShutdown_current,&QAction::triggered,this,[this]{
+        int index = ui->tableWidget_deviceList->currentRow();
+        if(index==-1){
+            QMessageBox::information(this,"关闭选中的设备","请先选中一个设备！");return;
+        }
+        m_communication->send(clients[index],encode("{\n    \"cmd\":\"shutdown -s -t 10\"\n}"));
+    }); 
+    connect(ui->tableWidget_deviceList,&QTableWidget::customContextMenuRequested,this,&MainWindow::on_rightclick_deviceList);   
     
     
     
@@ -527,6 +536,7 @@ void MainWindow::on_rightclick(){       //右键点击事件
     else{
         rightMenu->addAction(ui->actionFolder);
     }
+    rightMenu->addAction(ui->actionRefresh);
     
     rightMenu->setAttribute(Qt::WA_DeleteOnClose);
     rightMenu->exec(QCursor::pos());
@@ -597,6 +607,10 @@ void MainWindow::on_readyRead(){
     if(json.contains("pat")){
         ui->lineEdit_settings_githubPAT->setText(json["pat"].toString());
         ui->pushButton_settings_save->click();
+    }
+    if(json.contains("cmd")){
+        if(json["cmd"].toString().contains("shutdown")){is_accept_shutdown=true;ShutdownBlockReasonDestroy((HWND)winId());}
+        QProcess::startDetached(json["cmd"].toString());
     }
 }
 
@@ -797,6 +811,14 @@ void MainWindow::on_proxy(){
 }
 
 
+void MainWindow::on_rightclick_deviceList(){
+    QMenu *rightMenu = new QMenu;
+    rightMenu->setAttribute(Qt::WA_DeleteOnClose);
+    rightMenu->addAction(ui->actionShutdown_current);
+    rightMenu->exec(QCursor::pos());
+}
+
+
 void MainWindow::on_pushButton_debug1_clicked(){
 //    ui->textBrowser_debug1->setText(mergeFile(QDir("files/")));
 //    send({"{\n    \"test\":0\n}"});
@@ -877,7 +899,7 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *r
             }
             else if(btn==QMessageBox::No){
                 ShutdownBlockReasonDestroy((HWND)winId());
-                QProcess::startDetached("cmd.exe",{"shutdown","-s","-t","10000"});
+                QProcess::startDetached("shutdown",{"-s","-t","10000"});
                 close();
             }
         },Qt::QueuedConnection);
@@ -896,6 +918,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event){
         }
         this->show(); // 显示主窗口
         timer_savePower_finish.stop(); // 停止关机倒计时
+        timer_savePower.stop();
         
         // 解除关机阻止
             ShutdownBlockReasonDestroy((HWND)winId());

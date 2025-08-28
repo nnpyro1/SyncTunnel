@@ -46,6 +46,7 @@ private slots://槽函数
     void on_hangup();                           //当文件挂起
     void on_download();                         //当文件下载
     void on_proxy();                            //当开始/停止网络加速
+    void on_rightclick_deviceList();            //设备列表被右击
     
     void on_pushButton_debug1_clicked();//当调试
     

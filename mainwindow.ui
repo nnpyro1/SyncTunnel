@@ -106,7 +106,7 @@ QAction:hover{
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab_file">
        <attribute name="title">
@@ -126,9 +126,12 @@ QAction:hover{
        <attribute name="title">
         <string>设备列表</string>
        </attribute>
-       <layout class="QFormLayout" name="formLayout_2">
+       <layout class="QGridLayout" name="gridLayout_7">
         <item row="0" column="0" colspan="2">
          <widget class="QTableWidget" name="tableWidget_deviceList">
+          <property name="contextMenuPolicy">
+           <enum>Qt::CustomContextMenu</enum>
+          </property>
           <property name="editTriggers">
            <set>QAbstractItemView::NoEditTriggers</set>
           </property>
@@ -761,6 +764,8 @@ p, li { white-space: pre-wrap; }
      <string>应用程序(&amp;A)</string>
     </property>
     <addaction name="actionRefresh"/>
+    <addaction name="separator"/>
+    <addaction name="actionShutdown"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuApplication_A"/>
@@ -829,6 +834,22 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="shortcut">
     <string>F5</string>
+   </property>
+  </action>
+  <action name="actionShutdown_current">
+   <property name="text">
+    <string>关闭选中的设备</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;向选中的设备发送关机请求，使其远程关机&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600; color:#ff0000;&quot;&gt;注意：关机后无法远程重新开机，需手动开机&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionShutdown">
+   <property name="text">
+    <string>关机</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;取消关机保护并关机。&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
  </widget>
