@@ -48,6 +48,9 @@ QPushButton:hover{
 QPushButton:click{
 	background-color:rgb(42, 124, 179)
 }
+QPushButton::disabled{
+	background-color:rgb(120, 125, 127)
+}
 
 
 QMainWindow QLineEdit, QTabWidget QLineEdit,QLineEdit,QMainWindow QSpinBox, QTabWidget QSpinBox,QSpinBox,QPushButton,QCheckBox{
@@ -106,7 +109,7 @@ QAction:hover{
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab_file">
        <attribute name="title">
@@ -176,18 +179,7 @@ QAction:hover{
            <string>document</string>
           </property>
           <property name="markdown">
-           <string># 合法声明
-
-本应用程序使用fastgithub进行Github网络加速。
-
-**《国际联网暂行规定》第六条规定：“计算机信息网络直接进行国际联网，必须使用邮电部国家公用电信网提供的国际出入口信道。任何单位和个人不得自行建立或者使用其他信道进行国际联网。” FastGithub本地代理使用的都是“公用电信网提供的国际出入口信道”，从国外Github服务器到国内用户电脑上FastGithub程序的流量，使用的是正常流量通道，其间未对流量进行任何额外加密（仅有网页原有的TLS加密，区别于VPN的流量加密），而FastGithub获取到网页数据之后发生的整个代理过程完全在国内，不再适用国际互联网相关之规定
-**。
-
-# 安全性说明
-
-**FastGithub为每台不同的主机生成自颁发CA证书，保存在cacert文件夹下。客户端设备需要安装和无条件信任自颁发的CA证书，请不要将证书私钥泄露给他人，以免造成损失。**
-
-*引用自Fast Github官网* 
+           <string>**禁止使用**
 
 </string>
           </property>
@@ -196,19 +188,17 @@ QAction:hover{
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;title&gt;document&lt;/title&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'SimSun'; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;h1 style=&quot; margin-top:0px; margin-bottom:0px; margin-left:37px; margin-right:37px; -qt-block-indent:0; text-indent:0px; line-height:160%;&quot;&gt;&lt;span style=&quot; font-family:'-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif'; font-size:xx-large; font-weight:600;&quot;&gt;合法声明&lt;/span&gt;&lt;/h1&gt;
-&lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:37px; margin-right:37px; -qt-block-indent:0; text-indent:0px; line-height:160%;&quot;&gt;&lt;span style=&quot; font-family:'-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif';&quot;&gt;本应用程序使用fastgithub进行Github网络加速。&lt;/span&gt;&lt;/p&gt;
-&lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:37px; margin-right:37px; -qt-block-indent:0; text-indent:0px; line-height:160%;&quot;&gt;&lt;span style=&quot; font-family:'-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif'; font-weight:600; color:#999999;&quot;&gt;《国际联网暂行规定》第六条规定：“计算机信息网络直接进行国际联网，必须使用邮电部国家公用电信网提供的国际出入口信道。任何单位和个人不得自行建立或者使用其他信道进行国际联网。” FastGithub本地代理使用的都是“公用电信网提供的国际出入口信道”，从国外Github服务器到国内用户电脑上FastGithub程序的流量，使用的是正常流量通道，其间未对流量进行任何额外加密（仅有网页原有的TLS加密，区别于VPN的流量加密），而FastGithub获取到网页数据之后发生的整个代理过程完全在国内，不再适用国际互联网相关之规定&lt;/span&gt;&lt;span style=&quot; font-family:'-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif'; color:#999999;&quot;&gt;。&lt;/span&gt;&lt;/p&gt;
-&lt;h1 style=&quot; margin-top:0px; margin-bottom:0px; margin-left:37px; margin-right:37px; -qt-block-indent:0; text-indent:0px; line-height:160%;&quot;&gt;&lt;span style=&quot; font-family:'-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif'; font-size:xx-large; font-weight:600;&quot;&gt;安全性说明&lt;/span&gt;&lt;/h1&gt;
-&lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:37px; margin-right:37px; -qt-block-indent:0; text-indent:0px; line-height:160%;&quot;&gt;&lt;span style=&quot; font-family:'-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif'; font-weight:600; color:#999999;&quot;&gt;FastGithub为每台不同的主机生成自颁发CA证书，保存在cacert文件夹下。客户端设备需要安装和无条件信任自颁发的CA证书，请不要将证书私钥泄露给他人，以免造成损失。&lt;/span&gt;&lt;/p&gt;
-&lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:37px; margin-right:37px; -qt-block-indent:0; text-indent:0px; line-height:160%;&quot;&gt;&lt;span style=&quot; font-family:'-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif'; font-style:italic;&quot;&gt;引用自Fast Github官网&lt;/span&gt;&lt;span style=&quot; font-family:'-apple-system','BlinkMacSystemFont','Segoe UI','Roboto','sans-serif';&quot;&gt; &lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:37px; margin-right:37px; -qt-block-indent:0; text-indent:0px; line-height:160%;&quot;&gt;&lt;span style=&quot; font-size:72pt; font-weight:600; color:#ff0000;&quot;&gt;禁止使用&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
          </widget>
         </item>
         <item row="1" column="0">
          <widget class="QPushButton" name="pushButton_switchProxy">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="text">
-           <string>开始加速</string>
+           <string>开始加速（大陆地区禁止使用）</string>
           </property>
          </widget>
         </item>
@@ -434,7 +424,8 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;协议阅读完后&lt;/span&gt;可以点击左侧的“设置”标签页设置用户名和密码，然后点击“文件视图”标签页开始发送文件。&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;官网：&lt;a href=&quot;https://nnpyro.netlify.app/synctunnel.html&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;SyncTunnel-您的跨平台文件同步高效解决方案&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;官方教程 Github链接:&lt;a href=&quot;https://github.com/nnpyro1/SyncTunnel/blob/main/README.md&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;SyncTunnel/README.md at main · nnpyro1/SyncTunnel&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;p style=&quot; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;官方教程 Github链接:&lt;a href=&quot;https://github.com/nnpyro1/SyncTunnel/blob/main/README.md&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;SyncTunnel/README.md at main · nnpyro1/SyncTunnel&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;官方教程镜像（&lt;span style=&quot; font-weight:600;&quot;&gt;上一个链接打不开点这里&lt;/span&gt;）&lt;a href=&quot;https://bgithub.xyz/nnpyro1/SyncTunnel/blob/main/README.md&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;SyncTunnel/README.md at main · nnpyro1/SyncTunnel&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="openExternalLinks">
            <bool>true</bool>
@@ -849,7 +840,7 @@ p, li { white-space: pre-wrap; }
     <string>关机</string>
    </property>
    <property name="toolTip">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;取消关机保护并关机。&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;取消关机保护并关机。&lt;/p&gt;&lt;p&gt;注意：如果直接关机，会有关机保护阻止关机&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
  </widget>

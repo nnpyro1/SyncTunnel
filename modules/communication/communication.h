@@ -3,6 +3,7 @@
 #include <QUdpSocket>
 #include <QNetworkDatagram>
 #include <QDataStream>
+#include <QHashFunctions>
 
 
 class Communication : public QObject
@@ -31,7 +32,11 @@ public://公有声明
         inline friend bool operator==(const ipport &l,const ipport &r){
             return l.ip==r.ip&&l.port==r.port;
         }
+        inline bool operator<(const ipport &a)const{
+            return ip<a.ip;
+        }
     };
+    
     
 signals:
     void readyRead();
@@ -53,3 +58,7 @@ private://私有变量&对象
     QUdpSocket *socket_ipv6;
     ipport stun_host = {"stun.miwifi.com",3478}/*{"stun.l.google.com",19302}*/;
 };
+
+inline uint qHash(const Communication::ipport &key, uint seed) noexcept{
+    return qHash(key.ip, seed) ^ qHash(key.port, seed);
+}

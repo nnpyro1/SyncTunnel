@@ -53,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent)
     setAcceptDrops(true);//接收拖放
     ui->listWidget_file->setAcceptDrops(true);// 允许接收拖放事件
     ui->listWidget_file->setDragDropMode(QAbstractItemView::NoDragDrop);//让事件传递到MainWindow
+    SetPriorityClass(GetCurrentProcess(),HIGH_PRIORITY_CLASS);//设置优先级为高
 //    ui->tableWidget_deviceList.
     //读取文件中的用户名密码
     QFile file1("config/1.nprivate0");
@@ -69,7 +70,7 @@ MainWindow::MainWindow(QWidget *parent)
     QTextStream user_config_stream2(&file2);
     mqtt_server = ipport{
             QString(QByteArray::fromBase64(user_config_stream2.readLine().toUtf8())),
-            static_cast<quint16>(user_config_stream2.readLine().toInt()^qHash(pwd))
+            static_cast<quint16>(user_config_stream2.readLine().toInt())
     };
     ui->lineEdit_settings_mqttServer->setText(mqtt_server.ip);
     ui->spinBox_settings_mqttPort->setValue(mqtt_server.port);
@@ -117,15 +118,15 @@ MainWindow::MainWindow(QWidget *parent)
             ui->tableWidget_deviceList->setItem(r,0,new QTableWidgetItem(user_name));
             ui->tableWidget_deviceList->setItem(r,1,new QTableWidgetItem(i.ip));
             ui->tableWidget_deviceList->setItem(r,2,new QTableWidgetItem(QString::number(i.port)));
-            ui->tableWidget_deviceList->setItem(r,3,new QTableWidgetItem("暂时不支持备注功能"));
+            ui->tableWidget_deviceList->setItem(r,3,new QTableWidgetItem("暂不支持备注功能"));
         }
         if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i);}
     });
     connect(&timer_fileResend,&QTimer::timeout,this,&MainWindow::on_request_resend); 
-    connect(&timer_is_uploading,&QTimer::timeout,this,[this]{chunks.clear();is_uploading=false;});
+    connect(&timer_is_uploading,&QTimer::timeout,this,[this]{chunks.clear();is_uploading=false;send_current_delay=SEND_MAX_DELAY-10;send_stable_count=0;send_ack_count.clear();send_req_ack_loop=5;send_lost_loop_count=0;});      //发送方清除状态
     connect(ui->pushButton_settings_save,&QPushButton::clicked,this,&MainWindow::on_settings_saved);
     connect(ui->actionupload_file,&QAction::triggered,this,[this]{sendFile();});
-    connect(&timer_clear_currentFileMap,&QTimer::timeout,this,[this]{currentFileMap.clear();currentFileTotal = -1;});
+    connect(&timer_clear_currentFileMap,&QTimer::timeout,this,[this]{currentFileMap.clear();currentFileTotal = -1;receive_lost_count=0;receive_last_pack_index=-1;receive_last_ack_total=-1;});//接收方清除状态
     connect(ui->actionHangup,&QAction::triggered,this,&MainWindow::on_hangup);
     connect(ui->actionDownload,&QAction::triggered,this,&MainWindow::on_download);
     connect(ui->actionSync_PAT,&QAction::triggered,this,[this]{
@@ -144,7 +145,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(process_proxy,&QProcess::readyRead,this,[this]{ui->textBrowser_proxy->append(QString::fromLocal8Bit(process_proxy->readAll()));});
 //    connect(ui->tableWidget_deviceList,&QTableWidget::doubleClicked,this,)
     connect(&timer_savePower,&QTimer::timeout,this,[this]{
-        label_status->setText(QString("SyncTunnel正在等待文件传输请求……\n如果没有请求，计算机将会在%1后关闭\n您也可以用Alt+F4关闭此窗口后手动关机").arg(QTime().addMSecs(timer_savePower_finish.remainingTime()).toString("HH时mm分ss秒")));
+        label_status->setText(QString("SyncTunnel正在等待文件传输请求……\n如果没有请求，计算机将会在%1秒后关闭\n您也可以用Alt+F4关闭此窗口后手动关机").arg(/*QTime().addMSecs(timer_savePower_finish.remainingTime()).toString("HH时mm分ss秒"))*/timer_savePower_finish.remainingTime()/1000));
     });
     connect(&timer_savePower_finish,&QTimer::timeout,this,[this]{
         ShutdownBlockReasonDestroy((HWND)winId());
@@ -271,7 +272,7 @@ void MainWindow::show_dir(){        //显示目录
 }
 
 
-void MainWindow::send(QByteArray msg, bool e){
+void MainWindow::send(QByteArray msg, bool e, int d){
     //自动补全信息
     QJsonDocument jd = QJsonDocument::fromJson(msg);
     if(jd.isObject()){
@@ -279,11 +280,20 @@ void MainWindow::send(QByteArray msg, bool e){
         if(!json.contains("user")){
             json.insert("user",user_name);
         }
+        if(!json.contains("ip")){
+            json.insert("ip",public_ip.ip);
+        }
+        if(!json.contains("port")){
+            json.insert("port",public_ip.port);
+        }
         msg = QJsonDocument(json).toJson();
     }
     
     //加密并发送
-    foreach(auto i,clients)m_communication->send(i,e?encode(msg):msg);
+    auto cli = clients;
+    cli.removeAll(public_ip);//不给自己发送
+    if(d==-1)foreach(auto i,cli)m_communication->send(i,e?encode(msg):msg);
+    else m_communication->send(clients[d],e?encode(msg):msg);
 }
 
 
@@ -305,36 +315,7 @@ QByteArray MainWindow::decode(QByteArray msg){
 }
 
 
-/*QString MainWindow::mergeFile(QDir folder){
-    QString f;
-    QFileInfoList info = folder.entryInfoList(QDir::NoDotAndDotDot|QDir::AllEntries,QDir::Name|QDir::DirsLast);
-    ndb<<"进入目录"<<folder.absolutePath()<<"长度"<<info.size();
-    foreach(QFileInfo fi ,info){
-        if(fi.isFile()){
-            ndb<<"处理文件"<<fi.absoluteFilePath();
-            f += "FILE\n";
-//            QString filepath = fi.canonicalFilePath();
-//            QString dirpath = QDir("files/").canonicalPath();
-//            f += filepath.mid(dirpath.size()+1) + "\n";
-            QString absPath = fi.canonicalFilePath();
-            QString relativePath = QDir("files/").relativeFilePath(fi.filePath());
-            f += relativePath + "\n";
-            QFile file(absPath);
-            file.open(QIODevice::ReadOnly);
-            f += file.readAll().toBase64(QByteArray::Base64Encoding | QByteArray::OmitTrailingEquals)/* + "\nEND_FILE\n"*/;
-/*
-        }
-        else{//目录递归DFS
-            ndb<<"处理目录"<<fi.absoluteFilePath();
-            f += "DIR\n";
-            QString absPath = fi.canonicalFilePath();
-            QString relativePath = QDir("files/").relativeFilePath(fi.filePath());
-            f += relativePath + "\n";
-//            f += mergeFile(absPath) + "END_DIR\n";
-        }
-    }
-    return f;
-}//*/
+
 QString MainWindow::mergeFile(QDir folder){
     QString f;
     QFileInfoList info = folder.entryInfoList(QDir::NoDotAndDotDot|QDir::AllEntries,QDir::Name|QDir::DirsLast);
@@ -369,6 +350,33 @@ QString MainWindow::mergeFile(QDir folder){
 
 
 void MainWindow::sendFile(){
+    //进行客户端连通性测试
+    test_if_connected_set.clear();
+    label_status->setText("正在测试连通性");
+    send("{\n    \"opt\":\"test_if_connected\"\n}");
+    QEventLoop loop_test;
+    connect(this,&MainWindow::signal_test_if_connected_finished,&loop_test,&QEventLoop::quit);
+    QTimer::singleShot(5000,&loop_test,&QEventLoop::quit);
+    bool is_test_success = false;
+    connect(this,&MainWindow::signal_test_if_connected_finished,this,[&,this]{is_test_success=true;(void)this;});
+    loop_test.exec();
+    ndb<<"var:is_test_success="<<is_test_success;
+    if(!is_test_success){
+        QSet<ipport> missing = QSet<ipport>(clients.begin(),clients.end()) - test_if_connected_set;
+        QStringList missingStr;
+        foreach(auto i , missing){missingStr<<i;}
+        int button = QMessageBox::warning(this,"连通性警告",QString("以下客户端没有响应连通性测试:\n\n%1\n\n这可能是由于客户端掉线造成的，也可能是网络波动。\n如果您想继续发送，请点击“是”。如果您想取消发送，请点击“否”。如果您想重试，请点击“重试”。").arg(missingStr.join("\n")),QMessageBox::Yes|QMessageBox::No|QMessageBox::Retry);
+        switch (button) {
+        case QMessageBox::Yes:
+            break;
+        case QMessageBox::Retry:
+            sendFile();//自动到下面的return
+        case QMessageBox::No:
+            return;
+        }
+    }
+    
+    
     //生成文件表
     is_uploading = true;
     label_status->setText("正在加载文件……");
@@ -376,7 +384,7 @@ void MainWindow::sendFile(){
     chunks.clear();
     
     //文件分片
-    const int SPC = 3 * 1024;//3kb /*1400;//基于MTU1500的值*/
+    const int SPC = /*3 * 1024;//3kb*/ /*1400;//基于MTU1500的值*/ /*1024;//小值*/ 7 * 1024;//7kb
     label_status->setText("正在分片文件……");
     QTextStream stm(&fileList);
     for(;!stm.atEnd();){
@@ -415,27 +423,105 @@ void MainWindow::sendFile(){
     QElapsedTimer clock;
     clock.start();
     
-    const int DELAY_LOOP = 1;
+//    const int DELAY_LOOP = 1;
+    const int PROCESS_LOOP = 1;
+    
     for(int i=0;i<send_buf.size();i++){
-        QEventLoop loop;
-        if(i % DELAY_LOOP == 0)QTimer::singleShot(1,Qt::PreciseTimer,&loop,&QEventLoop::quit);
+//        QEventLoop loop;
+//        QTimer::singleShot(1,Qt::PreciseTimer,&loop,&QEventLoop::quit);
         send(send_buf[i],0);
-        if(i % DELAY_LOOP == 0)loop.exec(QEventLoop::ExcludeUserInputEvents);//循环两次停止一次
-        else for(int j=0;j<100;j++);//挨时间
-        if(i%3==0)label_status->setText(QString("正在发送文件：包%1/%2 时间：%3秒 速度%4b/s(%5kb/s)").arg(i).arg(send_buf.size()-1).arg(clock.elapsed()/1000).arg((i * SPC/(clock.elapsed()/1000.0)),0,'f',2).arg((i * SPC/(clock.elapsed()/1000.)/1024),0,'f',2));
-//        QThread::usleep(5);
-//        if(i % DELAY_LOOP == 0)QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+//        loop.exec(QEventLoop::ExcludeUserInputEvents);
+        
+        if(i%3==0){
+            double speed = (3 * SPC/(clock.elapsed()/1000.0));
+            double dsp;//显示速度
+            QString dw;
+            if(speed>1024){
+                dw="kb";dsp=speed/1024;
+            }
+            if(speed>(1024*1024)){
+                dw="mb";dsp=speed/(1024*1024);
+            }
+            label_status->setText(QString("正在发送文件：包%1/%2 时间：%3秒 速度%4%5/s").arg(i).arg(send_buf.size()-1).arg(clock.elapsed()/1000).arg(dsp,0,'f',4).arg(dw));
+            clock.restart();
+        }
+        
+        if(i%PROCESS_LOOP==0){
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents,1);
+        }
+//        if(elapsed_lase_ack.elapsed() > send_current_delay + 80){
+//            send_current_delay += 30;//强力降速
+//            if(send_current_delay > SEND_MAX_DELAY){
+//                send_current_delay = SEND_MAX_DELAY;
+//            }
+//            ndb<<"强力降速"<<send_current_delay;
+//        }
+        
+        
+//        if(i%2==0)send_current_delay+=1;
+        QThread::msleep(send_current_delay);
+        
+        //进行ACK请求
+        if(i%send_req_ack_loop == 0){
+            send_lost_count.clear();
+            send(QString("{\n    \"req_ack\":%1\n}").arg(i).toUtf8());
+            bool flag = false;
+            QEventLoop loop;
+            QTimer timer;
+            connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
+            connect(this,&MainWindow::signal_reqAck_finished,&loop,&QEventLoop::quit);
+            connect(this,&MainWindow::signal_reqAck_finished,this,[&,this]{flag=true;(void)this;});
+            timer.start(100);
+            loop.exec(QEventLoop::ExcludeUserInputEvents);
+            float lost = 0;//平均丢包率
+            for(int i : send_lost_count){
+                lost += i;
+            }
+            lost /= send_lost_count.size();
+            lost = lost / send_req_ack_loop;
+            ndb<<"丢包率"<<lost;
+            if(flag){
+                if(lost > 0.05){//丢包率大于5%
+                    if(send_lost_loop_count>0)send_lost_loop_count = 0;//清除连续不丢包记录
+                    send_lost_loop_count --;
+                    if(send_lost_loop_count < -3  ||  lost > 0.2){
+                        send_req_ack_loop -= 5;//如果多了就少发5个包
+                        if(send_req_ack_loop < 3)send_req_ack_loop=3;//不能太小
+                    }
+                    send_current_delay ++;
+                    if(lost > 0.3) send_current_delay += 10;//丢包太多快速减速
+                    if(send_current_delay > SEND_MAX_DELAY) send_current_delay=SEND_MAX_DELAY;
+                }
+                else{//丢包率少，提速
+                    if(send_lost_loop_count<0)send_lost_loop_count = 0;//清除连续丢包记录
+                    send_lost_loop_count ++;
+                    if(send_lost_loop_count > 3 || lost <= 0.02){
+                        send_req_ack_loop += 5;
+                        if(send_req_ack_loop > 100)send_req_ack_loop=100;//不能大
+                    }
+                    send_current_delay -= 2;
+                    if(lost < 0.02) send_current_delay -= 10;//丢包太少快速加速
+                    if(lost == 0) send_current_delay -= 100;//0丢包飞快加速
+                    if(send_current_delay < SEND_MIN_DELAY) send_current_delay=SEND_MIN_DELAY;
+                }
+            }
+            else{
+                send_current_delay += 100;//如果连控制包都丢了，就减速
+                send_req_ack_loop -= 5;
+                if(send_req_ack_loop < 3)send_req_ack_loop=3;//不能太小
+                if(send_current_delay > SEND_MAX_DELAY) send_current_delay=SEND_MAX_DELAY;
+                ndb<<"控制包丢失";
+            }
+            ndb<<"var:send_current_delay ="<<send_current_delay;
+        }
     }
     
-//    QTimer *timer = new QTimer(this);
-//    connect(timer,&QTimer::timeout,this,[this,&timer]{is_uploading = false;timer->deleteLater();});
-//    timer->start(2000);
     label_status->setText("发送文件完毕");
     timer_is_uploading.start(10000);
 }
 
 
-void MainWindow::releaseFile(QString msg){
+void MainWindow::releaseFile(QString msg){   
     QTextStream stm(&msg);
 //    QStack<QDir> stack;
 //    stack.push(QDir("files/"));
@@ -481,6 +567,7 @@ void MainWindow::releaseFile(QString msg){
     
     //刷新目录
     show_dir();
+    label_status->setText("释放文件成功");
 }
 
 
@@ -545,7 +632,7 @@ void MainWindow::on_rightclick(){       //右键点击事件
 
 void MainWindow::on_readyRead(){
     QNetworkDatagram datagram = m_communication->readDatagram();
-    ipport sender = {datagram.senderAddress().toString(),(quint16)datagram.senderPort()};
+//    ipport sender = {datagram.senderAddress().toString(),(quint16)datagram.senderPort()}; //###
 //    ndb<<"data"<<datagram.data();
     //解密数据
     QByteArray msg = decode(datagram.data());
@@ -558,11 +645,20 @@ void MainWindow::on_readyRead(){
     
     if(!jd.isObject()){
         ndb<<"ERROR:msg isn`t an object!";
+        ndb<<QString(msg);
         return;
     }
     else{
         json = jd.object();
     }
+    
+    //基本变量创建
+    ipport sender = {
+        json["ip"].toString(),
+        static_cast<quint16>(json["port"].toInt())
+    };
+    int sender_index = clients.indexOf(sender);
+    
     
     //消息解析
     if(json.contains("hole")){          //打洞
@@ -581,6 +677,7 @@ void MainWindow::on_readyRead(){
     if(json.contains("filebody")){
         if(currentFileTotal!=json["total"].toInt())currentFileMap.clear();
         currentFileTotal = json["total"].toInt();
+        receive_last_pack_index = json["no"].toInt();
         currentFileMap[json["no"].toInt()] = json["filebody"].toString();
         timer_fileResend.stop();
         timer_fileResend.start(3000);
@@ -590,6 +687,33 @@ void MainWindow::on_readyRead(){
         if(currentFileMap.size() == currentFileTotal){
             label_status->setText("文件操作成功");
         }
+        
+//        //检测map连续
+//        auto it = currentFileMap.constBegin();
+//        int pre = -1;
+//        QList<int> resendList;
+//        for(;it != currentFileMap.constEnd();it++){
+//            if(it.key() != pre+1){
+//                for(int i=pre+1;i<it.key();i++){
+//                    resendList.append(i);
+//                }
+//            }
+//            pre=it.key();
+//        }
+//        if(currentFileMap.lastKey() != json["no"].toInt()){
+//            for(int i=currentFileMap.lastKey()+1;i<=currentFileTotal;i++){
+//                resendList.append(i);
+//            }
+//        }
+        
+//        if(resendList.size()>receive_lost_count){
+//            send(QString("{\n    \"lost\":\"%1\"\n}").arg(resendList.size()).toUtf8(),1,sender_index);
+//            receive_lost_count = resendList.size();
+//        }
+//        else{
+//            send(QString("{\n    \"ack\":\" \"\n}").toUtf8(),1,sender_index);
+//        }
+        
     }
     if(json.contains("request_resend")/*&&is_uploading*/ && !chunks.empty()){
         QJsonObject rpjson;
@@ -611,6 +735,69 @@ void MainWindow::on_readyRead(){
     if(json.contains("cmd")){
         if(json["cmd"].toString().contains("shutdown")){is_accept_shutdown=true;ShutdownBlockReasonDestroy((HWND)winId());}
         QProcess::startDetached(json["cmd"].toString());
+    }
+    if(json.contains("opt")){
+        QString opt = json["opt"].toString();
+        
+        if(opt == "test_if_connected"){//连通性测试
+            if(sender_index == -1){
+                label_status->setText("<font color=\"red\">错误：收到未知来源的连通性测试包("+sender+")</font>");
+            }
+            else{
+                send("{\n    \"opt\":\"ack_test_if_connected\"\n}",1,sender_index);
+            }
+        }
+        if(opt == "ack_test_if_connected"){
+            test_if_connected_set.insert(sender);
+            if(!test_if_connected_set.contains(public_ip)) test_if_connected_set.insert(public_ip);
+            if(test_if_connected_set == QSet<ipport>(clients.begin(),clients.end())){
+                emit signal_test_if_connected_finished({});
+            }
+        }
+    }
+    if(json.contains("lost") && !chunks.empty()){
+//        send_current_delay += json["lost"].toInt() * 2;
+//        send_stable_count = 0;
+//        if(send_current_delay > SEND_MAX_DELAY) send_current_delay = SEND_MAX_DELAY;
+//        ndb<<"发送速度调低到"<<send_current_delay;
+        send_lost_count[sender] += json["lost"].toInt();
+        if(send_lost_count.size() >= clients.size()-1){
+            emit signal_reqAck_finished({});
+        }
+    }
+    if(json.contains("ack") && !chunks.empty()){//没有ack包了。取消此功能
+//        send_ack_count[sender] += 1;
+//        send_stable_count += 1;
+//        int min = INT_MAX;
+//        foreach(int i , send_ack_count){
+//            if(i<min) min=i;
+//        }
+//        if(!(sender == public_ip)){
+////            elapsed_lase_ack.restart();
+//        }
+//        ndb<<"稳定计数"<<send_stable_count;
+//        ndb<<"最小ack"<<min;
+//        if(send_stable_count > 5 && min > 5){
+//            send_current_delay -= 10;
+//            send_stable_count = 0;
+//            send_ack_count.clear();
+//            if(send_current_delay < SEND_MIN_DELAY) send_current_delay = SEND_MIN_DELAY;
+//            ndb<<"发送速度调高到"<<send_current_delay;
+//        }
+//        send_ack_count[sender]+=json["ack"].toInt();//增加ack计数
+    }
+    if(json.contains("req_ack")){
+        //检查丢包
+        int lost = 0;
+        int ack_pack = json["req_ack"].toInt();//应该收到的包的index
+        for(int i = receive_last_pack_index+1; i <= ack_pack; i++){
+            if(!currentFileMap.contains(i)){
+                lost++;
+                ndb<<"lost"<<i;
+            }
+        }
+        ndb<<"丢失"<<lost;
+        send(QString("{\n    \"lost\":\"%1\"\n}").arg(lost).toUtf8(),1,sender_index);//回复丢失信息
     }
 }
 
@@ -651,6 +838,7 @@ void MainWindow::on_request_resend(){
     
     timer_fileResend.stop();
     if(resendList.size() != 0){//如果重新传输了那么就不能执行后面的合并文件否则会合并一个错误的文件
+        timer_fileResend.start(3000); // 3秒后再次检查文件完整性
         return;
     }
     
@@ -697,7 +885,7 @@ void MainWindow::on_settings_saved(){
         if(!dir.exists())dir.mkpath(".");
         QFile f("config/2.nprivate0");
         f.open(QIODevice::WriteOnly|QIODevice::Truncate);
-        f.write(QString("%1\n%2").arg(QString(mqtt_server.ip.toUtf8().toBase64())).arg(mqtt_server.port^(qHash(pwd))).toUtf8());
+        f.write(QString("%1\n%2").arg(QString(mqtt_server.ip.toUtf8().toBase64())).arg(mqtt_server.port).toUtf8());
         f.close();
         restart_flag=true;
     }

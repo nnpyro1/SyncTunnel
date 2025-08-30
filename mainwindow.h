@@ -15,6 +15,8 @@
 #include <QDropEvent>
 #include <QMimeData>
 #include <QProcess>
+#include <QElapsedTimer>
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; class Dialog; }
@@ -29,7 +31,7 @@ public://公有函数
     ~MainWindow();
     
     void show_dir();                            //显示目录到Widget上
-    void send(QByteArray msg,bool e=1);         //自动加密msg并发送给所有client,e标识是否需要加密
+    void send(QByteArray msg,bool e=1,int d=-1);//自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
     QByteArray encode(QByteArray msg);          //加密msg并返回密文
     QByteArray decode(QByteArray msg);          //解密msg并返回解密后的值
     QString mergeFile(QDir folder);             //合并文件
@@ -56,6 +58,10 @@ protected://继承
     virtual void dropEvent(QDropEvent *event) override;
     virtual bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
     virtual bool eventFilter(QObject *obj, QEvent *event) override;
+    
+signals://信号
+    void signal_test_if_connected_finished(QPrivateSignal);        //连通性测试完成
+    void signal_reqAck_finished(QPrivateSignal);                   //请求ack操作完成
     
 private://模块
     Communication *m_communication;
@@ -87,6 +93,19 @@ private://私有变量
     QWidget *widget_savePower=nullptr;//省电模式窗口
     QTimer timer_savePower;//省电模式刷新定时器
     QTimer timer_savePower_finish;//省电模式结束定时器
+    QSet<ipport> test_if_connected_set;
+    const int SEND_MAX_DELAY = 500;//发送文件最大延迟
+    const int SEND_MIN_DELAY = 1;//发送文件最小延迟
+    int send_current_delay = SEND_MAX_DELAY - 10;//当前发送延迟
+    int send_stable_count = 0;//最近一次稳定的数量
+    QMap<ipport,int> send_ack_count;//每个客户端发的ack数量（会清零）
+    int receive_lost_count = 0;//接收丢包计数
+//    QElapsedTimer elapsed_lase_ack;//最后一次收到ack的时间
+    int send_req_ack_loop = 5;//请求ACK的窗口
+    QMap<ipport,int> send_lost_count;//每个客户端发送的lost包数量
+    int receive_last_pack_index = -1;//上次收到的包的编号
+    int receive_last_ack_total = -1;//上次收到的ack中包总数
+    int send_lost_loop_count = 0;//丢包/不丢包计数，正为不丢包，负为丢包
     
 private:
     
