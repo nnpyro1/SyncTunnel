@@ -1,4 +1,4 @@
-***首位发现DTATC算法漏洞/更高效优化方案的用户请发邮箱[nnpyro2@outlook.com](mailto:nnpyro2@outlook.com)获得唯一`黄金流年`版UI+下个版本署名权***
+***首位发现DTATC算法漏洞/更高效优化方案的用户请发邮箱[nnpyro2@outlook.com](mailto:nnpyro2@outlook.com)获得唯一`金色流光`版软件UI+下个版本署名权***
 # SyncTunnel 教程
 
 ## 1 软件下载与安装
