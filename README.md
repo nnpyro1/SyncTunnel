@@ -2,8 +2,7 @@
 
 ***最新版本宣传片***
 
-<video width="640" height="360" controls>
-    <source src="https://github.com/nnpyro1/SyncTunnel/raw/refs/heads/main/beta-1-4-x%20(1).mp4" type="video/mp4">
+<video src="\https://ik.imagekit.io/nnpyro/SyncTunnel-xcps/beta-1-4-x%20(1).mp4?updatedAt=1756631622798" width="640" height="360" controls>
     您的浏览器不支持mp4视频
 </video>
 
