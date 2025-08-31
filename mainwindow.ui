@@ -93,6 +93,12 @@ QAction{
 QAction:hover{
 	
 	background-color: rgb(56, 80, 103);
+}
+
+QMainWindow::title{
+	
+	background-color: rgb(44, 62, 80);
+	color: rgb(236, 240, 241);
 }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -109,7 +115,7 @@ QAction:hover{
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab_file">
        <attribute name="title">
@@ -841,6 +847,14 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;取消关机保护并关机。&lt;/p&gt;&lt;p&gt;注意：如果直接关机，会有关机保护阻止关机&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionTest_RTT">
+   <property name="text">
+    <string>测试所有联接的RTT和延迟</string>
+   </property>
+   <property name="toolTip">
+    <string>测试所有联接了的客户端相对于本机的RTT和延迟</string>
    </property>
   </action>
  </widget>

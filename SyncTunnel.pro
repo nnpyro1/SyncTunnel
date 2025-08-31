@@ -42,7 +42,7 @@ FORMS += \
 #INCLUDEPATH += $$PWD/../../libary/socket.io-client-cpp/lib/Catch2-3.8.1/Catch2-3.8.1/src/catch2
 INCLUDEPATH += $$PWD../../libary/Qt-AES
 RC_FILE += rc_std.rc
-LIBS += -luser32
+LIBS += -luser32 -lwinmm
 
 #CONFIG += console  #仅调试
 

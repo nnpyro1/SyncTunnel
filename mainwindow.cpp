@@ -22,6 +22,7 @@
 #include <QScreen>
 #include <QInputDialog>
 #include <winuser.h>
+#include <dwmapi.h>
 
 #define ndb qDebug()<<__FILE__<<__func__<<__LINE__<<"\n"
 using namespace std;
@@ -123,10 +124,10 @@ MainWindow::MainWindow(QWidget *parent)
         if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i);}
     });
     connect(&timer_fileResend,&QTimer::timeout,this,&MainWindow::on_request_resend); 
-    connect(&timer_is_uploading,&QTimer::timeout,this,[this]{chunks.clear();is_uploading=false;send_current_delay=SEND_MAX_DELAY-10;send_stable_count=0;send_ack_count.clear();send_req_ack_loop=5;send_lost_loop_count=0;});      //发送方清除状态
+    connect(&timer_is_uploading,&QTimer::timeout,this,[this]{chunks.clear();is_uploading=false;send_current_delay=SEND_MAX_DELAY-10;send_stable_count=0;send_ack_count.clear();send_req_ack_loop=5;send_lost_loop_count=0;send_lost_count.clear();});      //发送方清除状态
     connect(ui->pushButton_settings_save,&QPushButton::clicked,this,&MainWindow::on_settings_saved);
     connect(ui->actionupload_file,&QAction::triggered,this,[this]{sendFile();});
-    connect(&timer_clear_currentFileMap,&QTimer::timeout,this,[this]{currentFileMap.clear();currentFileTotal = -1;receive_lost_count=0;receive_last_pack_index=-1;receive_last_ack_total=-1;});//接收方清除状态
+    connect(&timer_clear_currentFileMap,&QTimer::timeout,this,[this]{currentFileMap.clear();currentFileTotal = -1;receive_lost_count=0;receive_last_pack_index=-1;receive_last_ack_total=-1;timer_fileResend.stop();});//接收方清除状态
     connect(ui->actionHangup,&QAction::triggered,this,&MainWindow::on_hangup);
     connect(ui->actionDownload,&QAction::triggered,this,&MainWindow::on_download);
     connect(ui->actionSync_PAT,&QAction::triggered,this,[this]{
@@ -159,7 +160,8 @@ MainWindow::MainWindow(QWidget *parent)
         }
         m_communication->send(clients[index],encode("{\n    \"cmd\":\"shutdown -s -t 10\"\n}"));
     }); 
-    connect(ui->tableWidget_deviceList,&QTableWidget::customContextMenuRequested,this,&MainWindow::on_rightclick_deviceList);   
+    connect(ui->tableWidget_deviceList,&QTableWidget::customContextMenuRequested,this,&MainWindow::on_rightclick_deviceList);  
+    connect(ui->actionTest_RTT,&QAction::triggered,this,&MainWindow::on_test_rtt);
     
     
     
@@ -384,7 +386,7 @@ void MainWindow::sendFile(){
     chunks.clear();
     
     //文件分片
-    const int SPC = /*3 * 1024;//3kb*/ /*1400;//基于MTU1500的值*/ /*1024;//小值*/ 7 * 1024;//7kb
+    const int SPC = /*3 * 1024;//3kb*/ /*1400;//基于MTU1500的值*/ /*1024;//小值*/ 8 * 1024 -1;//7kb
     label_status->setText("正在分片文件……");
     QTextStream stm(&fileList);
     for(;!stm.atEnd();){
@@ -422,6 +424,7 @@ void MainWindow::sendFile(){
     //发送文件
     QElapsedTimer clock;
     clock.start();
+    timeBeginPeriod(1);
     
 //    const int DELAY_LOOP = 1;
     const int PROCESS_LOOP = 1;
@@ -497,7 +500,7 @@ void MainWindow::sendFile(){
                     send_lost_loop_count ++;
                     if(send_lost_loop_count > 3 || lost <= 0.02){
                         send_req_ack_loop += 5;
-                        if(send_req_ack_loop > 100)send_req_ack_loop=100;//不能大
+                        if(send_req_ack_loop > 60)send_req_ack_loop=60;//不能大
                     }
                     send_current_delay -= 2;
                     if(lost < 0.02) send_current_delay -= 10;//丢包太少快速加速
@@ -506,7 +509,7 @@ void MainWindow::sendFile(){
                 }
             }
             else{
-                send_current_delay += 100;//如果连控制包都丢了，就减速
+                send_current_delay += 60;//如果连控制包都丢了，就减速
                 send_req_ack_loop -= 5;
                 if(send_req_ack_loop < 3)send_req_ack_loop=3;//不能太小
                 if(send_current_delay > SEND_MAX_DELAY) send_current_delay=SEND_MAX_DELAY;
@@ -518,6 +521,7 @@ void MainWindow::sendFile(){
     
     label_status->setText("发送文件完毕");
     timer_is_uploading.start(10000);
+    timeEndPeriod(1);
 }
 
 
@@ -644,9 +648,15 @@ void MainWindow::on_readyRead(){
     QJsonObject json;
     
     if(!jd.isObject()){
-        ndb<<"ERROR:msg isn`t an object!";
-        ndb<<QString(msg);
-        return;
+        if(msg == "FILE_RELEASE_SUCCESSFULLY" && !chunks.empty()){
+            label_status->setText("文件发送可能成功");
+        }
+        else{
+            ndb<<"ERROR:msg isn`t an object!";
+            ndb<<QString(msg);
+            return;
+        }
+
     }
     else{
         json = jd.object();
@@ -754,6 +764,12 @@ void MainWindow::on_readyRead(){
                 emit signal_test_if_connected_finished({});
             }
         }
+        if(opt == "rtt_test"){
+            send("{\n    \"opt\":\"ack_rtt_test\"\n}",1,sender_index);
+        }
+        if(opt == "ack_rtt_test"){
+            rtt_result[sender_index] = elapsed_rtt.elapsed();
+        }
     }
     if(json.contains("lost") && !chunks.empty()){
 //        send_current_delay += json["lost"].toInt() * 2;
@@ -859,6 +875,7 @@ void MainWindow::on_request_resend(){
     label_status->setText("正在释放文件");
     releaseFile(n);
     label_status->setText("文件释放成功");
+    send("FILE_RELEASE_SUCCESSFULLY");
 }
 
 
@@ -1003,7 +1020,29 @@ void MainWindow::on_rightclick_deviceList(){
     QMenu *rightMenu = new QMenu;
     rightMenu->setAttribute(Qt::WA_DeleteOnClose);
     rightMenu->addAction(ui->actionShutdown_current);
+    rightMenu->addAction(ui->actionTest_RTT);
     rightMenu->exec(QCursor::pos());
+}
+
+
+void MainWindow::on_test_rtt(){
+    rtt_result.clear();
+    elapsed_rtt.start();
+    
+    //发送测试信息
+    send("{\n    \"opt\":\"rtt_test\"\n}");
+    
+    QEventLoop loop;
+    QTimer timer;
+    connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
+    timer.start(5000);
+    loop.exec();
+    
+    //显示
+    elapsed_rtt.invalidate();
+    for(auto it=rtt_result.begin();it!=rtt_result.end();it++){
+        ui->tableWidget_deviceList->item(it.key(),3)->setText(QString("RTT=%1 delay=%2").arg(it.value()).arg(it.value()/2));
+    }
 }
 
 

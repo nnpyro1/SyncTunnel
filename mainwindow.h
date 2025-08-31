@@ -49,6 +49,7 @@ private slots://槽函数
     void on_download();                         //当文件下载
     void on_proxy();                            //当开始/停止网络加速
     void on_rightclick_deviceList();            //设备列表被右击
+    void on_test_rtt();                         //当测试RTT
     
     void on_pushButton_debug1_clicked();//当调试
     
@@ -95,7 +96,7 @@ private://私有变量
     QTimer timer_savePower_finish;//省电模式结束定时器
     QSet<ipport> test_if_connected_set;
     const int SEND_MAX_DELAY = 500;//发送文件最大延迟
-    const int SEND_MIN_DELAY = 1;//发送文件最小延迟
+    const int SEND_MIN_DELAY = 7;//发送文件最小延迟
     int send_current_delay = SEND_MAX_DELAY - 10;//当前发送延迟
     int send_stable_count = 0;//最近一次稳定的数量
     QMap<ipport,int> send_ack_count;//每个客户端发的ack数量（会清零）
@@ -106,6 +107,8 @@ private://私有变量
     int receive_last_pack_index = -1;//上次收到的包的编号
     int receive_last_ack_total = -1;//上次收到的ack中包总数
     int send_lost_loop_count = 0;//丢包/不丢包计数，正为不丢包，负为丢包
+    QMap<int,int> rtt_result;
+    QElapsedTimer elapsed_rtt;
     
 private:
     
