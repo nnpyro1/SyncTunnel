@@ -1,10 +1,5 @@
+***首位发现DTATC算法漏洞/更高效优化方案的用户请发邮箱[nnpyro2@outlook.com](mailto:nnpyro2@outlook.com)获得唯一`黄金流年`版UI+下个版本署名权***
 # SyncTunnel 教程
-
-***最新版本宣传片***
-
-<video src="\https://ik.imagekit.io/nnpyro/SyncTunnel-xcps/beta-1-4-x%20(1).mp4?updatedAt=1756631622798" width="640" height="360" controls>
-    您的浏览器不支持mp4视频
-</video>
 
 ## 1 软件下载与安装
 想要下载软件，你可以访问 [SyncTunnel的官网](https://nnpyro.netlify.app/synctunnel.html) 进行下载。  
