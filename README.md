@@ -1,4 +1,12 @@
 # SyncTunnel 教程
+
+***最新版本宣传片***
+
+<video width="640" height="360" controls>
+    <source src="https://github.com/nnpyro1/SyncTunnel/raw/refs/heads/main/beta-1-4-x%20(1).mp4" type="video/mp4">
+    您的浏览器不支持mp4视频
+</video>
+
 ## 1 软件下载与安装
 想要下载软件，你可以访问 [SyncTunnel的官网](https://nnpyro.netlify.app/synctunnel.html) 进行下载。  
 
