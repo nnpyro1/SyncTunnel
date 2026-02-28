@@ -1,0 +1,99 @@
+#pragma once
+#include <QObject>
+#include <QUdpSocket>
+#include <QNetworkDatagram>
+#include <QDataStream>
+#include <QHashFunctions>
+#include <QtDebug>
+
+
+class Communication : public QObject
+{
+    Q_OBJECT
+    
+public://公有声明
+    Communication();
+    virtual ~Communication();
+    
+    struct ipport{
+        QString ip;
+        quint16 port;
+        
+        inline operator const QString() const{
+            if(ip.contains(':')) return QString("[%1]:%2").arg(ip).arg(port);
+            else return QString("%1:%2").arg(ip).arg(port);
+        }
+        inline friend QDataStream& operator<<(QDataStream& out, const ipport& value) {
+            out << value.ip << value.port;
+            return out;
+        }
+        inline friend QDataStream& operator>>(QDataStream& in, ipport& value) {
+            in >> value.ip >> value.port;
+            return in;
+        }
+        inline friend bool operator==(const ipport &l,const ipport &r){
+            return l.ip==r.ip&&l.port==r.port;
+        }
+        inline bool operator<(const ipport &a)const{
+            return ip<a.ip;
+        }
+    };
+    struct device:public ipport{
+        QString description="";
+        int flag=0;
+        device(){}
+        device(const ipport p):ipport(p){}
+        device(QString ip,quint16 port,QString description="",int flag=0):ipport({ip,port}),description(description),flag(flag){}
+        inline friend bool operator==(const device &l,const device &r){
+            return l.ip==r.ip&&l.port==r.port;//只比较ip和port
+        }
+        inline operator const QString() const{
+            if(ip.contains(':')) return QString("[%1]:%2").arg(ip).arg(port);
+            else return QString("%1:%2").arg(ip).arg(port);
+        }
+        inline QString toString(){return operator const QString();}
+        inline QString toFullString(){return toString()+"("+description+","+QString::number(flag,16)+")";}
+        inline friend bool operator==(const device &l,const ipport &r){
+            return l.ip==r.ip&&l.port==r.port;
+        }
+        inline friend bool operator==(const ipport &l,const device &r){return r==l;}
+    };
+    
+    enum DeviceFlag{
+        WindowsDevice,
+        AndroidDevice,
+        LinuxDevice,
+        
+        DFHNDevice = 32,
+    };
+    Q_ENUM(DeviceFlag)
+    
+signals:
+    void readyRead();
+    
+public://函数
+    ipport stun();                                                      //发起STUN请求并返回公网IP端口号
+    ipport getIPv6();                                                   //获取公网IPv6地址。此函数是对称NAT下STUN的替代，调用后会覆盖stun()的结果。
+//    bool bind(int port);                                              //绑定对应端口                  //废弃接口
+    qint64 send(ipport host,QByteArray msg);                            //发送消息
+    QNetworkDatagram readDatagram();                                    //读取数据包
+    inline void setStunServer(ipport server){stun_host=server;}         //设置服务器
+    bool hasPendingDatagrams();                                         //是否有等待中数据包
+    
+private://私有函数
+    void on_read(){emit readyRead();}
+    
+private://私有变量&对象
+    QUdpSocket *socket;
+    QUdpSocket *socket_stun;
+    QUdpSocket *socket_ipv6;
+    ipport stun_host = /*{"stun.miwifi.com",3478}*//*{"stun.l.google.com",19302}*/{"stun.chat.bilibili.com",3478};
+};
+
+inline uint qHash(const Communication::ipport &key, uint seed) noexcept{
+    return qHash(key.ip, seed) ^ qHash(key.port, seed);
+}
+
+inline QDebug operator<<(QDebug d,const Communication::ipport &i){return d<< i.operator const QString();}
+Q_DECLARE_METATYPE(Communication::device)
+Q_DECLARE_METATYPE(QList<Communication::device>)

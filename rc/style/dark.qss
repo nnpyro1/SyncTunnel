@@ -1,0 +1,122 @@
+*{
+	color: rgb(236, 240, 241);
+	background-color: rgb(44, 62, 80);
+}
+/**:disabled{
+        background-color: rgb(120, 125, 127);
+}*/
+QWidget:!enabled{
+        background-color:rgb(120, 125, 127);
+}
+
+QMainWindow > QWidget,QTabWidget QWidget,QTabWidget::pane{
+	background-color: rgb(44, 62, 80);
+}
+QTabBar::tab{
+	background-color: rgb(60, 84, 109);
+	border-radius:3px;
+	margin:1px;
+	margin-right:0px;
+	padding: 12px 6px;
+}
+QTabBar::tab:selected{
+	background-color: rgb(76, 107, 138);
+	border-bottom: 2px solid rgb(52, 152, 219);
+}
+QTabBar::tab:disabled{
+	background-color:rgb(129, 129, 129)
+}
+
+QMainWindow QPushButton, QTabWidget QPushButton, QPushButton{
+	background-color: rgb(52, 152, 219);
+	min-height: 30px;
+	border-radius: 8px;
+	padding:5px;
+}
+QPushButton:hover{
+	background-color:rgb(48, 144, 207)
+}
+QPushButton:click{
+	background-color:rgb(42, 124, 179)
+}
+QPushButton::disabled{
+	background-color:rgb(120, 125, 127)
+}
+
+
+QMainWindow QLineEdit, QTabWidget QLineEdit,QLineEdit,QMainWindow QSpinBox, QTabWidget QSpinBox,QSpinBox,QPushButton,QCheckBox{
+	border-radius:8px;
+	min-height:20px;
+	border-color:rgb(236, 240, 241);
+	border-style:solid;
+	border:1px solid rgb(236, 240, 241);
+}
+
+QCheckBox{
+	border:none;
+}
+QCheckBox::indicator{
+	border-radius:3px;
+	border:1px solid rgb(236, 240, 241);
+}
+QCheckBox::indicator:checked{
+	border-radius:3px;
+	border:1px solid rgb(236, 240, 241);
+	background-color: rgb(52, 152, 219);
+}
+
+QLabel{
+	min-height:30px;
+}
+
+QMenu,QHeaderView,QHeaderView::section{
+	background-color: rgb(44, 62, 80);
+}
+
+QToolTip,QMenu::QToolTip{
+	
+	color: rgb(0,0,0);
+}
+
+/*QAction{
+	background-color:rgb(44, 62, 80) !important;
+}
+QAction:hover{
+	
+	background-color: rgb(56, 80, 103);
+}*/
+
+QMainWindow::title{
+	
+	background-color: rgb(44, 62, 80);
+	color: rgb(236, 240, 241);
+}
+
+QLineEdit, QSpinBox, QComboBox, QTextEdit {
+    border: 1px solid #4a3e2e;
+    border-radius: 6px;
+    padding: 6px;
+}
+QLineEdit:focus, QSpinBox:focus, QComboBox:focus, QTextEdit:focus {
+    border: 2px solid #80bdff;
+}
+
+QMenu{
+    border:1px solid;
+    border-radius: 6px;
+    background-color: rgb(44, 62, 80) !important;
+}
+QMenu::disabled{
+    background-color:rgb(44, 62, 80);
+}
+QMenu::item {
+    padding: 8px 24px;
+    margin: 2px 0;
+    background: transparent !important;
+}
+QMenu::item:selected{
+    background-color: #0a0a0f;
+}
+QMenu::item:disabled{
+    background-color: rgb(44,62,80) !important;
+}

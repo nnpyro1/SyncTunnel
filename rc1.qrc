@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file>rc/style/dark.qss</file>
+        <file>rc/style/golden.qss</file>
+        <file>rc/style/light.qss</file>
+        <file>rc/style/silver.qss</file>
+        <file>rc/img/favicon.ico</file>
+        <file>rc/translations/trans_en_US.qm</file>
+        <file>rc/img/splash1.png</file>
+        <file>rc/bin/Alacritty.exe</file>
+    </qresource>
+</RCC>
