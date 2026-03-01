@@ -9,6 +9,7 @@
 #include "modules/communication/communication.h"
 #include "modules/storage/storage.h"
 #include "modules/signalling/signalling.h"
+#include "modules/transmissionengine/transmissionengine.h"
 #include "dialogs/dialog_remotefile.h"
 #include <QCloseEvent>
 #include <QLabel>
@@ -23,6 +24,7 @@
 #include <qcachedbytearray.h>
 #include <dialogs/dialog_selectsyncdst.h>
 #include <dialogs/dialog_help.h>
+#include <general.h>
 using namespace QtCharts;
 
 
@@ -33,9 +35,6 @@ QT_END_NAMESPACE
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-    typedef Communication::ipport ipport; 
-    typedef Communication::device device;
-    
     enum skinType{
         //普通款
         Dark,
@@ -110,7 +109,8 @@ public://公有函数
 private slots://槽函数
     void on_folder_change();                    //当前目录改变（双击打开）
     void on_rightclick();                       //目录被右击
-    void on_readyRead();                        //communication模块接受到新的消息
+    void on_readyRead(QByteArray msg);          //communication模块接受到新的消息
+    void on_SPTP_readyRead(QByteArray msg);     //SPTP协议收到大消息
     void on_request_resend();                   //请求重传文件
     void on_settings_saved();                   //设置的保存按钮被点击
     void on_hangup();                           //当文件挂起
@@ -138,6 +138,7 @@ private://模块
 //    Request *request;
     Storage *m_storage;
     Signalling *m_signalling;
+    TransmissionEngine *m_transmissionengine;
     
 private://私有变量
     Ui::MainWindow *ui;

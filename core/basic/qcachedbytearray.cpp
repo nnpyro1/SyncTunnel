@@ -7,7 +7,10 @@
 
 QCachedByteArray::QCachedByteArray():tempFile(new QTemporaryFile),mutex_foa(new QMutex)
 {
-    tempFile->open();
+//    tempFile->open();
+    if(!tempFile->open()){
+        throw std::runtime_error("QCachedByteArray: failed to open temporary file");
+    }
     tempFile->setAutoRemove(true);
     is_using_file = true;
 }
@@ -17,17 +20,20 @@ QCachedByteArray::~QCachedByteArray()
     tempFile->close();
 }
 
-QCachedByteArray::QCachedByteArray(QByteArray ba)
+QCachedByteArray::QCachedByteArray(QByteArray ba):tempFile(new QTemporaryFile),mutex_foa(new QMutex)
 {
-    tempFile->open();
+//    tempFile->open();
+    if(!tempFile->open()){
+        throw std::runtime_error("QCachedByteArray: failed to open temporary file");
+    }
     tempFile->setAutoRemove(true);
     is_using_file = true;
     tempFile->write(ba);
 }
 
-char QCachedByteArray::at(long i) const{
+char QCachedByteArray::at(qint64 i) const{
     QMutexLocker locker(mutex_foa.data());
-    if(i<0||i>size()){
+    if(i<0||i>=size()){
         throw std::out_of_range("QCachedByteArray::at(long i) i out of range");
     }
     if(is_using_file){
@@ -50,7 +56,7 @@ char QCachedByteArray::at(long i) const{
     }
 }
 
-long QCachedByteArray::size() const{
+qint64 QCachedByteArray::size() const{
     QMutexLocker locker(mutex_foa.data());
     if(is_using_file){
         return tempFile->size();
@@ -73,7 +79,7 @@ void QCachedByteArray::append(QByteArray ar){
     }
 }
 
-void QCachedByteArray::set(long pos, QByteArray byte){
+void QCachedByteArray::set(qint64 pos, QByteArray byte){
     QMutexLocker locker(mutex_foa.data());
     if(is_using_file){
         if(!tempFile->seek(pos)){
@@ -88,7 +94,7 @@ void QCachedByteArray::set(long pos, QByteArray byte){
     }
 }
 
-QByteArray QCachedByteArray::mid(long pos, int len){
+QByteArray QCachedByteArray::mid(qint64 pos, qsizetype len){
     QMutexLocker locker(mutex_foa.data());
     if(is_using_file){
         if(!tempFile->seek(pos)){
@@ -106,7 +112,7 @@ QByteArray QCachedByteArray::mid(long pos, int len){
     }
 }
 
-QCachedByteArray QCachedByteArray::mid_cached(long pos, int len){
+QCachedByteArray QCachedByteArray::mid_cached(qint64 pos, qsizetype len){
     return QCachedByteArray(this->mid(pos,len));
 }
 
@@ -114,10 +120,37 @@ QCachedByteArray QCachedByteArray::mid_cached(long pos, int len){
 QByteArray QCachedByteArray::data(){
     QMutexLocker locker(mutex_foa.data());
     if(is_using_file){
+        tempFile->seek(0);
         return tempFile->readAll();
     }
     else{
         return array;
+    }
+}
+
+void QCachedByteArray::load(){
+    QMutexLocker locker(mutex_foa.data());
+    if(is_using_file){
+        tempFile->seek(0);
+        array = tempFile->readAll();
+        is_using_file = false;
+    }
+    else{
+        
+    }
+}
+
+void QCachedByteArray::unload(){
+    QMutexLocker locker(mutex_foa.data());
+    if(is_using_file){
+        
+    }
+    else{
+        tempFile->seek(0);
+        tempFile->resize(array.size());
+        tempFile->write(array);
+        array.clear();
+        is_using_file = true;
     }
 }
 

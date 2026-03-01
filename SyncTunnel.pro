@@ -28,7 +28,8 @@ SOURCES += \
     mainwindow.cpp \
     modules/communication/communication.cpp \
     modules/signalling/signalling.cpp \
-    modules/storage/storage.cpp
+    modules/storage/storage.cpp \
+    modules/transmissionengine/transmissionengine.cpp
 
 HEADERS += \
     ../../libary/Qt-AES/qaesencryption.h \
@@ -38,10 +39,12 @@ HEADERS += \
     dialogs/dialog_remotefile.h \
     dialogs/dialog_schedule.h \
     dialogs/dialog_selectsyncdst.h \
+    general.h \
     mainwindow.h \
     modules/communication/communication.h \
     modules/signalling/signalling.h \
-    modules/storage/storage.h
+    modules/storage/storage.h \
+    modules/transmissionengine/transmissionengine.h
 
 FORMS += \
     dialog_remotefile.ui \
@@ -59,6 +62,7 @@ INCLUDEPATH += $$PWD/../../libary/Qt-AES
 INCLUDEPATH += $$PWD/core/
 INCLUDEPATH += $$PWD/core/services
 INCLUDEPATH += $$PWD/core/basic
+INCLUDEPATH += $$PWD
 RC_FILE += rc_std.rc
 win32{
     LIBS += -luser32 -lwinmm
@@ -73,7 +77,7 @@ TRANSLATIONS += \
 
 #CONFIG += console  #仅调试
 #DEFINES += NNPYRO_USE_CONSOLE   #仅调试
-#DEFINES += DEBUG_NO_ENCRYPTION     #仅调试
+DEFINES += DEBUG_NO_ENCRYPTION     #仅调试
 #DEFINES += NNPYRO_COLORFULCON   #控制台彩色输出
 
 # Default rules for deployment

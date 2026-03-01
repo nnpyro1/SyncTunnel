@@ -1,12 +1,3 @@
-/************************************************************************
- * 文件：qcachedbytearray.h
- * 作者：nnyjnte代
- * 
- * 本文件及其相关实现采用"无限制授权"：
- * 1. 任何个人或组织均可自由使用、复制、修改、合并本作品
- * 2. 允许用于任何目的（包括商业用途），无需授权
- * 3. 不提供任何担保，使用者承担所有风险
- ************************************************************************/
 #ifndef QCACHEDBYTEARRAY_H
 #define QCACHEDBYTEARRAY_H
 
@@ -25,18 +16,19 @@ public:
     QCachedByteArray(QByteArray ba);
     
     //接管函数
-    char at(long i) const;
-    long size() const;
+    char at(qint64 i) const;
+    qint64 size() const;
     void append(QByteArray ar);
-    void set(long pos,QByteArray byte);
-    QByteArray mid(long pos,int len);
-    QCachedByteArray mid_cached(long pos,int len);
+    void set(qint64 pos,QByteArray byte);
+    QByteArray mid(qint64 pos,qsizetype len);
+    QCachedByteArray mid_cached(qint64 pos,qsizetype len);
     
     //自定义函数
 //    void fullLoad();
 //    void storeToFile();
     QByteArray data();
-    
+    void load();
+    void unload();
     
 private://私有函数
     

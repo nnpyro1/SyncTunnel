@@ -43,43 +43,9 @@
 #include <QtAndroid>
 #endif
 
-#define noutput(method) q##method()<<'['<<#method<<']'<<__FILE__<<__func__<<__LINE__<<"\n"
-#define ndb noutput(Debug)
-#define ninfo noutput(Info)
-#define nwarning noutput(Warning)
-#define ncritical noutput(Critical)
 #define process_events_without_useript QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents)
-#define idToString(id) #id
+//#define idToString(id) #id
 
-//跨平台设备定义
-#ifdef Q_OS_WIN
-#define N_OS "Windows"
-#define winComp(sth) sth
-#define androidComp(sth)
-#define linuxComp(sth)
-
-#elif defined(Q_OS_ANDROID)
-#define N_OS "Android"
-#define winComp(sth) 
-#define androidComp(sth) sth
-#define linuxComp(sth)
-
-#elif  defined(Q_OS_LINUX)
-#define N_OS "Linux"
-#define winComp(sth)
-#define androidComp(sth)
-#define linuxComp(sth) sth
-
-#else
-#define N_OS "Unknown"
-#define winComp(sth)
-#define androidComp(sth)
-#define linuxComp(sth)
-#endif
-
-#define winRun if(QString(N_OS)=="Windows")
-#define androidRun if(QString(N_OS)=="Android")
-#define linuxRun if(QString(N_OS)=="Linux")
 //调试定义
 //#define DEBUG_NO_ENCRYPTION
 
@@ -94,6 +60,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     m_communication = new Communication;
     m_signalling = new Signalling;
     m_storage = new Storage;
+    m_transmissionengine = nullptr;
     label_status = new QLabel(this);
     process_proxy = new QProcess(this);
     process_proxy_ui = new QProcess(this);
@@ -199,10 +166,10 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     ui->comboBox_settings_uiskin->installEventFilter(this);
     ui->comboBox_settings_language->installEventFilter(this);
     androidRun{
-        int width = ui->listWidget_file->size().width()/4;
+        int width = size().width()/4;
         ninfo<<width;
-        ui->tabWidget->tabBar()->setStyleSheet(ui->tabWidget->tabBar()->styleSheet()+QString("QTabBar::tab:enabled{ width: %1px; }").arg(width));
-        ui->tabWidget->tabBar()->setExpanding(true);
+        ui->tabWidget->tabBar()->setStyleSheet(ui->tabWidget->tabBar()->styleSheet()+QString("QTabBar::tab:enabled{ width: %1px; margin: 0px; padding: 0px; }").arg(width));
+        ui->tabWidget->tabBar()->setExpanding(false);
         ui->tabWidget->setTabPosition(QTabWidget::South);
     }
 #ifdef NNPYRO_USE_CONSOLE//使用控制台
@@ -361,18 +328,21 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
         QDesktopServices::openUrl(QUrl::fromLocalFile(QDir(current_dir.filePath(ui->listWidget_file->currentItem()->text())).absolutePath()));
     });
     connect(ui->actionFolder,&QAction::triggered,this,[this]{/*QProcess::startDetached("explorer.exe",QStringList(QDir::toNativeSeparators((current_dir).absolutePath())));*/QDesktopServices::openUrl(QUrl::fromLocalFile(current_dir.absolutePath()));});
-    connect(m_communication,&Communication::readyRead,this,&MainWindow::on_readyRead);
+//    connect(m_communication,&Communication::readyRead,this,&MainWindow::on_readyRead);
 //    if(1)connect(m_signalling,&Signalling::on_userlist_updata,this,[this](QList<Communication::ipport> userl){qDebug()<<"信号触发";ui->textBrowser_debug1->clear();foreach(auto i,userl)ui->textBrowser_debug1->append(i);});
     connect(m_signalling,&Signalling::on_userlist_updata,this,[this](QList<Communication::device> userl){
         clients = userl;if(1)foreach(auto i,clients)qDebug()<<i;
-        for(int i=0;i<5;i++){
-            send("{\n    \"hole\":1\n}");
-            QThread::msleep(20);
-            send("{\n    \"hole\":2\n}");
-            QThread::msleep(20);
-        }
+        QTimer::singleShot(3000,[this]{
+            for(int i=0;i<5;i++){
+                send("{\n    \"hole\":1\n}");
+                QThread::msleep(20);
+                send("{\n    \"hole\":2\n}");
+                QThread::msleep(20);
+            }
+        });
         label_status->setText(tr("用户列表更新成功"));
         ui->tableWidget_deviceList->clearContents();ui->tableWidget_deviceList->setRowCount(0);ndb<<"IN";
+        if(m_transmissionengine)m_transmissionengine->setClients(clients);
         
         foreach(auto i,clients){        //表格设置
             int r=ui->tableWidget_deviceList->rowCount();
@@ -384,11 +354,11 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
         }
         if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i.toFullString());}
     });
-    connect(&timer_fileResend,&QTimer::timeout,this,&MainWindow::on_request_resend); 
-    connect(&timer_is_uploading,&QTimer::timeout,this,[this]{chunks.clear();is_uploading=false;send_current_delay=SEND_MAX_DELAY-10;send_stable_count=0;send_ack_count.clear();send_req_ack_loop=5;send_lost_loop_count=0;send_lost_count.clear();foreach(auto i,schedule_list)i->setEnabled(true);});      //发送方清除状态
+//    connect(&timer_fileResend,&QTimer::timeout,this,&MainWindow::on_request_resend); 
+//    connect(&timer_is_uploading,&QTimer::timeout,this,[this]{chunks.clear();is_uploading=false;send_current_delay=SEND_MAX_DELAY-10;send_stable_count=0;send_ack_count.clear();send_req_ack_loop=5;send_lost_loop_count=0;send_lost_count.clear();foreach(auto i,schedule_list)i->setEnabled(true);});      //发送方清除状态
     connect(ui->pushButton_settings_save,&QPushButton::clicked,this,&MainWindow::on_settings_saved);
     connect(ui->actionupload_file,&QAction::triggered,this,[this]{sendFile();});
-    connect(&timer_clear_currentFileMap,&QTimer::timeout,this,[this]{currentFileMap.clear();currentFileTotal = -1;receive_lost_count=0;receive_last_pack_index=-1;receive_last_ack_total=-1;timer_fileResend.stop();receive_last_ack_index=-1;foreach(auto i,schedule_list)i->setEnabled(true);});//接收方清除状态
+//    connect(&timer_clear_currentFileMap,&QTimer::xtimeout,this,[this]{currentFileMap.clear();currentFileTotal = -1;receive_lost_count=0;receive_last_pack_index=-1;receive_last_ack_total=-1;timer_fileResend.stop();receive_last_ack_index=-1;foreach(auto i,schedule_list)i->setEnabled(true);});//接收方清除状态
     connect(ui->actionHangup,&QAction::triggered,this,&MainWindow::on_hangup);
     connect(ui->actionDownload,&QAction::triggered,this,&MainWindow::on_download);
     connect(ui->actionSync_PAT,&QAction::triggered,this,[this]{
@@ -573,12 +543,6 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     if(1)foreach(auto i,clients)qDebug()<<i;
     label_status->setText(tr("加载成功"));
     func_update(tr("加载成功"));
-    //打洞
-    for(int i=0;i<5;i++){
-        send("{\n    \"hole\":1\n}");
-        QThread::msleep(50);
-    }
-    send("{\n    \"hole\":2\n}");
     
     //等待直到用户列表获取完成
     QEventLoop el1;
@@ -593,6 +557,21 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     //设置文件挂起
     m_storage->setUser(user_github_name,user_github_PAT);
     m_storage->setUserId(user_name);
+    
+    //接管communicaion
+    ndb<<"接管communication";
+    m_transmissionengine = new TransmissionEngine(m_communication,user_name,pwd,public_ip,this);
+    m_transmissionengine->setClients(clients);
+    connect(m_transmissionengine,&TransmissionEngine::communicationReadyRead,this,&MainWindow::on_readyRead);
+    connect(m_transmissionengine,&TransmissionEngine::SPTP_readyRead,this,&MainWindow::on_SPTP_readyRead);
+    connect(m_transmissionengine,&TransmissionEngine::messageChanged,this,[this](QString msg){label_status->setText(msg);});
+    
+    //打洞
+    for(int i=0;i<5;i++){
+        send("{\n    \"hole\":1\n}");
+        send("{\n    \"hole\":2\n}");
+        QThread::msleep(50);
+    }
     
     
     //参数处理
@@ -675,7 +654,7 @@ void MainWindow::show_dir(){        //显示目录
 
 
 void MainWindow::send(QByteArray msg, bool e, int d){
-    //自动补全信息
+    /*//自动补全信息
     QJsonDocument jd = QJsonDocument::fromJson(msg);
     if(jd.isObject()){
         QJsonObject json = jd.object();
@@ -695,7 +674,8 @@ void MainWindow::send(QByteArray msg, bool e, int d){
     auto cli = clients;
     cli.removeAll(public_ip);//不给自己发送
     if(d==-1)foreach(auto i,cli)m_communication->send(i,e?encode(msg):msg);
-    else m_communication->send(clients[d],e?encode(msg):msg);
+    else m_communication->send(clients[d],e?encode(msg):msg);*/
+    m_transmissionengine->send(msg,e,d);    
 }
 
 
@@ -767,9 +747,14 @@ QByteArray MainWindow::mergeFile(QDir folder, bool c){
     return f;
 }
 
+void MainWindow::sendFileTo(int n)
+{
+    m_transmissionengine->SPTP_sendTo(n,mergeFile(QDir("files/")));
+}
 
 
-void MainWindow::sendFileTo(int n){
+
+/*void MainWindow::sendFileTo(int n){
     //发送前准备
     foreach(auto s , schedule_list){//禁用日程
         s->setEnabled(false);
@@ -811,7 +796,7 @@ void MainWindow::sendFileTo(int n){
     chunks.clear();
     
     //文件分片
-//    const int SPC = /*3 * 1024;//3kb*/ /*1400;//基于MTU1500的值*/ /*1024;//小值*/ 8 * 1024 -1;//7kb
+//    const int SPC = /*3 * 1024;//3kb*/ /*1400;//基于MTU1500的值*/ /*1024;//小值* / 8 * 1024 -1;//7kb
 //    const int SPC = 1382;//基于MTU1500的值
     const int SPC = 1420;
     label_status->setText(tr("正在分片文件……"));
@@ -853,7 +838,7 @@ void MainWindow::sendFileTo(int n){
     
     //分块发送
 //    int loop_count = 0;//循环次数
-    /*const int DELAY_LOOP = 1;
+    / *const int DELAY_LOOP = 1;
     for(int i=0;i<chunks.size();i++){
         json["filebody"] = chunks[i];
         json["no"] = i;
@@ -863,7 +848,7 @@ void MainWindow::sendFileTo(int n){
         if(i % DELAY_LOOP == 0)loop.exec(QEventLoop::ExcludeUserInputEvents);//循环两次停止一次
         else for(int j=0;j<100;j++);//挨时间
     }//*/
-    
+    /*
     //发送文件
     QElapsedTimer clock;
     clock.start();
@@ -949,8 +934,8 @@ void MainWindow::sendFileTo(int n){
         
 //        if(i%2==0)send_current_delay+=1;
         if(!skip.contains(i)){
-            if((i&DELAY_LOOP)==0)/*QThread::msleep(send_current_delay);*/multiDelay(send_current_delay);
-            else if(i%send_req_ack_loop == 0)/*QThread::msleep(2);*/multiDelay(2);//为了防止拥塞
+            if((i&DELAY_LOOP)==0)/*QThread::msleep(send_current_delay);* /multiDelay(send_current_delay);
+            else if(i%send_req_ack_loop == 0)/*QThread::msleep(2);* /multiDelay(2);//为了防止拥塞
         }
 
         
@@ -1059,9 +1044,9 @@ void MainWindow::sendFileTo(int n){
                     if(lost == 0) send_current_delay -= 50;//0丢包飞快加速
                     if(send_current_delay < SEND_MIN_DELAY) send_current_delay=SEND_MIN_DELAY;
                     if(abs(send_current_delay-old_delay)>20 && send_req_ack_loop>=15) send_req_ack_loop=15;//快速提速需要增加请求频率
-                }*/
+                }* /
                 //快重传
-                if(1)/*调试禁用重传*/if(!send_current_fastresend_map.empty()){
+                if(1)/*调试禁用重传* /if(!send_current_fastresend_map.empty()){
                     ninfo<<"快速重传"<<send_current_fastresend_map;
                     foreach(int i , send_current_fastresend_map){
                         send(send_buf[i],0,currentSendDst);
@@ -1174,7 +1159,7 @@ void MainWindow::sendFileTo(int n){
                     //防止溢出
                     send_current_delay = qBound(SEND_MIN_DELAY,send_current_delay,SEND_MAX_DELAY);
                     send_req_ack_loop = qBound(SEND_MIN_REQACKLOOP,send_req_ack_loop,SEND_MAX_REQACKLOOP);
-                }*/
+                }* /
                 
                 //拥塞控制算法
                 //状态更新
@@ -1430,7 +1415,7 @@ void MainWindow::sendFileTo(int n){
     timeEndPeriod(1);
 #endif
 }
-
+*/
 
 void MainWindow::sendFile(QList<device> dst){
     if(dst.empty()){//让用户选择
@@ -1447,48 +1432,49 @@ void MainWindow::sendFile(QList<device> dst){
         return;
     }
     dst.removeAll(public_ip);//文件不发给自己
-    //开始规划
-    auto plan = planAutoSend(dst);
-    auto senders = dst;
-    senders.append(public_ip);
-    //提取每个人任务
-    QList<QString> tasks;//索引和senders一一对应
-    for(int i=0;i<senders.size();i++){
-        QStringList task;
-        foreach(auto j , plan){
-            foreach(auto k , j){
-                if(k.first==senders[i]){
-                    task.append(k.second);
-                }
-            }
-        }
-        tasks.append(task.join(';'));
-    }
-    //通知任务
-    QStringList self_tasks;
-    for(int i=0;i<senders.size();i++){
-        if(!(senders[i]==public_ip)){
-            if(!tasks[i].isEmpty()){
-                sendReliableMessage(clients.indexOf(senders[i]),"SEND_TASK"+tasks[i]);
-            }
-        }
-        else self_tasks = tasks[i].split(';');
-    }
+//    //开始规划
+//    auto plan = planAutoSend(dst);
+//    auto senders = dst;
+//    senders.append(public_ip);
+//    //提取每个人任务
+//    QList<QString> tasks;//索引和senders一一对应
+//    for(int i=0;i<senders.size();i++){
+//        QStringList task;
+//        foreach(auto j , plan){
+//            foreach(auto k , j){
+//                if(k.first==senders[i]){
+//                    task.append(k.second);
+//                }
+//            }
+//        }
+//        tasks.append(task.join(';'));
+//    }
+//    //通知任务
+//    QStringList self_tasks;
+//    for(int i=0;i<senders.size();i++){
+//        if(!(senders[i]==public_ip)){
+//            if(!tasks[i].isEmpty()){
+//                sendReliableMessage(clients.indexOf(senders[i]),"SEND_TASK"+tasks[i]);
+//            }
+//        }
+//        else self_tasks = tasks[i].split(';');
+//    }
     
-    //发送
-    for(auto t : self_tasks){
-        //查找
-        int index = -1;
-        for(int i=0;i<clients.size();i++){
-            if(clients[i].operator QString const() == t){
-                index=i;
-                break;
-            }
-        }
-//        QMetaObject::invokeMethod(this,[=]{sendFileTo(index);},Qt::QueuedConnection);//QueuedConnection在事件循环运行并且顺序按照invoke的顺序运行。sendFileTo不能在除了事件循环以外的其他地方运行
-        sendFileTo(index);
-        ui->textEdit_debug1->append(QString("发送文件到%1").arg(index));
-    }
+//    //发送
+//    for(auto t : self_tasks){
+//        //查找
+//        int index = -1;
+//        for(int i=0;i<clients.size();i++){
+//            if(clients[i].operator QString const() == t){
+//                index=i;
+//                break;
+//            }
+//        }
+////        QMetaObject::invokeMethod(this,[=]{sendFileTo(index);},Qt::QueuedConnection);//QueuedConnection在事件循环运行并且顺序按照invoke的顺序运行。sendFileTo不能在除了事件循环以外的其他地方运行
+//        sendFileTo(index);
+//        ui->textEdit_debug1->append(QString("发送文件到%1").arg(index));
+//    }
+    m_transmissionengine->SPTP_send(mergeFile(QDir("files/")),dst);
 }
 
 
@@ -1781,10 +1767,10 @@ bool MainWindow::sendReliableMessage(int dst, QString msg){
 }
 
 
-QVector<QVector<QPair<MainWindow::ipport, MainWindow::ipport>>> MainWindow::planAutoSend(QList<MainWindow::device> dsts){
+QVector<QVector<QPair<ipport, ipport>>> MainWindow::planAutoSend(QList<device> dsts){
     QQueue<ipport> senders;
     QQueue<ipport> receivers;
-    QVector<QVector<QPair<MainWindow::ipport, MainWindow::ipport>>> result;
+    QVector<QVector<QPair<ipport, ipport>>> result;
     foreach(ipport i,dsts)receivers.append(i);
     senders.append(public_ip);
     
@@ -1792,7 +1778,7 @@ QVector<QVector<QPair<MainWindow::ipport, MainWindow::ipport>>> MainWindow::plan
     ninfo<<"开始规划发送表";
     while(!receivers.empty()){//规划到没有可用的接收者了
         QQueue<ipport> new_senders;
-        QVector<QPair<MainWindow::ipport, MainWindow::ipport>> thisRound;
+        QVector<QPair<ipport, ipport>> thisRound;
         ninfo<<"----------";
         foreach(ipport sender , senders){
             if(receivers.empty())break;
@@ -1900,26 +1886,26 @@ void MainWindow::on_rightclick(){       //右键点击事件
 }
 
 
-void MainWindow::on_readyRead(){
-    while(m_communication->hasPendingDatagrams() || !currentReliableMsg.isEmpty()){
-    bool penDingDatagramFlag = m_communication->hasPendingDatagrams();
-    QNetworkDatagram datagram = m_communication->readDatagram();
-//    ipport sender = {datagram.senderAddress().toString(),(quint16)datagram.senderPort()}; //###
-//    ndb<<"data"<<datagram.data();
-    //解密数据
-    QByteArray msg;
-    if(penDingDatagramFlag){
-        msg = decode(datagram.data());
-        lastMessage=msg;
-        //    ndb<<"var:msg"<<msg;
-        QJsonObject json_temp = QJsonDocument::fromJson(msg).object();json_temp.remove("filebody");
-        ninfo<<"var:msg(no filebody)"<<QJsonDocument(json_temp).toJson();
-    }
-    else if(!currentReliableMsg.isEmpty()){
-        msg=currentReliableMsg.toUtf8();
-        currentReliableMsg.clear();
-        ninfo<<"var:msg(relieableMsg)"<<msg;
-    }
+void MainWindow::on_readyRead(QByteArray msg){
+//    while(m_communication->hasPendingDatagrams() || !currentReliableMsg.isEmpty()){
+//    bool penDingDatagramFlag = m_communication->hasPendingDatagrams();
+//    QNetworkDatagram datagram = m_communication->readDatagram();
+////    ipport sender = {datagram.senderAddress().toString(),(quint16)datagram.senderPort()}; //###
+////    ndb<<"data"<<datagram.data();
+//    //解密数据
+//    QByteArray msg;
+//    if(penDingDatagramFlag){
+//        msg = decode(datagram.data());
+//        lastMessage=msg;
+//        //    ndb<<"var:msg"<<msg;
+//        QJsonObject json_temp = QJsonDocument::fromJson(msg).object();json_temp.remove("filebody");
+//        ninfo<<"var:msg(no filebody)"<<QJsonDocument(json_temp).toJson();
+//    }
+//    else if(!currentReliableMsg.isEmpty()){
+//        msg=currentReliableMsg.toUtf8();
+//        currentReliableMsg.clear();
+//        ninfo<<"var:msg(relieableMsg)"<<msg;
+//    }
     
     QJsonDocument jd = QJsonDocument::fromJson(msg);
     QJsonObject json;
@@ -2058,6 +2044,9 @@ void MainWindow::on_readyRead(){
             ninfo<<"传输任务："<<sendTask;
             ui->textBrowser_debug1->append("传输任务：");
             ui->textBrowser_debug1->append(sendTask.join(";"));
+        }
+        else if(msg=="DING"){
+            QMessageBox::information(this,"叮","有人叮了一下你");
         }
         else{
             ncritical<<"ERROR:msg isn`t an object!";
@@ -2315,6 +2304,7 @@ void MainWindow::on_readyRead(){
     }
     if(json.contains("test_msg")){
         QMessageBox::information(this,"收到了一个测试消息",(json["test_msg"].toString()));
+        send("DING",1,sender_index);
     }
     if(json.contains("remote_event")){
         QString msg=json["remote_event"].toString();
@@ -2390,12 +2380,17 @@ void MainWindow::on_readyRead(){
         if(control_msg=="ALO_RLS"){
             if(currentReliableUuid==json["uuid"].toString()){
                 currentReliableMsg.clear();
-                QMetaObject::invokeMethod(this,&MainWindow::on_readyRead,Qt::QueuedConnection);
+                QMetaObject::invokeMethod(this,/*&MainWindow::on_readyRead*/[this]{on_readyRead(currentReliableMsg.toUtf8());},Qt::QueuedConnection);
             }
             send((QString("R_ACK_RLS")+currentReliableUuid).toUtf8(),1,sender_index);
         }
     }
-    }
+//    }
+}
+
+
+void MainWindow::on_SPTP_readyRead(QByteArray msg){
+    releaseFile(msg);
 }
 
 
@@ -2782,6 +2777,7 @@ void MainWindow::on_pushButton_debug1_clicked(){
 //                 });
 //    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,1));
 //    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,2));
+    m_transmissionengine->send("啊啊啊啊啊啊啊啊啊");
 }
 
 
