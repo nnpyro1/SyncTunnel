@@ -294,10 +294,12 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     QDir dir_empty_label1("config/empty/label1");
     if(dir_empty_label1.exists()){
         ui->tabWidget->setCurrentIndex(0);
+        is_first_launch = false;
     }
     else{
         dir_empty_label1.mkpath(".");
-         ui->tabWidget->setCurrentIndex(5);
+        ui->tabWidget->setCurrentIndex(5);
+        is_first_launch = true;
     }
     QDir dir_emty_label2("config/empty/label2");//不启用关机阻止
     if(!dir_emty_label2.exists()){
@@ -595,6 +597,22 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     winRun if(!json_settings["disable_notice"].toBool())QProcess::startDetached("Noticer.exe");
     
     QTimer::singleShot(1000,this,[this]{raise();});
+    if(is_first_launch){
+        QMetaObject::invokeMethod(this,[this]{
+            int button1 = QMessageBox::information(this,"向导","为了节省您宝贵的时间，我们可以为您展示一个快速配置向导，引导您快速配置软件。请问您需要吗？",QMessageBox::Yes|QMessageBox::No);
+            if(button1==QMessageBox::Yes){
+                Wizard_startup *w = new Wizard_startup;
+                connect(w,&Wizard_startup::settingsSaved,this,[this](QString username,QString pwd,QString gh,QString ghpat){
+                    ui->lineEdit_settings_username->setText(username);
+                    ui->lineEdit_settings_pwd->setText(pwd);
+                    ui->lineEdit_settings_githubPAT->setText(ghpat);
+                    ui->lineEdit_settings_gitubUser->setText(gh);
+                    ui->pushButton_settings_save->click();
+                });
+                w->exec();
+            }
+        },Qt::QueuedConnection);
+    }
 }
 
 MainWindow::~MainWindow(){
@@ -1592,7 +1610,7 @@ bool MainWindow::checkSkin(MainWindow::skinType skin){
     //等待
     QEventLoop loop;
     connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-    QTimer::singleShot(5000,&loop,&QEventLoop::quit);
+    QTimer::singleShot(6000,&loop,&QEventLoop::quit);
     loop.exec();
     
     //处理
@@ -2484,9 +2502,45 @@ void MainWindow::on_settings_saved(){
     
     
     if(user_name!=ui->lineEdit_settings_username->text()||pwd!=ui->lineEdit_settings_pwd->text()){//保存用户名密码
+        auto un=ui->lineEdit_settings_username->text(),p=ui->lineEdit_settings_pwd->text();
+        if(un.size()<8||p.size()<8){
+            QMessageBox::warning(this,"无法设置用户名密码","用户名密码过短。要求用户名和密码不少于8字符");
+            return;
+        }
+        if(user_name!=ui->lineEdit_settings_username->text()){
+            int btn = QMessageBox::information(this,"提示","您已设置您的用户名~\n\n您的用户名是P2P设备发现的唯一重要标识。\n为了保证软件使用环境的公平，防止用户名恶意抢注、滥用，您的用户名修改记录、本次是否这台设备第一次登录软件以及当前时间会被保存在Github。\n\n如果您同意，请点击Yes,这个美美的用户名就归您所有了~\n如果您拒绝，请点No,本次用户名修改不生效。",QMessageBox::Yes|QMessageBox::No,QMessageBox::No);
+            if(btn==QMessageBox::No){
+                return;
+            }
+            auto manager = new QNetworkAccessManager;
+            QNetworkRequest request;
+            //构造请求
+            request.setRawHeader("Authorization","Bearer github_pa""t_11BFY446Q02UWK1Edm0Ij3_aqJLe8784LDjCWR2fyjSfrKVpe1PwdgLBLEx8JUzpAoIXESQ24U55YbmtnF");
+            request.setHeader(QNetworkRequest::UserAgentHeader,"NNPYRO SyncTunnel FileHangUp Service");
+            request.setRawHeader("Accept", "application/vnd.github.v3+json");
+            request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+            QJsonObject json;
+            json["message"]="用户名滥用检查";
+            //设置统计文件
+            request.setUrl(QUrl(QString("https://api.github.com/repos/nnpyro1/synctunnel-interface-w/contents/users/%1").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss"))));
+            json["content"]=QString(QString("Time:%1\nUser-Name:%2\nis_first_launch:%3").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss")).arg(ui->lineEdit_settings_username->text()).arg(is_first_launch?"True":"False").toUtf8().toBase64());
+            QNetworkReply *reply = manager->put(request,QJsonDocument(json).toJson());
+            //等待响应
+            QEventLoop loop;
+            connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
+            loop.exec();
+            if(reply->error() != QNetworkReply::NoError){
+                QMessageBox::critical(this,"错误","错误：无法请求数据到服务器。详细信息："+reply->errorString());
+                return;
+            }
+            else{
+                QMessageBox::information(this,"成功","设置成功！");
+            }
+            reply->deleteLater();
+            manager->deleteLater();
+        }
         user_name = ui->lineEdit_settings_username->text();
         pwd = ui->lineEdit_settings_pwd->text();
-        
         QDir dir("config");
         if(!dir.exists())dir.mkpath(".");
         QFile f("config/1.nprivate0");
@@ -2777,7 +2831,14 @@ void MainWindow::on_pushButton_debug1_clicked(){
 //                 });
 //    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,1));
 //    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,2));
-    m_transmissionengine->send("啊啊啊啊啊啊啊啊啊");
+//    m_transmissionengine->send("啊啊啊啊啊啊啊啊啊");
+    {
+        label_status->setText("正在发送可靠消息");
+        bool a = m_transmissionengine->sendReliableMessage(1,"DING");
+        label_status->setText(QString("发送可靠消息完成。成功：%1").arg(a));
+    }
+//    QApplication::beep();
+//    QSound::play("C:/Windows/Media/Alarm02.wav");
 }
 
 

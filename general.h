@@ -5,7 +5,7 @@
 
 //调试宏定义
 #include <QDebug>
-#define noutput(method) q##method()<<'['<<#method<<']'<<__FILE__<<__func__<<__LINE__<<"\n"
+#define noutput(method) q##method()<<"["<<#method<<']'<<__FILE__<<__func__<<__LINE__<<"\n"
 #define ndb noutput(Debug)
 #define ninfo noutput(Info)
 #define nwarning noutput(Warning)

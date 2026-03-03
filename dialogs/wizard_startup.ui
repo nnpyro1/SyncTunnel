@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Wizard_startup</class>
+ <widget class="QWizard" name="Wizard_startup">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>833</width>
+    <height>597</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Wizard</string>
+  </property>
+  <widget class="QWizardPage" name="wizardPage">
+   <property name="title">
+    <string>SyncTunnel配置向导</string>
+   </property>
+   <property name="subTitle">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;欢迎来到SyncTunnel 配置向导。 &lt;/p&gt;&lt;p&gt;在这里，您将完成对SyncTunnel的配置，并熟悉软件的操作和注意事项。&lt;/p&gt;&lt;p&gt;点击下一步进入配置向导&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </widget>
+  <widget class="QWizardPage" name="wizardPage1">
+   <property name="title">
+    <string>用户协议</string>
+   </property>
+   <property name="subTitle">
+    <string>请认真阅读用户协议&lt;br/&gt;点击“下一步”，代表您同意此用户协议。</string>
+   </property>
+   <layout class="QFormLayout" name="formLayout_3">
+    <item row="0" column="0" colspan="2">
+     <widget class="QTextBrowser" name="textBrowser"/>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWizardPage" name="wizardPage2">
+   <property name="title">
+    <string>设置用户名密码</string>
+   </property>
+   <property name="pageType" stdset="0">
+    <string notr="true">passport</string>
+   </property>
+   <layout class="QGridLayout" name="gridLayout_2">
+    <item row="1" column="0">
+     <layout class="QFormLayout" name="formLayout">
+      <item row="0" column="0">
+       <widget class="QLabel" name="Label">
+        <property name="text">
+         <string>用户名</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="lineEdit_userName"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="Label_2">
+        <property name="text">
+         <string>密码</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="lineEdit_password">
+        <property name="echoMode">
+         <enum>QLineEdit::PasswordEchoOnEdit</enum>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;请设置您的用户名、密码。&lt;/p&gt;&lt;p&gt;注意：&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;用户名&lt;/span&gt;&lt;span style=&quot; font-weight:600; color:#ff0000;&quot;&gt;需要大于8字符&lt;/span&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;，且&lt;/span&gt;&lt;span style=&quot; font-weight:600; font-style:italic; text-decoration: underline; color:#ff0000;&quot;&gt;不能和任何已经存在的用户名重复&lt;/span&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;，否则数据安全得不到保障。&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;密码请&lt;/span&gt;&lt;span style=&quot; font-weight:600; color:#ff0000;&quot;&gt;设置大于8位的&lt;/span&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;、&lt;/span&gt;&lt;span style=&quot; font-weight:600; color:#ff0000;&quot;&gt;包含字母数字&lt;/span&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;的混合密码。&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;请自己对自己的数据安全负责！设置一个强密码！！！如果设置的密码过弱，加密很容易被攻破，数据安全得不到保障！！！&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWizardPage" name="wizardPage3">
+   <property name="title">
+    <string>文件挂起设置</string>
+   </property>
+   <layout class="QGridLayout" name="gridLayout_3">
+    <item row="0" column="0">
+     <widget class="QLabel" name="label_3">
+      <property name="text">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;文件挂起依赖Github账号中的仓库存储您的文件。&lt;/p&gt;&lt;p&gt;您可以自行注册Github账号并配置仓库以获得专属于自己的文件挂起储存空间&lt;/p&gt;&lt;p&gt;也可以直接使用默认的账号、密码，和他人共享文件挂起储存空间（即便是共享，您的数据也会用刚才您设置的密码加密，他人无法获取）&lt;/p&gt;&lt;p&gt;如果您想自己注册Github并配置文件挂起但不知道如何配置，请先点击“我想要跳过此步骤”，在软件&lt;span style=&quot; font-weight:600;&quot;&gt;其他-&amp;gt;帮助-&amp;gt;文件挂起&lt;/span&gt; 页面找到配置教程&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;此步骤非必需，跳过此步骤仅会影响文件挂起功能的使用，不影响使用软件基础功能&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+     </widget>
+    </item>
+    <item row="5" column="0">
+     <layout class="QFormLayout" name="formLayout_2">
+      <item row="0" column="0">
+       <widget class="QLabel" name="Label_3">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Github账号</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="lineEdit_github"/>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="lineEdit_github_pat"/>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="Label_4">
+        <property name="text">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;具有synctunnel-filehangup&lt;span style=&quot; font-size:6pt;&quot;/&gt;&lt;/p&gt;&lt;p&gt;仓库访问权限的PAT&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="1" column="0">
+     <widget class="QRadioButton" name="radioButton_github_skip">
+      <property name="text">
+       <string>我想要跳过此步骤</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+      <attribute name="buttonGroup">
+       <string notr="true">buttonGroup</string>
+      </attribute>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QRadioButton" name="radioButton_github_self">
+      <property name="text">
+       <string>我想要自己注册Github账号并独享文件挂起储存空间</string>
+      </property>
+      <property name="pageType" stdset="0">
+       <string>github</string>
+      </property>
+      <attribute name="buttonGroup">
+       <string notr="true">buttonGroup</string>
+      </attribute>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QRadioButton" name="radioButton_github_default">
+      <property name="text">
+       <string>我想要使用默认的文件挂起储存空间</string>
+      </property>
+      <attribute name="buttonGroup">
+       <string notr="true">buttonGroup</string>
+      </attribute>
+     </widget>
+    </item>
+    <item row="4" column="0">
+     <widget class="QLabel" name="label">
+      <property name="text">
+       <string>如果选择此项，请在下面输入您自己的Github账号和Personal Access Token(PAT)</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWizardPage" name="wizardPage4">
+   <property name="title">
+    <string>完成向导</string>
+   </property>
+   <property name="subTitle">
+    <string>恭喜，您已经完成了所有配置向导步骤。如果您需要返回修改信息，请点击左上角的“向左箭头”按钮。如果您确认无误，请点击完成。</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+ <buttongroups>
+  <buttongroup name="buttonGroup"/>
+ </buttongroups>
+</ui>

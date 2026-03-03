@@ -11,7 +11,9 @@
 #include <QDir>
 #include <QtEndian>
 #include <QElapsedTimer>
+#ifdef Q_OS_WIN
 #include <windows.h>
+#endif
 #include <QJsonArray>
 #include <QQueue>
 
@@ -23,6 +25,15 @@ TransmissionEngine::TransmissionEngine(Communication *m_communication, QString u
     connect(&timer_is_uploading,&QTimer::timeout,this,[this]{chunks.clear();is_uploading=false;send_current_delay=SEND_MAX_DELAY-10;/*send_stable_count=0;send_ack_count.clear();*/send_req_ack_loop=5;send_lost_loop_count=0;send_lost_count.clear();/*foreach(auto i,schedule_list)i->setEnabled(true);*/});      //发送方清除状态
 //    connect(&timer_clear_currentFileMap,&QTimer::timeout,this,[this]{currentFileMap.clear();currentFileTotal = -1;/*;receive_lost_count=0;*/receive_last_pack_index=-1;receive_last_ack_total=-1;timer_fileResend.stop();/*receive_last_ack_index=-1*//*;foreach(auto i,schedule_list)i->setEnabled(true);*/});//接收方清除状态
     connect(&timer_keepAlive,&QTimer::timeout,this,[this]{if(chunks.empty()&&currentFileMap.empty())send("KEEP_ALIVE");});  
+    connect(this,&TransmissionEngine::signal_reliableMessage_received,this,&TransmissionEngine::on_reliableMessage_received,Qt::QueuedConnection);
+    connect(this,&TransmissionEngine::signal_resend_finished,this,[this]{
+        if(!queue_fileSendingTask.isEmpty()){
+            auto task_ptr = queue_fileSendingTask.front();
+            queue_fileSendingTask.pop_front();
+            QMetaObject::invokeMethod(this,[this,task_ptr=std::move(task_ptr)]{SPTP_sendTo(clients.indexOf(task_ptr->dst),task_ptr->msg);},Qt::QueuedConnection);
+        }
+        else{}
+    },Qt::QueuedConnection);
     
 //    timer_keepAlive.start(????);///废弃
 }
@@ -638,7 +649,11 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
 #endif
     
     //要求重传
+    ndb<<"流程A";
+    multiDelay(500);
+    ndb<<"流程B";
     sendReliableMessage(currentSendDst,"PLEASE_REQ_RESEND");
+    ndb<<"流程C";
 }
 
 void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
@@ -686,14 +701,20 @@ void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
             }
         }
 //        QMetaObject::invokeMethod(this,[=]{sendFileTo(index);},Qt::QueuedConnection);//QueuedConnection在事件循环运行并且顺序按照invoke的顺序运行。sendFileTo不能在除了事件循环以外的其他地方运行
-        SPTP_sendTo(index,msg);
-        emit messageChanged("正在等待状态重置……(请耐心等候)");
+        /*SPTP_sendTo(index,msg);
+        emit messageChanged("正在等待状态重置……");
         QEventLoop loop;
         QTimer::singleShot(21000,&loop,&QEventLoop::quit);
         connect(this,&TransmissionEngine::signal_resend_finished,&loop,&QEventLoop::quit);
-        loop.exec();
+        loop.exec();*/
 //        ui->textEdit_debug1->append(QString("发送文件到%1").arg(index));
+        
+        file_sending_task task = {clients[index],msg};
+        auto task_ptr = std::make_shared<const file_sending_task>(clients[index], msg);
+        queue_fileSendingTask.append((task_ptr));
     }
+    
+    emit signal_resend_finished();
 }
 
 bool TransmissionEngine::sendReliableMessage(int dst, QString msg){
@@ -701,10 +722,17 @@ bool TransmissionEngine::sendReliableMessage(int dst, QString msg){
         ncritical<<"Invaild dst:"<<dst;
         return false;
     }
+    /*  if(!currentReliableUuid.isEmpty()){//等待可靠消息接受完成
+        QEventLoop loop;
+        QTimer tm;
+        tm.setSingleShot(false);
+        connect(&tm,&QTimer::timeout,this,[this,&loop]{if(currentReliableUuid.isEmpty()){loop.quit();}});
+        loop.exec();
+    }*/
     //生成唯一ID
     QUuid uuid = QUuid::createUuid();
     //发送消息-1
-    for(int i=0;i<3;i++){
+    /*for(int i=0;i<3;i++){
         QJsonObject json1;
         json1.insert("reliable_msg","DATA");
         json1.insert("uuid",uuid.toString(QUuid::Id128));
@@ -715,7 +743,7 @@ bool TransmissionEngine::sendReliableMessage(int dst, QString msg){
 //        bool flag1=false;
         bool flag_is_succeed = false;
         QTimer::singleShot(3000,&loop,&QEventLoop::quit);
-        connect(this,
+        auto conn = connect(this,
                 &TransmissionEngine::communicationReadyRead,this,[uuid,&loop,&flag_is_succeed](QByteArray lastMessage){
             if(lastMessage.contains("R_ACK_DATA")&&
                     lastMessage.contains(uuid.toString(QUuid::Id128).toUtf8())){
@@ -723,12 +751,21 @@ bool TransmissionEngine::sendReliableMessage(int dst, QString msg){
                 flag_is_succeed=true;}
         });
 //        connect(m_communication,&Communication::readyRead,this,[&]{flag1=true;});
+        ndb<<"可靠消息:发送DATA";
         loop.exec();
+        disconnect(conn);
 //        if(flag1&&lastMessage.contains(uuid.toString(QUuid::Id128).toUtf8())&&lastMessage.contains("R_ACK_DATA"))break;
-        if(flag_is_succeed)break;
-        if(i==2)return false;
+        if(flag_is_succeed){
+            ndb<<"可靠消息：成功接收R_ACK_DATA";
+            break;
+        }
+        if(i==2){
+            ndb<<"可靠消息：等待R_ACK_DATA失败";
+            return false;
+        }
     }
     //发送允许释放
+    multiDelay(10);
     for(int i=0;i<3;i++){
         QJsonObject json1;
         json1.insert("reliable_msg","ALO_RLS");
@@ -739,13 +776,99 @@ bool TransmissionEngine::sendReliableMessage(int dst, QString msg){
         bool flag1=false;
         bool flag_is_succeed = false;
         QTimer::singleShot(3000,&loop,&QEventLoop::quit);
-        connect(this,&TransmissionEngine::communicationReadyRead,this,[uuid,&loop,&flag_is_succeed,this](QByteArray lastMessage){if(lastMessage.contains("R_ACK_RLS")&&lastMessage.contains(uuid.toString(QUuid::Id128).toUtf8())){loop.quit();flag_is_succeed=true;}});//SIGSEGV
+//        connect(this,&TransmissionEngine::communicationReadyRead,this,[uuid,&loop,&flag_is_succeed,this](QByteArray lastMessage){if(lastMessage.contains("R_ACK_RLS")&&lastMessage.contains(uuid.toString(QUuid::Id128).toUtf8())){loop.quit();flag_is_succeed=true;}});//SIGSEGV
+        auto conn = connect(this,
+                &TransmissionEngine::communicationReadyRead,this,[uuid,&loop,&flag_is_succeed](QByteArray lastMessage){
+            if(lastMessage.contains("R_ACK_RLS")&&
+                    lastMessage.contains(uuid.toString(QUuid::Id128).toUtf8())){
+                loop.quit();
+                flag_is_succeed=true;}
+        });
         connect(m_communication,&Communication::readyRead,this,[&]{flag1=true;});
+        ndb<<"可靠消息:发送ALO_RLS";
         loop.exec();
+        disconnect(conn);
 //        if(flag1&&lastMessage.contains(uuid.toString(QUuid::Id128).toUtf8())&&lastMessage.contains("R_ACK_RLS"))break;
-        if(flag_is_succeed)break;
-        if(i==2)return false;
+        if(flag_is_succeed){
+            ndb<<"可靠消息：成功接收R_ACK_RLS";
+            break;
+        }
+        if(i==2){
+            ndb<<"可靠消息：等待R_ACK_RLS失败";
+            return false;
+        }
     }
+    return true;*/
+    
+    //流程：
+    /* 发送方           接收方
+     * DATA ->
+     *               <-ACK
+     * DONE ->
+     *               <-COMP               
+     */
+    
+    //1.发送DATA，等待ACK
+    for(int i=0;i<6;i++){
+        QJsonObject json1;
+        json1.insert("reliable_msg","DATA");
+        json1.insert("uuid",uuid.toString(QUuid::Id128));
+        json1.insert("value",msg);
+        send(QJsonDocument(json1).toJson(),1,dst);
+        //等待回复
+        QEventLoop loop;
+    //            bool flag1=false;
+        bool flag_is_succeed = false;
+        QTimer::singleShot(1000,&loop,&QEventLoop::quit);
+        auto conn = connect(this,
+                            &TransmissionEngine::communicationReadyRead,this,[uuid,&loop,&flag_is_succeed](QByteArray lastMessage){
+            if(lastMessage.contains("R_ACK_DATA")&&
+                    lastMessage.contains(uuid.toString(QUuid::Id128).toUtf8())){
+                loop.quit();
+                flag_is_succeed=true;}
+        });
+        ndb<<"可靠消息:发送DATA";
+        loop.exec();
+        disconnect(conn);
+        if(flag_is_succeed){
+            ndb<<"可靠消息：成功接收R_ACK_DATA";
+            break;
+        }
+        if(i==5){
+            ndb<<"可靠消息：等待R_ACK_DATA失败";
+            return false;
+        }
+    } 
+    //2.发送DONE，等待COMP
+    for(int i=0;i<6;i++){
+        QJsonObject json1;
+        json1.insert("reliable_msg","DONE");
+        json1.insert("uuid",uuid.toString(QUuid::Id128));
+        send(QJsonDocument(json1).toJson(),1,dst);
+        //等待回复
+        QEventLoop loop;
+    //            bool flag1=false;
+        bool flag_is_succeed = false;
+        QTimer::singleShot(1000,&loop,&QEventLoop::quit);
+        auto conn = connect(this,
+                            &TransmissionEngine::communicationReadyRead,this,[uuid,&loop,&flag_is_succeed](QByteArray lastMessage){
+            if(lastMessage.contains("R_COMP")&&
+                    lastMessage.contains(uuid.toString(QUuid::Id128).toUtf8())){
+                loop.quit();
+                flag_is_succeed=true;}
+        });
+        ndb<<"可靠消息:发送DONE";
+        loop.exec();
+        disconnect(conn);
+        if(flag_is_succeed){
+            ndb<<"可靠消息：成功接收R_COMP";
+            break;
+        }
+        if(i==5){
+            ndb<<"可靠消息：等待R_COMP失败";
+            return false;
+        }
+    } 
     return true;
 }
 
@@ -793,7 +916,8 @@ void TransmissionEngine::multiDelay(float ms)
 
 
 void TransmissionEngine::on_readyRead(){
-    while(m_communication->hasPendingDatagrams() || !currentReliableMsg.isEmpty()){
+    ndb<<"进入消息处理on_readyRead";
+    while(m_communication->hasPendingDatagrams() /*|| ((!currentReliableMsg.isEmpty())&&reliableMsg_available)*/){
     bool isHandled = false;
     bool penDingDatagramFlag = m_communication->hasPendingDatagrams();
     QNetworkDatagram datagram = m_communication->readDatagram();
@@ -801,18 +925,19 @@ void TransmissionEngine::on_readyRead(){
 //    ndb<<"data"<<datagram.data();
     //解密数据
     QByteArray msg;
-    if(penDingDatagramFlag){
+//    if(penDingDatagramFlag){
         msg = decode(datagram.data());
         lastMessage=msg;
 //        ndb<<"var:msg"<<msg;
         QJsonObject json_temp = QJsonDocument::fromJson(msg).object();json_temp.remove("filebody");
         ninfo<<"var:msg(no filebody)"<<QJsonDocument(json_temp).toJson();
-    }
-    else if(!currentReliableMsg.isEmpty()){
-        msg=currentReliableMsg.toUtf8();
-        currentReliableMsg.clear();
-        ninfo<<"var:msg(relieableMsg)"<<msg;
-    }
+//    }
+//    else if(!currentReliableMsg.isEmpty()&&reliableMsg_available){
+//        msg=currentReliableMsg.toUtf8();
+//        currentReliableMsg.clear();
+//        reliableMsg_available = false;
+//        ninfo<<"var:msg(relieableMsg)"<<msg;
+//    }
     
     
     QJsonDocument jd = QJsonDocument::fromJson(msg);
@@ -824,6 +949,7 @@ void TransmissionEngine::on_readyRead(){
             isHandled=true;
             emit signal_resend_finished();
             emit messageChanged(tr("文件发送可能成功"));
+            QSound::play("C:/Windows/Media/Alarm02.wav");
         }
         else if(msg == "KEEP_ALIVE"){
             
@@ -875,6 +1001,9 @@ void TransmissionEngine::on_readyRead(){
         }
         else if(msg=="PLEASE_REQ_RESEND"){
             isHandled = true;
+            ndb<<"接收到PLEASE_REQ_RESEND";
+            multiDelay(100);
+            ndb<<"开始进行";
             on_request_resend();
         }
         else{
@@ -885,6 +1014,7 @@ void TransmissionEngine::on_readyRead(){
             emit communicationReadyRead(msg);
         }
         continue;//跳过下面的json处理逻辑
+//        return;///////////////留意此处，修改循环请注意。。。。。。。。
     }
     else{
         json = jd.object();
@@ -964,7 +1094,7 @@ void TransmissionEngine::on_readyRead(){
         msg_to_send.append(reinterpret_cast<const char *>(&header),sizeof(header));
         msg_to_send.append(chunks[qFromBigEndian(header.no)]);
 //        send(reinterpret_cast<const char *>(&header)+chunks[header.no]);
-        send(msg_to_send);
+        send(msg_to_send,1,sender_index);
         timer_is_uploading.stop();
         timer_is_uploading.start(10000);
         emit messageChanged(tr("正在回复重传请求……"));
@@ -1046,20 +1176,49 @@ void TransmissionEngine::on_readyRead(){
     if(json.contains("reliable_msg")){//可靠消息处理
         isHandled=true;
         QString control_msg = json["reliable_msg"].toString();
+        auto currentUuid = json["uuid"].toString();
         if(control_msg=="DATA"){
-            if(currentReliableUuid.isEmpty()){
-                currentReliableMsg=json["value"].toString();
-                currentReliableUuid=json["uuid"].toString();
-                send((QString("R_ACK_DATA")+currentReliableUuid).toUtf8(),1,sender_index);
+//            if(currentReliableUuid.isEmpty()){
+//                reliableMsg_available = 0;
+//                currentReliableMsg=json["value"].toString();
+//                currentReliableUuid=json["uuid"].toString();
+//                send((QString("R_ACK_DATA")+currentReliableUuid).toUtf8(),1,sender_index);
+//            }
+            //1.检验去重
+            if(!processedReliableUuids.contains(currentUuid)){
+                //直接处理消息
+//                currentReliableMsg=;
+                reliableMsg_available = false;
+                reliableMessages.insert(currentUuid,json["value"].toString());
+                //添加去重列表
+                processedReliableUuids.insert(currentUuid);
             }
+            //不管是否重发都回ACK
+            send((QString("R_ACK_DATA")+currentUuid).toUtf8(),1,sender_index);
         }
-        if(control_msg=="ALO_RLS"){
+        if(control_msg=="DONE"){
+            //删除uuid
+            if(processedReliableUuids.remove(currentUuid)){//检查消息是否存在，存在的话remove会返回true,顺便移除
+                reliableMsg_available = true;
+                auto crmsg = reliableMessages[currentUuid];
+                reliableMessages.remove(currentUuid);
+                emit signal_reliableMessage_received(crmsg.toUtf8());
+            }
+            send((QString("R_COMP")+currentUuid).toUtf8(),1,sender_index);
+            ndb<<"发送了R_COMP";
+//            reliableMsg_available = true;
+//            currentReliableMsg = reliableMessages[currentUuid];
+//            QMetaObject::invokeMethod(this,&TransmissionEngine::on_readyRead);
+        }
+        /*if(control_msg=="ALO_RLS"){
+            emit messageChanged("收到ALO_RLS");
             if(currentReliableUuid==json["uuid"].toString()){
                 currentReliableUuid.clear();
+                reliableMsg_available = 1;
                 QMetaObject::invokeMethod(this,&TransmissionEngine::on_readyRead,Qt::QueuedConnection);
             }
             send((QString("R_ACK_RLS")+json["uuid"].toString()).toUtf8(),1,sender_index);
-        }
+        }*/
     }
     if(!isHandled){
         emit communicationReadyRead(msg);
@@ -1100,7 +1259,7 @@ void TransmissionEngine::on_request_resend(){
 //    MessageBoxW(0,QString(tr("正在请求重传%1个包")).arg(resendList.size()).toStdWString().c_str(),L"Resend",0);
     foreach(auto i , resendList){
         json["request_resend"] = i;
-        send(QJsonDocument(json).toJson());
+        send(QJsonDocument(json).toJson(),1,clients.indexOf(receive_sender));
         emit messageChanged(QString(tr("正在请求重传%1个包")).arg(resendList.size()));
         QThread::msleep(100);
         QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents,100);
@@ -1135,7 +1294,7 @@ void TransmissionEngine::on_request_resend(){
     emit SPTP_readyRead(n);
     emit messageChanged(tr("文件释放成功"));
     QEventLoop loop2;        //定义一个新的事件循环
-    QTimer::singleShot(2000, &loop2,&QEventLoop::quit);//创建单次定时器，槽函数为事件循环的退出函数
+    QTimer::singleShot(3500, &loop2,&QEventLoop::quit);//创建单次定时器，槽函数为事件循环的退出函数
     loop2.exec(); 
     sendReliableMessage(clients.indexOf(receive_sender),"FILE_RELEASE_SUCCESSFULLY");
     
@@ -1156,15 +1315,53 @@ void TransmissionEngine::on_request_resend(){
                 }
             }
 //            QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,index));//QueuedConnection在事件循环运行并且顺序按照invoke的顺序运行。sendFileTo不能在除了事件循环以外的其他地方运行
-            SPTP_sendTo(index,n);
+            /*SPTP_sendTo(index,n);
             emit messageChanged("正在等待状态重置……(请耐心等候)");
             QEventLoop loop;
             QTimer::singleShot(21000,&loop,&QEventLoop::quit);
             connect(this,&TransmissionEngine::signal_resend_finished,&loop,&QEventLoop::quit);
-            loop.exec();
+            loop.exec();*/
 //            ui->textEdit_debug1->append(QString("发送文件到%1").arg(index));
+            auto task_ptr = std::make_shared<const file_sending_task>(clients[index], n);
+            queue_fileSendingTask.append((task_ptr));
         }
         sendTask.clear();//清空以便下次
+        emit signal_resend_finished();
+    }
+}
+
+void TransmissionEngine::on_reliableMessage_received(QString msg, TransmissionEngine::QPrivateSignal){
+    bool is_handled = false;
+    
+    if(msg == "FILE_RELEASE_SUCCESSFULLY" && !chunks.empty()){
+        is_handled=true;
+        emit signal_resend_finished();
+        emit messageChanged(tr("文件发送可能成功"));
+        QSound::play("C:/Windows/Media/Alarm02.wav");
+    }
+    else if(msg.startsWith("SEND_TASK")){
+        is_handled=true;
+        QString task = msg.mid(9);
+        sendTask = task.split(';');
+        emit messageChanged(QString("接受传输任务分配成功 任务数:%1").arg(sendTask.size()));
+        ninfo<<"传输任务："<<sendTask;
+//            ui->textBrowser_debug1->append("传输任务：");
+//            ui->textBrowser_debug1->append(sendTask.join(";"));
+    }
+    else if(msg=="PLEASE_REQ_RESEND"){
+        is_handled = true;
+        ndb<<"接收到PLEASE_REQ_RESEND";
+        multiDelay(100);
+        ndb<<"开始进行";
+        QMetaObject::invokeMethod(this,&TransmissionEngine::on_request_resend,Qt::QueuedConnection);
+    }
+    else if(msg=="DING"){
+        is_handled = true;
+        QMessageBox::information(qApp->activeWindow(),"叮","有人叮了你一下");
+    }
+    
+    if(!is_handled){
+        emit reliableMessageReceived(msg);
     }
 }
 
@@ -1195,5 +1392,6 @@ QVector<QVector<QPair<ipport, ipport>>> TransmissionEngine::planAutoSend(QList<d
     ninfo<<"结果："<<(result);
     return result;
 }
+
 
 #undef process_events_without_useript

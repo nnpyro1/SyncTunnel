@@ -7,6 +7,9 @@
 #include <qcachedbytearray.h>
 #include <QUuid>
 #include <QTimer>
+#include <QSound>
+#include <QQueue>
+#include <memory>
 
 class TransmissionEngine : public QObject
 {
@@ -47,15 +50,19 @@ signals:
     void messageChanged(QString message);                   //当需要在页面上显示消息的时候触发
     void communicationReadyRead(QByteArray msg);            //对于readyRead，应该联接这个而非Communication::readyRead
     void SPTP_readyRead(QByteArray data);                   //SPTP发送数据可读
+    void reliableMessageReceived(QString msg);              //可靠消息收到。
     
 signals://私有
-    void signal_test_if_connected_finished(QPrivateSignal);        //连通性测试完成
-    void signal_reqAck_finished(QPrivateSignal);                   //请求ack操作完成
-    void signal_resend_finished(QPrivateSignal={});                //对方重传完成
+    void signal_test_if_connected_finished(QPrivateSignal);         //连通性测试完成
+    void signal_reqAck_finished(QPrivateSignal);                    //请求ack操作完成
+    void signal_resend_finished(QPrivateSignal={});                 //对方重传完成
+    void signal_reliableMessage_received(QString msg,QPrivateSignal={});//私有：可靠消息收到了
+//    void signal_file_send_completed(QPrivateSignal={});             //文件发送成功并且状态成功清除 ### 和signal_resend_finished重复
     
 private slots:
     void on_readyRead();
     void on_request_resend();
+    void on_reliableMessage_received(QString msg,QPrivateSignal={});
     
 private://私有定义
 #pragma pack(push,1)
@@ -65,6 +72,12 @@ private://私有定义
         qint32 total;      //文件总数
     };
 #pragma pack(pop)
+    struct file_sending_task{
+        device dst;
+        const QByteArray msg;
+        file_sending_task(device dst_, QByteArray msg_) 
+                : dst(dst_), msg(std::move(msg_)) {}
+    };
     QVector<QVector<QPair<ipport,ipport>>> planAutoSend(QList<device> dsts);//自动规划向dsts发送的路径
     
 private://私有对象/变量
@@ -89,13 +102,17 @@ private://私有对象/变量
     QSet<int> send_current_fastresend_map;//快重传集合
     QTimer timer_keepAlive,timer_clear_currentFileMap,timer_is_uploading,timer_fileResend;
     QString currentReliableMsg;
+    bool reliableMsg_available = false;
     QByteArray lastMessage;
     QMap<int,QByteArray> currentFileMap;//当前正在传输的文件列表
     int currentFileTotal;//文件传输总数
     QStringList sendTask;
     QString receive_last_uuid;
-    QString currentReliableUuid;
+//    QString currentReliableUuid;
     device receive_sender;
+    QSet<QString> processedReliableUuids; // 用于去重的UUID集合
+    QMap<QString,QString> reliableMessages;
+    QQueue<std::shared_ptr<const file_sending_task>> queue_fileSendingTask;
 };
 
 #endif // TRANSMISSIONENGINE_H

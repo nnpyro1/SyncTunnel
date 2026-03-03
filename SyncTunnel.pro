@@ -1,9 +1,9 @@
 QT       += core gui
-QT       += network mqtt charts
+QT       += network mqtt charts multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-CONFIG += c++11
+CONFIG += c++14
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -24,6 +24,7 @@ SOURCES += \
     dialogs/dialog_remotefile.cpp \
     dialogs/dialog_schedule.cpp \
     dialogs/dialog_selectsyncdst.cpp \
+    dialogs/wizard_startup.cpp \
     main.cpp \
     mainwindow.cpp \
     modules/communication/communication.cpp \
@@ -39,6 +40,7 @@ HEADERS += \
     dialogs/dialog_remotefile.h \
     dialogs/dialog_schedule.h \
     dialogs/dialog_selectsyncdst.h \
+    dialogs/wizard_startup.h \
     general.h \
     mainwindow.h \
     modules/communication/communication.h \
@@ -51,6 +53,7 @@ FORMS += \
     dialogs/dialog_help.ui \
     dialogs/dialog_schedule.ui \
     dialogs/dialog_selectsyncdst.ui \
+    dialogs/wizard_startup.ui \
     mainwindow.ui
 
 #INCLUDEPATH += $$PWD/../../libary/socket.io-client-cpp/lib/rapidjson/include/rapidjson
@@ -78,7 +81,7 @@ TRANSLATIONS += \
 #CONFIG += console  #仅调试
 #DEFINES += NNPYRO_USE_CONSOLE   #仅调试
 DEFINES += DEBUG_NO_ENCRYPTION     #仅调试
-#DEFINES += NNPYRO_COLORFULCON   #控制台彩色输出
+DEFINES += NNPYRO_COLORFULCON   #控制台彩色输出
 
 # Default rules for deployment
 qnx: target.path = /tmp/$${TARGET}/bin

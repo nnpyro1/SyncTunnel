@@ -25,6 +25,7 @@
 #include <dialogs/dialog_selectsyncdst.h>
 #include <dialogs/dialog_help.h>
 #include <general.h>
+#include <dialogs/wizard_startup.h>
 using namespace QtCharts;
 
 
@@ -213,6 +214,7 @@ private://私有变量
     QString device_description;
     int device_flag;
     bool is_DFHN = false;
+    bool is_first_launch = false;
 #ifdef QT_DEBUG
     bool is_debug = true;
 #else
