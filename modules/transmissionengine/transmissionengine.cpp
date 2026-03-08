@@ -32,7 +32,7 @@ TransmissionEngine::TransmissionEngine(Communication *m_communication, QString u
             queue_fileSendingTask.pop_front();
             QMetaObject::invokeMethod(this,[this,task_ptr=std::move(task_ptr)]{SPTP_sendTo(clients.indexOf(task_ptr->dst),task_ptr->msg);},Qt::QueuedConnection);
         }
-        else{}
+        else{emit SPTP_sendFinished();}
     },Qt::QueuedConnection);
     
 //    timer_keepAlive.start(????);///废弃
@@ -949,7 +949,7 @@ void TransmissionEngine::on_readyRead(){
             isHandled=true;
             emit signal_resend_finished();
             emit messageChanged(tr("文件发送可能成功"));
-            QSound::play("C:/Windows/Media/Alarm02.wav");
+//            QSound::play("C:/Windows/Media/Alarm02.wav");
         }
         else if(msg == "KEEP_ALIVE"){
             
@@ -1129,6 +1129,7 @@ void TransmissionEngine::on_readyRead(){
     }
     if(json.contains("lost") && !chunks.empty()){
         isHandled=true;
+        ndb<<"收到lost包";
 //        send_current_delay += json["lost"].toInt() * 2;
 //        send_stable_count = 0;
 //        if(send_current_delay > SEND_MAX_DELAY) send_current_delay = SEND_MAX_DELAY;
@@ -1337,7 +1338,7 @@ void TransmissionEngine::on_reliableMessage_received(QString msg, TransmissionEn
         is_handled=true;
         emit signal_resend_finished();
         emit messageChanged(tr("文件发送可能成功"));
-        QSound::play("C:/Windows/Media/Alarm02.wav");
+//        QSound::play("C:/Windows/Media/Alarm02.wav");
     }
     else if(msg.startsWith("SEND_TASK")){
         is_handled=true;

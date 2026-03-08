@@ -46,7 +46,8 @@ HEADERS += \
     modules/communication/communication.h \
     modules/signalling/signalling.h \
     modules/storage/storage.h \
-    modules/transmissionengine/transmissionengine.h
+    modules/transmissionengine/transmissionengine.h \
+    passport.h
 
 FORMS += \
     dialog_remotefile.ui \

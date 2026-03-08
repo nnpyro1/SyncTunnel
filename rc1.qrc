@@ -7,6 +7,7 @@
         <file>rc/img/favicon.ico</file>
         <file>rc/translations/trans_en_US.qm</file>
         <file>rc/img/splash1.png</file>
-        <file>rc/bin/Alacritty.exe</file>
+        <file>rc/audio/file_release_successfully.wav</file>
+        <file>rc/audio/file_send_successfully.wav</file>
     </qresource>
 </RCC>

@@ -10,6 +10,7 @@
 #include <QSound>
 #include <QQueue>
 #include <memory>
+#include <QMediaPlayer>
 
 class TransmissionEngine : public QObject
 {
@@ -50,6 +51,7 @@ signals:
     void messageChanged(QString message);                   //当需要在页面上显示消息的时候触发
     void communicationReadyRead(QByteArray msg);            //对于readyRead，应该联接这个而非Communication::readyRead
     void SPTP_readyRead(QByteArray data);                   //SPTP发送数据可读
+    void SPTP_sendFinished();                               //消息发送结束，不管是否成功
     void reliableMessageReceived(QString msg);              //可靠消息收到。
     
 signals://私有

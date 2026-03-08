@@ -37,6 +37,7 @@
 #include <QUuid>
 #include <QMetaEnum>
 #include <qcachedbytearray.h>
+#include <passport.h>
 #ifdef Q_OS_ANDROID
 #include <QAndroidJniEnvironment>
 #include <QAndroidJniObject>
@@ -184,8 +185,10 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     file1.open(QIODevice::ReadOnly);
     QTextStream user_config_stream1(&file1);
     user_name = QByteArray::fromBase64(user_config_stream1.readLine().toUtf8());
-    pwd = QByteArray::fromBase64(user_config_stream1.readLine().toUtf8());
-    if(user_name.isEmpty())user_name="NO_USER_NAME";
+    auto encryptedPwd=(QByteArray::fromBase64(user_config_stream1.readLine().toUtf8()));
+    auto iv = encryptedPwd.mid(0,16);
+    pwd = QAESEncryption::RemovePadding(QAESEncryption::Decrypt(QAESEncryption::AES_256,QAESEncryption::CBC,encryptedPwd.mid(16),SYNCTUNNEL_CRPT_KEY,iv));
+    if(user_name.isEmpty())user_name="DefaultUser";
     ui->lineEdit_settings_username->setText(user_name);
     ui->lineEdit_settings_pwd->setText(pwd);
     ui->statusBar->addPermanentWidget(label_status);
@@ -567,6 +570,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     connect(m_transmissionengine,&TransmissionEngine::communicationReadyRead,this,&MainWindow::on_readyRead);
     connect(m_transmissionengine,&TransmissionEngine::SPTP_readyRead,this,&MainWindow::on_SPTP_readyRead);
     connect(m_transmissionengine,&TransmissionEngine::messageChanged,this,[this](QString msg){label_status->setText(msg);});
+    connect(m_transmissionengine,&TransmissionEngine::SPTP_sendFinished,this,[this]{label_status->setText("发送成功");playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));});
     
     //打洞
     for(int i=0;i<5;i++){
@@ -2409,6 +2413,7 @@ void MainWindow::on_readyRead(QByteArray msg){
 
 void MainWindow::on_SPTP_readyRead(QByteArray msg){
     releaseFile(msg);
+    playSound(QUrl("qrc:/rc/audio/file_release_successfully.wav"));
 }
 
 
@@ -2507,37 +2512,51 @@ void MainWindow::on_settings_saved(){
             QMessageBox::warning(this,"无法设置用户名密码","用户名密码过短。要求用户名和密码不少于8字符");
             return;
         }
-        if(user_name!=ui->lineEdit_settings_username->text()){
-            int btn = QMessageBox::information(this,"提示","您已设置您的用户名~\n\n您的用户名是P2P设备发现的唯一重要标识。\n为了保证软件使用环境的公平，防止用户名恶意抢注、滥用，您的用户名修改记录、本次是否这台设备第一次登录软件以及当前时间会被保存在Github。\n\n如果您同意，请点击Yes,这个美美的用户名就归您所有了~\n如果您拒绝，请点No,本次用户名修改不生效。",QMessageBox::Yes|QMessageBox::No,QMessageBox::No);
+        if(user_name!=ui->lineEdit_settings_username->text() && !QDir("config/empty/label1/ext-label-private/label-SyncTunnel-Username-uploaded/").exists()){
+            int btn = QMessageBox::information(this,"首次设置用户名防抢注验证","为同一用户防止恶意抢注、占用多个用户名、保障所有用户公平使用P2P功能，我们需要完成一次匿名验证：\n"" 仅上传您用户名的匿名加密串（攻击者不可能还原用户名明文，无任何个人信息）；\n"" 仅首次设置用户名时操作一次，后续不再上传任何数据；\n"" 数据存储于国内服务器，在验证用户名不是恶意抢注或占有后会尽快自动删除，数据最长留存一年（可联系nnpyro2@outlook.com删除）\n重要：若拒绝验证，您只能使用默认用户名+自定义密码使用软件，默认用户名为多用户共享，安全性低，若密码发生碰撞，您的个人数据可能会泄露，强烈不推荐使用。若使用，请设置强密码，并对自己的数据安全负全责\n\n""是否确认完成验证并保存用户名？",QMessageBox::Yes|QMessageBox::No,QMessageBox::No);
             if(btn==QMessageBox::No){
-                return;
-            }
-            auto manager = new QNetworkAccessManager;
-            QNetworkRequest request;
-            //构造请求
-            request.setRawHeader("Authorization","Bearer github_pa""t_11BFY446Q02UWK1Edm0Ij3_aqJLe8784LDjCWR2fyjSfrKVpe1PwdgLBLEx8JUzpAoIXESQ24U55YbmtnF");
-            request.setHeader(QNetworkRequest::UserAgentHeader,"NNPYRO SyncTunnel FileHangUp Service");
-            request.setRawHeader("Accept", "application/vnd.github.v3+json");
-            request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-            QJsonObject json;
-            json["message"]="用户名滥用检查";
-            //设置统计文件
-            request.setUrl(QUrl(QString("https://api.github.com/repos/nnpyro1/synctunnel-interface-w/contents/users/%1").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss"))));
-            json["content"]=QString(QString("Time:%1\nUser-Name:%2\nis_first_launch:%3").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss")).arg(ui->lineEdit_settings_username->text()).arg(is_first_launch?"True":"False").toUtf8().toBase64());
-            QNetworkReply *reply = manager->put(request,QJsonDocument(json).toJson());
-            //等待响应
-            QEventLoop loop;
-            connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-            loop.exec();
-            if(reply->error() != QNetworkReply::NoError){
-                QMessageBox::critical(this,"错误","错误：无法请求数据到服务器。详细信息："+reply->errorString());
-                return;
+                QMessageBox::information(this,"用户名未验证","用户名未经过防抢注验证，未保存，自动使用默认用户名");
+                ui->lineEdit_settings_username->setText("DefaultUser");
+                if(p.size()<15){
+                    QMessageBox::warning(this,"强烈建议","您正在使用默认用户名，默认用户名安全性极低，我们强烈建议您的密码长度大于15字符！！！！！\n\n\n或者您可以直接设置一个专属用户名！使用默认用户名的安全性极低，极易发生密码碰撞/数据泄露的重大安全事故，如果您使用默认用户名，请对自己的数据安全负全责！");
+//                    return;
+                }
             }
             else{
-                QMessageBox::information(this,"成功","设置成功！");
+                label_status->setText("正在进行用户名防抢注验证……");
+                auto manager = new QNetworkAccessManager;
+                QNetworkRequest request;
+                //构造请求
+                //            request.setRawHeader("Authorization","Bearer github_pa""t_11BF");
+                request.setHeader(QNetworkRequest::UserAgentHeader,"NNPYRO SyncTunnel Service");
+                //            request.setRawHeader("Accept", "application/vnd.github.v3+json");
+                request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+                QJsonObject json;
+                
+                json["message"]="用户名滥用检查";
+                json["access_token"]=SYNCTUNNEL_INTERFACE_W_ACCESS_TOKEN;
+                json["branch"]="username";
+                //设置统计文件
+                request.setUrl(QUrl(QString("https://gitee.com/api/v5/repos/nnpyro/synctunnel-interface-w/contents/users/%1").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss"))));
+                json["content"]=QString(QString("Time:%1\nUser-Name:%2\n").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss")).arg(QString(QCryptographicHash::hash(ui->lineEdit_settings_username->text().toUtf8(),QCryptographicHash::Sha256).toHex())).toUtf8().toBase64());
+                QNetworkReply *reply = manager->post(request,QJsonDocument(json).toJson());
+                //等待响应
+                QEventLoop loop;
+                connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
+                QTimer::singleShot(15000,&loop,&QEventLoop::quit);
+                loop.exec();
+                if(reply->error() != QNetworkReply::NoError || !reply->isFinished()){
+                    QMessageBox::critical(this,"错误","错误：无法请求数据到服务器。详细信息："+reply->errorString());
+                    //不允许用户暂时使用
+                    return;
+                }
+                else{
+                    QMessageBox::information(this,"成功","验证成功！您的用户名设置成功，应用程序自动重启。");
+                    QDir("config/empty/label1/ext-label-private/label-SyncTunnel-Username-uploaded/").mkpath(".");//下次不上传
+                }
+                reply->deleteLater();
+                manager->deleteLater();
             }
-            reply->deleteLater();
-            manager->deleteLater();
         }
         user_name = ui->lineEdit_settings_username->text();
         pwd = ui->lineEdit_settings_pwd->text();
@@ -2545,7 +2564,10 @@ void MainWindow::on_settings_saved(){
         if(!dir.exists())dir.mkpath(".");
         QFile f("config/1.nprivate0");
         f.open(QIODevice::WriteOnly | QIODevice::Truncate);
-        f.write(QString("%1\n%2").arg((QString)user_name.toUtf8().toBase64()).arg((QString)pwd.toUtf8().toBase64()).toUtf8());//写入
+        QByteArray iv;iv.resize(16);
+        QRandomGenerator::global()->generate(iv.data(),iv.data()+16);
+        auto buf = QString("%1\n%2").arg((QString)user_name.toUtf8().toBase64()).arg(/*(QString)pwd.toUtf8().toBase64()*/(QString)((iv+QAESEncryption::Crypt(QAESEncryption::AES_256,QAESEncryption::CBC,pwd.toUtf8(),SYNCTUNNEL_CRPT_KEY,iv)).toBase64())).toUtf8();
+        f.write(buf);//写入
         f.close();
         restart_flag=true;
     }
@@ -2832,13 +2854,14 @@ void MainWindow::on_pushButton_debug1_clicked(){
 //    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,1));
 //    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,2));
 //    m_transmissionengine->send("啊啊啊啊啊啊啊啊啊");
-    {
+    /*{
         label_status->setText("正在发送可靠消息");
         bool a = m_transmissionengine->sendReliableMessage(1,"DING");
         label_status->setText(QString("发送可靠消息完成。成功：%1").arg(a));
-    }
+    }*/
 //    QApplication::beep();
-//    QSound::play("C:/Windows/Media/Alarm02.wav");
+//    QSound::play(":/rc/audio/file_send_successfully.wav");
+    playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));
 }
 
 

@@ -48,4 +48,15 @@
 #include <modules/communication/communication.h>
 typedef Communication::ipport ipport; 
 typedef Communication::device device;
+
+
+//工具函数定义
+#include <QUrl>
+#include <QMediaPlayer>
+inline void playSound(QUrl url){
+    QMediaPlayer* player = new QMediaPlayer();
+    player->setMedia(QMediaContent(url));
+    QObject::connect(player, &QMediaPlayer::stateChanged, player, [=](QMediaPlayer::State state){if(state==QMediaPlayer::StoppedState)player->deleteLater();});
+    player->play();
+}
 #endif // GENERAL_H
