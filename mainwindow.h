@@ -26,6 +26,7 @@
 #include <dialogs/dialog_help.h>
 #include <general.h>
 #include <dialogs/wizard_startup.h>
+#include <QResizeEvent>
 using namespace QtCharts;
 
 
@@ -128,6 +129,7 @@ protected://继承
     virtual void dropEvent(QDropEvent *event) override;
     virtual bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
     virtual bool eventFilter(QObject *obj, QEvent *event) override;
+    virtual void resizeEvent(QResizeEvent *e) override;
     
     
 signals://信号
@@ -215,6 +217,7 @@ private://私有变量
     int device_flag;
     bool is_DFHN = false;
     bool is_first_launch = false;
+    QTimer timer_refresh;
 #ifdef QT_DEBUG
     bool is_debug = true;
 #else

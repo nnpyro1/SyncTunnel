@@ -59,4 +59,13 @@ inline void playSound(QUrl url){
     QObject::connect(player, &QMediaPlayer::stateChanged, player, [=](QMediaPlayer::State state){if(state==QMediaPlayer::StoppedState)player->deleteLater();});
     player->play();
 }
+
+
+//安全报警
+#ifndef QT_DEBUG
+#ifdef DEBUG_NO_ENCRYPTION
+#error "Safety Error:DEBUG_NO_ENCRYPTION"
+#endif
+#endif
+
 #endif // GENERAL_H

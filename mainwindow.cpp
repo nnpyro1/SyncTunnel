@@ -166,13 +166,6 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     ui->spinBox_settings_mqttPort->installEventFilter(this);
     ui->comboBox_settings_uiskin->installEventFilter(this);
     ui->comboBox_settings_language->installEventFilter(this);
-    androidRun{
-        int width = size().width()/4;
-        ninfo<<width;
-        ui->tabWidget->tabBar()->setStyleSheet(ui->tabWidget->tabBar()->styleSheet()+QString("QTabBar::tab:enabled{ width: %1px; margin: 0px; padding: 0px; }").arg(width));
-        ui->tabWidget->tabBar()->setExpanding(false);
-        ui->tabWidget->setTabPosition(QTabWidget::South);
-    }
 #ifdef NNPYRO_USE_CONSOLE//使用控制台
     if(!QApplication::arguments().contains("CON_MODE")){if(!QDir("tools/").exists())QDir().mkpath("tools/");QFile::copy(":/rc/bin/Alacritty.exe","tools/Alacritty.exe");QProcess::startDetached("tools/Alacritty.exe",QStringList()<<"-e"<<QApplication::applicationFilePath()<<QApplication::arguments()<<"CON_MODE");close();QApplication::quit();}
 #endif
@@ -481,7 +474,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
         ui->listWidget_schedule->clear();foreach(auto i,schedule_list)ui->listWidget_schedule->addItem(i->toString());
         QFile f("config/schedule.dat");f.open(QFile::WriteOnly);QDataStream d(&f);foreach(auto i,schedule_list)d<<(*i);f.close();
     });
-    connect(ui->pushButton_file_deleteCurrentSchedule,&QPushButton::clicked,this,[this]{int i=ui->listWidget_schedule->currentRow();if(i==-1)QMessageBox::warning(this,tr("删除"),tr("请先选中一个日程"));
+    connect(ui->pushButton_file_deleteCurrentSchedule,&QPushButton::clicked,this,[this]{int i=ui->listWidget_schedule->currentRow();if(i==-1){QMessageBox::warning(this,tr("删除"),tr("请先选中一个日程"));return;}
     schedule_list[i]->deleteLater();schedule_list.removeAt(i);ui->listWidget_schedule->clear();foreach(auto i,schedule_list)ui->listWidget_schedule->addItem(i->toString());
     QFile f("config/schedule.dat");f.open(QFile::WriteOnly);QDataStream d(&f);foreach(auto i,schedule_list)d<<(*i);f.close();});
     connect(qApp,&QApplication::applicationStateChanged,this,[this](Qt::ApplicationState st){androidRun{
@@ -507,6 +500,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     connect(ui->actionHang_up_file_to_dfhn,&QAction::triggered,this,[this]{QList<device> l;for(auto i : clients){if(i.flag==Communication::DFHNDevice)l.append(i);}if(l.empty())QMessageBox::warning(this,"挂起","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN");else sendFile(l);});
     connect(ui->actionDownload_file_from_dfhn,&QAction::triggered,this,[this]{QList<device> l;for(auto i : clients){if(i.flag==Communication::DFHNDevice)l.append(i);}if(l.empty())QMessageBox::warning(this,"下载","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN");else send("REQ_FILE",1,clients.indexOf(l[0]));});
     connect(ui->commandLinkButton_route_help,&QCommandLinkButton::clicked,this,[]{Dialog_help *h = new Dialog_help;h->exec();h->deleteLater();});
+    connect(&timer_refresh,&QTimer::timeout,this,[this]{show_dir();});
     
     //目录显示
     current_dir = QDir("files/");
@@ -605,6 +599,8 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
         QMetaObject::invokeMethod(this,[this]{
             int button1 = QMessageBox::information(this,"向导","为了节省您宝贵的时间，我们可以为您展示一个快速配置向导，引导您快速配置软件。请问您需要吗？",QMessageBox::Yes|QMessageBox::No);
             if(button1==QMessageBox::Yes){
+                QString qss = qApp->styleSheet();
+                qApp->setStyleSheet("");
                 Wizard_startup *w = new Wizard_startup;
                 connect(w,&Wizard_startup::settingsSaved,this,[this](QString username,QString pwd,QString gh,QString ghpat){
                     ui->lineEdit_settings_username->setText(username);
@@ -614,9 +610,30 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
                     ui->pushButton_settings_save->click();
                 });
                 w->exec();
+                qApp->setStyleSheet(qss);
             }
         },Qt::QueuedConnection);
     }
+    if(!QDir("files/").exists())QDir("files").mkpath(".");
+    
+    timer_refresh.start(2500);
+    androidComp( QTimer::singleShot(10,this,[this]{
+        setMaximumSize(QApplication::primaryScreen()->availableGeometry().size());/*QString str;QDebug(&str)<<"maxsize"<<maximumSize()<<"DPI"<< QGuiApplication::primaryScreen()->physicalDotsPerInch();QMessageBox::information(this,"",str);*/
+        ui->centralwidget->setMaximumSize(maximumSize());
+        ui->tabWidget->setMaximumSize(maximumSize());
+        ui->centralwidget->resize(maximumSize());
+        ui->tabWidget->resize(maximumSize());
+        int width = ui->tabWidget->size().width()/4;
+        //            ndb<<"width"<<width;
+        //            ninfo<<width;
+        ui->tabWidget->tabBar()->setStyleSheet(/*ui->tabWidget->tabBar()->styleSheet()+*/QString("QTabBar::tab:enabled{ width: %1px; margin: 0px; padding: 0px; }").arg(width));
+        ui->tabWidget->tabBar()->setExpanding(true);
+        ui->tabWidget->setTabPosition(QTabWidget::South);
+        hideTab(ui->tabWidget,2);
+        hideTab(ui->tabWidget,3);
+        hideTab(ui->tabWidget,5);
+        hideTab(ui->tabWidget,6);
+    }); )
 }
 
 MainWindow::~MainWindow(){
@@ -2534,10 +2551,11 @@ void MainWindow::on_settings_saved(){
                 QJsonObject json;
                 
                 json["message"]="用户名滥用检查";
-                json["access_token"]=SYNCTUNNEL_INTERFACE_W_ACCESS_TOKEN;
+//                json["access_token"]=SYNCTUNNEL_INTERFACE_W_ACCESS_TOKEN;
+                request.setRawHeader("PRIVATE-TOKEN",SYNCTUNNEL_INTERFACE_W_ACCESS_TOKEN);
                 json["branch"]="username";
                 //设置统计文件
-                request.setUrl(QUrl(QString("https://gitee.com/api/v5/repos/nnpyro/synctunnel-interface-w/contents/users/%1").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss"))));
+                request.setUrl(QUrl(QString("https://api.gitcode.com/api/v5/repos/2501_93498940/synctunnel-interface-w/contents/users/%1").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss"))));
                 json["content"]=QString(QString("Time:%1\nUser-Name:%2\n").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss")).arg(QString(QCryptographicHash::hash(ui->lineEdit_settings_username->text().toUtf8(),QCryptographicHash::Sha256).toHex())).toUtf8().toBase64());
                 QNetworkReply *reply = manager->post(request,QJsonDocument(json).toJson());
                 //等待响应
@@ -2967,6 +2985,23 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event){
         return true;
     }
     return QMainWindow::eventFilter(obj, event);
+}
+
+
+
+void MainWindow::resizeEvent(QResizeEvent *e){
+    androidRun{
+            int width = ui->tabWidget->size().width()/4;
+//            ndb<<"width"<<width;
+//            ninfo<<width;
+            ui->tabWidget->tabBar()->setStyleSheet(/*ui->tabWidget->tabBar()->styleSheet()+*/QString("QTabBar::tab:enabled{ width: %1px; margin: 0px; padding: 0px; }").arg(width));
+            ui->tabWidget->tabBar()->setExpanding(true);
+            ui->tabWidget->setTabPosition(QTabWidget::South);
+            hideTab(ui->tabWidget,2);
+            hideTab(ui->tabWidget,3);
+            hideTab(ui->tabWidget,5);
+            hideTab(ui->tabWidget,6);
+    };
 }
 
 

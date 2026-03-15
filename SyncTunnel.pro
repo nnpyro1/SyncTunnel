@@ -81,7 +81,7 @@ TRANSLATIONS += \
 
 #CONFIG += console  #仅调试
 #DEFINES += NNPYRO_USE_CONSOLE   #仅调试
-DEFINES += DEBUG_NO_ENCRYPTION     #仅调试
+#DEFINES += DEBUG_NO_ENCRYPTION     #仅调试
 DEFINES += NNPYRO_COLORFULCON   #控制台彩色输出
 
 # Default rules for deployment
@@ -107,3 +107,4 @@ android {
     # 指定所有支持的ABI
     ANDROID_ABIS = armeabi-v7a arm64-v8a x86 x86_64
 }
+android: include($$PWD/../../libary/android_openssl-master/openssl.pri)
