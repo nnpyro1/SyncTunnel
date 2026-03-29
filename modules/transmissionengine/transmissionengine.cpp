@@ -101,6 +101,10 @@ QByteArray TransmissionEngine::decode(QByteArray msg){
 
 //SPTP协议相关
 void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
+    if(!chunks.isEmpty() || !currentFileMap.isEmpty()){
+        nwarning<<"非空闲，已有的同步任务取消";
+        return;
+    }
     //发送前准备
 //    foreach(auto s , schedule_list){//禁用日程
 //        s->setEnabled(false);
@@ -229,6 +233,7 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
     int current_rtt = 0;
     QSet<int> skip;
     bool is_first_explore = true;
+    int maxdelaycnt = 0;//连续触发最大延迟的次数，用于重启
 //    QPair<int,int>loadedRange = {0,-1};
     
     /*line_delay->clear();
@@ -633,6 +638,38 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
 //            str_debug.append(QString("%1%2%3%4%5%6%7%8%9\n").arg(QTime::currentTime().toString("hhmmsszzz"),13).arg(state,10).arg(average_loss,13,'f',4).arg(average_good_loss,13,'f',4).arg(average_bad_loss,13,'f',4).arg(send_current_delay,10).arg(send_req_ack_loop,10).arg(lost,10).arg(congestion?"True":"False",10));
             if(flag)start_reqAck = i+1;//在这里更新因为为了预防控制包丢失导致无法快速重传和漏轮的情况
 //            i += overdrop_cnt - 1;//已经透支过的包不再发送
+            //重启判断
+            if(send_current_delay==SEND_MAX_DELAY){
+                maxdelaycnt++;
+                if(maxdelaycnt==3){//重启
+                    emit messageChanged("发送遇到错误，正在重启，请留意对方SyncTunnel左下角文本");
+                    for(int i=0;i<10;i++){
+                        multiDelay(200);
+                        process_events_without_useript;
+                    }
+                    //再次打洞
+                    for(int i=0;i<50;i++){
+                        send("{\n   \"hole\":2\n}",1,currentSendDst);
+                        multiDelay(1);
+                    }
+                    for(int i=0;i<10;i++){
+                        multiDelay(150);
+                        process_events_without_useript;
+                    }
+                    //重置变量
+                    send_current_delay = SEND_MAX_DELAY-50;
+                    send_req_ack_loop = 5;
+                    is_first_explore = true;
+                    average_loss = 0.1;//平均丢包率
+                    average_good_loss = 0.01;//平均良好丢包率
+                    average_bad_loss = 0.3;//平均拥塞丢包率
+                    state = ss_normal_better;//发送当前状态
+                    is_exploring = false;
+                }
+            }
+            else{
+                maxdelaycnt=0;
+            }
         }
     }
     
@@ -657,6 +694,10 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
 }
 
 void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
+    if(!chunks.isEmpty() || !currentFileMap.isEmpty()){
+        nwarning<<"非空闲，已有的同步任务取消";
+        return;
+    }
     if(dst.empty()){
         QMetaObject::invokeMethod(qApp,[]{QMessageBox::warning(qApp->activeWindow(),tr("同步文件"),tr("请选择目标！"));});
         return;

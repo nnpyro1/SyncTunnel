@@ -56,6 +56,7 @@ using namespace std;
 MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , settings("config/settings.ini",QSettings::IniFormat)
 {
     //对象创建
     m_communication = new Communication;
@@ -274,6 +275,14 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     device_description=json_settings["description"].toString();
 //    device_flag=json_settings["device_flag"].toInt();
     ui->lineEdit_settings_description->setText(device_description);
+    if(settings.contains("ApplicationSettings/syncSourceDir")){
+        syncFolder=QDir(settings.value("ApplicationSettings/syncSourceDir").toString());
+    }
+    else{
+        syncFolder=QDir("files/");
+    }
+    is_autoSync=settings.value("ApplicationSettings/isAutoSync").toBool();
+    ui->checkBox_file_autoSync->setCheckState(is_autoSync?Qt::Checked:Qt::Unchecked);
     //读取Schedule日程配置
     QFile file_schedule("config/schedule.dat");
     file_schedule.open(QFile::ReadOnly);
@@ -501,6 +510,27 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     connect(ui->actionDownload_file_from_dfhn,&QAction::triggered,this,[this]{QList<device> l;for(auto i : clients){if(i.flag==Communication::DFHNDevice)l.append(i);}if(l.empty())QMessageBox::warning(this,"下载","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN");else send("REQ_FILE",1,clients.indexOf(l[0]));});
     connect(ui->commandLinkButton_route_help,&QCommandLinkButton::clicked,this,[]{Dialog_help *h = new Dialog_help;h->exec();h->deleteLater();});
     connect(&timer_refresh,&QTimer::timeout,this,[this]{show_dir();});
+    connect(ui->checkBox_file_autoSync,&QCheckBox::stateChanged,this,[this](int state){is_autoSync = (state==Qt::Checked);   settings.setValue("ApplicationSettings/isAutoSync",is_autoSync);});
+    connect(&timer_autoSync,&QTimer::timeout,this,[this]{
+        if(!is_autoSync)return;
+        auto newFileHashMap = generateFileHashMap(syncFolder);
+        //比较
+        bool flag=false;
+        for(auto it = newFileHashMap.constBegin();it!=newFileHashMap.end();it++){
+            if (!fileHashMap.contains(it.key()) || it.value() != fileHashMap.value(it.key())) {
+                flag = true;
+                break;
+            }
+        }
+        if(flag==true){
+            ninfo<<"检测到文件修改，自动同步";
+            fileHashMap=newFileHashMap;
+            sendFile(lastSyncDst);
+        }
+        else{
+            
+        }
+    });
     
     //目录显示
     current_dir = QDir("files/");
@@ -592,6 +622,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     //其他部分
     trayIcon->show();
     timer_keepAlive.start(15000);
+    timer_autoSync.start(10000);//每隔10秒刷新
     winRun if(!json_settings["disable_notice"].toBool())QProcess::startDetached("Noticer.exe");
     
     QTimer::singleShot(1000,this,[this]{raise();});
@@ -634,7 +665,10 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
         hideTab(ui->tabWidget,5);
         hideTab(ui->tabWidget,6);
     }); )
+    fileHashMap=generateFileHashMap(syncFolder);
+    ndb<<syncFolder.absolutePath();
 }
+
 
 MainWindow::~MainWindow(){
     m_communication->deleteLater();
@@ -1471,6 +1505,7 @@ void MainWindow::sendFile(QList<device> dst){
         return;
     }
     dst.removeAll(public_ip);//文件不发给自己
+    lastSyncDst=dst;
 //    //开始规划
 //    auto plan = planAutoSend(dst);
 //    auto senders = dst;
@@ -1584,6 +1619,8 @@ void MainWindow::releaseFile(QByteArray msg){
     show_dir();
     label_status->setText(tr("释放文件成功"));
     trayIcon->showMessage(windowTitle(),tr("文件释放成功！"),QSystemTrayIcon::Information);
+    //刷新记录避免错误同步
+    fileHashMap=generateFileHashMap(syncFolder);
 }
 
 
@@ -1830,6 +1867,29 @@ QVector<QVector<QPair<ipport, ipport>>> MainWindow::planAutoSend(QList<device> d
         result.append(thisRound);
     }
     ninfo<<"结果："<<(result);
+    return result;
+}
+
+QMap<QString, QByteArray> MainWindow::generateFileHashMap(QDir baseDir){
+    QMap<QString,QByteArray> result;
+    QFileInfoList infoList = baseDir.entryInfoList(QDir::AllEntries|QDir::NoDotAndDotDot);
+    foreach(auto info,infoList){
+        if(info.isFile()){
+            QFile f(info.absoluteFilePath());
+            if(f.open(QFile::ReadOnly)){
+                QCryptographicHash hash(QCryptographicHash::Md5);
+                hash.addData(&f); 
+                f.close();
+                result.insert(info.absoluteFilePath(),hash.result());
+            }
+            else{
+                ncritical<<"文件打开失败！File:"<<f<<" Info:"<<f.errorString();
+            }
+        }
+        if(info.isDir()){
+            result.unite(generateFileHashMap(QDir(info.absoluteFilePath())));
+        }
+    }
     return result;
 }
 
@@ -2879,7 +2939,8 @@ void MainWindow::on_pushButton_debug1_clicked(){
     }*/
 //    QApplication::beep();
 //    QSound::play(":/rc/audio/file_send_successfully.wav");
-    playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));
+//    playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));
+    ndb<<generateFileHashMap(syncFolder);
 }
 
 

@@ -107,6 +107,7 @@ public://公有函数
     void hideTab(QTabWidget *tab,int index);    //隐藏tab中第index标签
     bool sendReliableMessage(int dst, QString msg);//向dst发送可靠消息，阻塞直到对方收到
     QVector<QVector<QPair<ipport,ipport>>> planAutoSend(QList<device> dsts);//自动规划向dsts发送的路径
+    QMap<QString,QByteArray> generateFileHashMap(QDir baseDir);//更新文件哈希表
     
 private slots://槽函数
     void on_folder_change();                    //当前目录改变（双击打开）
@@ -218,6 +219,12 @@ private://私有变量
     bool is_DFHN = false;
     bool is_first_launch = false;
     QTimer timer_refresh;
+    bool is_autoSync = false;
+    QTimer timer_autoSync;
+    QMap<QString,QByteArray> fileHashMap;
+    QDir syncFolder = QDir("files");
+    QSettings settings;
+    QList<device> lastSyncDst;
 #ifdef QT_DEBUG
     bool is_debug = true;
 #else

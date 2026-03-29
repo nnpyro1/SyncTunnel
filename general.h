@@ -53,13 +53,16 @@ typedef Communication::device device;
 //工具函数定义
 #include <QUrl>
 #include <QMediaPlayer>
+#include <QDir>
 inline void playSound(QUrl url){
     QMediaPlayer* player = new QMediaPlayer();
     player->setMedia(QMediaContent(url));
     QObject::connect(player, &QMediaPlayer::stateChanged, player, [=](QMediaPlayer::State state){if(state==QMediaPlayer::StoppedState)player->deleteLater();});
     player->play();
 }
-
+inline bool operator<(QDir left,QDir right){
+    return left.absolutePath() < right.absolutePath();
+}
 
 //安全报警
 #ifndef QT_DEBUG
