@@ -53,7 +53,7 @@
 using namespace std;
 
 
-MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update)
+MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update, bool bShow)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , settings("config/settings.ini",QSettings::IniFormat)
@@ -66,11 +66,11 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     label_status = new QLabel(this);
     process_proxy = new QProcess(this);
     process_proxy_ui = new QProcess(this);
-    line_ackloop = new QLineSeries;
-    line_delay = new QLineSeries;
-    line_speed = new QLineSeries;
+    line_ackloop = new QLineSeries(this);
+    line_delay = new QLineSeries(this);
+    line_speed = new QLineSeries(this);
 //    dialog_remoteFile = new Dialog_remoteFile(this);
-    logFile = new QFile(QString("logs/%1.log").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")).toStdString().c_str());
+    logFile = new QFile(QString("logs/%1.log").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")).toStdString().c_str(),this);
     
     //安卓平台设置
 #ifdef Q_OS_ANDROID
@@ -137,7 +137,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
 //    ui->tableWidget_deviceList.
     setWindowIcon(QIcon(":/rc/img/favicon.ico"));
     trayIcon->setIcon(QIcon(":/rc/img/favicon.ico")); 
-    trayIcon->setContextMenu(new QMenu);
+    trayIcon->setContextMenu(new QMenu(this));
     trayIcon->contextMenu()->addAction(ui->actionExit_Application);
     ui->label_remote_screen->installEventFilter(this);
     line_ackloop->setColor(QColor(Qt::green));
@@ -288,7 +288,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     file_schedule.open(QFile::ReadOnly);
     QDataStream d(&file_schedule);
     while(!d.atEnd()){
-        Schedule *s = new Schedule; 
+        Schedule *s = new Schedule(this); 
         d>>(*s);
         schedule_list.append(s);
         ui->listWidget_schedule->addItem(s->toString());
@@ -337,30 +337,6 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     connect(ui->actionFolder,&QAction::triggered,this,[this]{/*QProcess::startDetached("explorer.exe",QStringList(QDir::toNativeSeparators((current_dir).absolutePath())));*/QDesktopServices::openUrl(QUrl::fromLocalFile(current_dir.absolutePath()));});
 //    connect(m_communication,&Communication::readyRead,this,&MainWindow::on_readyRead);
 //    if(1)connect(m_signalling,&Signalling::on_userlist_updata,this,[this](QList<Communication::ipport> userl){qDebug()<<"信号触发";ui->textBrowser_debug1->clear();foreach(auto i,userl)ui->textBrowser_debug1->append(i);});
-    connect(m_signalling,&Signalling::on_userlist_updata,this,[this](QList<Communication::device> userl){
-        clients = userl;if(1)foreach(auto i,clients)qDebug()<<i;
-        QTimer::singleShot(3000,[this]{
-            for(int i=0;i<5;i++){
-                send("{\n    \"hole\":1\n}");
-                QThread::msleep(20);
-                send("{\n    \"hole\":2\n}");
-                QThread::msleep(20);
-            }
-        });
-        label_status->setText(tr("用户列表更新成功"));
-        ui->tableWidget_deviceList->clearContents();ui->tableWidget_deviceList->setRowCount(0);ndb<<"IN";
-        if(m_transmissionengine)m_transmissionengine->setClients(clients);
-        
-        foreach(auto i,clients){        //表格设置
-            int r=ui->tableWidget_deviceList->rowCount();
-            ui->tableWidget_deviceList->insertRow(r);
-            ui->tableWidget_deviceList->setItem(r,0,new QTableWidgetItem((i.flag==Communication::DFHNDevice?"**":"") + user_name));
-            ui->tableWidget_deviceList->setItem(r,1,new QTableWidgetItem(i.ip));
-            ui->tableWidget_deviceList->setItem(r,2,new QTableWidgetItem(QString::number(i.port)));
-            ui->tableWidget_deviceList->setItem(r,3,new QTableWidgetItem((i.flag==Communication::DFHNDevice?"**":"")+i.description+"("+QMetaEnum::fromType<Communication::DeviceFlag>().valueToKey(i.flag)+")"));
-        }
-        if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i.toFullString());}
-    });
 //    connect(&timer_fileResend,&QTimer::timeout,this,&MainWindow::on_request_resend); 
 //    connect(&timer_is_uploading,&QTimer::timeout,this,[this]{chunks.clear();is_uploading=false;send_current_delay=SEND_MAX_DELAY-10;send_stable_count=0;send_ack_count.clear();send_req_ack_loop=5;send_lost_loop_count=0;send_lost_count.clear();foreach(auto i,schedule_list)i->setEnabled(true);});      //发送方清除状态
     connect(ui->pushButton_settings_save,&QPushButton::clicked,this,&MainWindow::on_settings_saved);
@@ -454,7 +430,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
     connect(ui->pushButton_remote_mid,&QPushButton::clicked,this,[this]{send("{\n    \"remote_event\":\"mmid\"\n}");});
     connect(ui->actionOpen_DriveCrypto,&QAction::triggered,this,[]{QProcess::startDetached("DriveCrypto.exe");});
     connect(ui->pushButton_settings_getDefaultPAT,&QPushButton::clicked,this,[this]{
-       QNetworkAccessManager *manager = new QNetworkAccessManager;
+       QNetworkAccessManager *manager = new QNetworkAccessManager(this);
        QNetworkRequest request;
        request.setUrl(QUrl("https://nnpyro.netlify.app/synctunnel-interface/github_pat.txt"));
        request.setHeader(QNetworkRequest::UserAgentHeader,"nnpyro SyncTunnel vbeta-x.x");
@@ -476,7 +452,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
         incremental_sync_set.remove(QDir("files").relativeFilePath(current_dir.filePath(ui->listWidget_file->currentItem()->text())));ninfo<<"var:incremental_sync_set:"<<incremental_sync_set;
         ui->listWidget_incremental->clear();foreach(QString i,incremental_sync_set){ui->listWidget_incremental->addItem(i);}if(incremental_sync_set.empty())ui->listWidget_incremental->addItem("空 （所有文件都将被同步）");show_dir();});  
     connect(ui->pushButton_file_syncAll,&QPushButton::clicked,this,[this]{incremental_sync_set.clear();ui->listWidget_incremental->clear();ui->listWidget_incremental->addItem("空 （所有文件都将被同步）");show_dir();});
-    connect(ui->pushButton_file_addSchedule,&QPushButton::clicked,this,[this]{dialog_schedule=new Dialog_schedule;
+    connect(ui->pushButton_file_addSchedule,&QPushButton::clicked,this,[this]{dialog_schedule=new Dialog_schedule(this);
         connect(dialog_schedule,&Dialog_schedule::saved,this,[this](Schedule *s){schedule_list.append(s);s->setInterval(5000);s->setEnabled(true);s->setAutoTrigger(true);
                                                                                  connect(s,&Schedule::triggered,this,[this]{auto c=clients;c.removeAll(public_ip);sendFile(c);});});
         dialog_schedule->exec();dialog_schedule->deleteLater();
@@ -531,77 +507,14 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
             
         }
     });
+    connect(ui->actionRestart_all_applications,&QAction::triggered,this,[this]{m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);});
     
     //目录显示
     current_dir = QDir("files/");
     show_dir();
     
     
-    //网络部分
-    //发起STUN
-    if(QDir("config/empty/label3").exists())show();
-    label_status->setText(tr("正在获取公网IP……"));
-    func_update(tr("正在获取公网IP……"));
-    if(QDir("config/empty/label3").exists())QCoreApplication::processEvents();
-    public_ip = m_communication->stun();
-    public_ip.description=device_description;
-    public_ip.flag = device_flag;
-    if(public_ip == Communication::ipport{"",0} || QApplication::arguments().contains("-ipv6")){
-        QCoreApplication::processEvents();
-        
-        //开始用IPv6
-        public_ip = m_communication->getIPv6();
-        
-        if(public_ip == Communication::ipport{"",0}){
-            QMessageBox::critical(this,tr("获取公网IP"),tr("您的设备获取IPv4公网IP失败，且不支持IPV6。\n请如果是第一次发生，请重试。\n如果多次发生，请只使用文件挂起功能或更换网络环境。"));
-//            QProcess::startDetached(QCoreApplication::applicationFilePath(),QCoreApplication::arguments());
-//            QCoreApplication::quit();
-//            abort();
-//            QApplication::processEvents();
-        }
-    }
-    label_status->setText(tr("正在获取上线用户列表……"));
-    func_update(tr("正在获取上线用户列表……"));
-    ninfo<<"var:public ip="<<public_ip;
-    //MQTT
-    m_signalling->connectToHost(/*{"broker.emqx.io",1883}*/mqtt_server);
-    m_signalling->subscribe("nnpyro_syncTunnel/user_topics/" + user_name.toUtf8().toBase64());
-    m_signalling->setPwd(pwd.toUtf8());
-    m_signalling->setUser(public_ip,user_name);
-    clients = m_signalling->getUserList();//获取用户列表
-    if(1)foreach(auto i,clients)qDebug()<<i;
-    label_status->setText(tr("加载成功"));
-    func_update(tr("加载成功"));
-    
-    //等待直到用户列表获取完成
-    QEventLoop el1;
-    connect(m_signalling,&Signalling::on_userlist_updata,&el1,&QEventLoop::quit);
-//    el1.exec(QEventLoop::ExcludeUserInputEvents);
-//    QCoreApplication::processEvents();
-    
-    //调试
-    if(1)ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));
-    if(1)foreach(auto i,clients)ui->textBrowser_debug1->append(i);
-    
-    //设置文件挂起
-    m_storage->setUser(user_github_name,user_github_PAT);
-    m_storage->setUserId(user_name);
-    
-    //接管communicaion
-    ndb<<"接管communication";
-    m_transmissionengine = new TransmissionEngine(m_communication,user_name,pwd,public_ip,this);
-    m_transmissionengine->setClients(clients);
-    connect(m_transmissionengine,&TransmissionEngine::communicationReadyRead,this,&MainWindow::on_readyRead);
-    connect(m_transmissionengine,&TransmissionEngine::SPTP_readyRead,this,&MainWindow::on_SPTP_readyRead);
-    connect(m_transmissionengine,&TransmissionEngine::messageChanged,this,[this](QString msg){label_status->setText(msg);});
-    connect(m_transmissionengine,&TransmissionEngine::SPTP_sendFinished,this,[this]{label_status->setText("发送成功");playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));});
-    
-    //打洞
-    for(int i=0;i<5;i++){
-        send("{\n    \"hole\":1\n}");
-        send("{\n    \"hole\":2\n}");
-        QThread::msleep(50);
-    }
+    initNetwork(func_update);
     
     
     //参数处理
@@ -632,7 +545,7 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
             if(button1==QMessageBox::Yes){
                 QString qss = qApp->styleSheet();
                 qApp->setStyleSheet("");
-                Wizard_startup *w = new Wizard_startup;
+                Wizard_startup *w = new Wizard_startup(this);
                 connect(w,&Wizard_startup::settingsSaved,this,[this](QString username,QString pwd,QString gh,QString ghpat){
                     ui->lineEdit_settings_username->setText(username);
                     ui->lineEdit_settings_pwd->setText(pwd);
@@ -673,6 +586,8 @@ MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update
 MainWindow::~MainWindow(){
     m_communication->deleteLater();
     m_signalling->deleteLater();
+    m_storage->deleteLater();
+    m_transmissionengine->deleteLater();
     delete ui;
     delete logFile;
 }
@@ -1625,7 +1540,7 @@ void MainWindow::releaseFile(QByteArray msg){
 
 
 void MainWindow::savePower(){
-    if(!widget_savePower) widget_savePower = new QWidget;
+    if(!widget_savePower) widget_savePower = new QWidget(this);
     widget_savePower->installEventFilter(this);
     
     //创建黑色窗口
@@ -1635,7 +1550,7 @@ void MainWindow::savePower(){
     widget_savePower->setGeometry(QApplication::primaryScreen()->geometry());
     
     //添加label
-    auto layout = (new QVBoxLayout);layout->addWidget(label_status);
+    auto layout = (new QVBoxLayout(this));layout->addWidget(label_status);
     widget_savePower->setLayout(layout);
     
     widget_savePower->show();
@@ -1661,7 +1576,7 @@ bool MainWindow::checkSkin(MainWindow::skinType skin){
     
     
     //请求
-    QNetworkAccessManager *manager = new QNetworkAccessManager;
+    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
     QNetworkRequest request(req_url);
     QNetworkReply *reply = manager->get(request);
     
@@ -1893,6 +1808,109 @@ QMap<QString, QByteArray> MainWindow::generateFileHashMap(QDir baseDir){
     return result;
 }
 
+void MainWindow::initNetwork(function<void(QString)> func_update){
+    //网络部分
+    //发起STUN
+    if(QDir("config/empty/label3").exists())show();
+    label_status->setText(tr("正在获取公网IP……"));
+    if(func_update)func_update(tr("正在获取公网IP……"));
+    if(QDir("config/empty/label3").exists())QCoreApplication::processEvents();
+    public_ip = m_communication->stun();
+    public_ip.description=device_description;
+    public_ip.flag = device_flag;
+    if(public_ip == Communication::ipport{"",0} || QApplication::arguments().contains("-ipv6")){
+        QCoreApplication::processEvents();
+        
+        //开始用IPv6
+        public_ip = m_communication->getIPv6();
+        
+        if(public_ip == Communication::ipport{"",0}){
+            QMessageBox::critical(this,tr("获取公网IP"),tr("您的设备获取IPv4公网IP失败，且不支持IPV6。\n请如果是第一次发生，请重试。\n如果多次发生，请只使用文件挂起功能或更换网络环境。"));
+//            QProcess::startDetached(QCoreApplication::applicationFilePath(),QCoreApplication::arguments());
+//            QCoreApplication::quit();
+//            abort();
+//            QApplication::processEvents();
+        }
+    }
+    label_status->setText(tr("正在获取上线用户列表……"));
+    if(func_update)func_update(tr("正在获取上线用户列表……"));
+    ninfo<<"var:public ip="<<public_ip;
+    //MQTT
+    m_signalling->connectToHost(/*{"broker.emqx.io",1883}*/mqtt_server);
+    m_signalling->subscribe("nnpyro_syncTunnel/user_topics/" + user_name.toUtf8().toBase64());
+    m_signalling->setPwd(pwd.toUtf8());
+    m_signalling->setUser(public_ip,user_name);
+    clients = m_signalling->getUserList();//获取用户列表
+    if(1)foreach(auto i,clients)qDebug()<<i;
+    label_status->setText(tr("加载成功"));
+    if(func_update)func_update(tr("加载成功"));
+    
+    //等待直到用户列表获取完成
+    QEventLoop el1;
+    connect(m_signalling,&Signalling::on_userlist_updata,&el1,&QEventLoop::quit);
+//    el1.exec(QEventLoop::ExcludeUserInputEvents);
+//    QCoreApplication::processEvents();
+    
+    //调试
+    if(1)ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));
+    if(1)foreach(auto i,clients)ui->textBrowser_debug1->append(i);
+    
+    //设置文件挂起
+    m_storage->setUser(user_github_name,user_github_PAT);
+    m_storage->setUserId(user_name);
+    
+    //接管communicaion
+    ndb<<"接管communication";
+    m_transmissionengine = new TransmissionEngine(m_communication,user_name,pwd,public_ip,this);
+    m_transmissionengine->setClients(clients);
+    connect(m_transmissionengine,&TransmissionEngine::communicationReadyRead,this,&MainWindow::on_readyRead);
+    connect(m_transmissionengine,&TransmissionEngine::SPTP_readyRead,this,&MainWindow::on_SPTP_readyRead);
+    connect(m_transmissionengine,&TransmissionEngine::messageChanged,this,[this](QString msg){label_status->setText(msg);});
+    connect(m_transmissionengine,&TransmissionEngine::SPTP_sendFinished,this,[this]{label_status->setText("发送成功");playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));});
+    connect(m_transmissionengine,&TransmissionEngine::SPTP_ctrlMsgReceived,this,&MainWindow::on_SPTP_ctrlMsg_received);
+    connect(m_signalling,&Signalling::on_userlist_updata,this,[this](QList<Communication::device> userl){
+        clients = userl;if(1)foreach(auto i,clients)qDebug()<<i;
+        QTimer::singleShot(3000,[this]{
+            for(int i=0;i<5;i++){
+                send("{\n    \"hole\":1\n}");
+                QThread::msleep(20);
+                send("{\n    \"hole\":2\n}");
+                QThread::msleep(20);
+            }
+        });
+        label_status->setText(tr("用户列表更新成功"));
+        ui->tableWidget_deviceList->clearContents();ui->tableWidget_deviceList->setRowCount(0);ndb<<"IN";
+        if(m_transmissionengine)m_transmissionengine->setClients(clients);
+        
+        foreach(auto i,clients){        //表格设置
+            int r=ui->tableWidget_deviceList->rowCount();
+            ui->tableWidget_deviceList->insertRow(r);
+            ui->tableWidget_deviceList->setItem(r,0,new QTableWidgetItem((i.flag==Communication::DFHNDevice?"**":"") + user_name));
+            ui->tableWidget_deviceList->setItem(r,1,new QTableWidgetItem(i.ip));
+            ui->tableWidget_deviceList->setItem(r,2,new QTableWidgetItem(QString::number(i.port)));
+            ui->tableWidget_deviceList->setItem(r,3,new QTableWidgetItem((i.flag==Communication::DFHNDevice?"**":"")+i.description+"("+QMetaEnum::fromType<Communication::DeviceFlag>().valueToKey(i.flag)+")"));
+        }
+        if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i.toFullString());}
+    });
+    
+    //打洞
+    for(int i=0;i<5;i++){
+        send("{\n    \"hole\":1\n}");
+        send("{\n    \"hole\":2\n}");
+        QThread::msleep(50);
+    }
+    label_status->setText(tr("加载成功"));
+}
+
+void MainWindow::restartNetwork(){
+    if(m_transmissionengine)m_transmissionengine->deleteLater();
+    if(m_signalling)m_signalling->deleteLater();
+    if(m_communication)m_communication->deleteLater();
+    QApplication::processEvents(QEventLoop::AllEvents,100);
+    QThread::sleep(1);
+    initNetwork();
+}
+
 
 void /*MainWindow::*/log(QtMsgType t, const QMessageLogContext &context, const QString &logstr){
     if(output_to_file){
@@ -1961,7 +1979,7 @@ void MainWindow::on_rightclick(){       //右键点击事件
 //    ndb<<"click";
 //    ndb<<mapFromGlobal(QCursor::pos());
     QMenu *rightMenu = new QMenu(this);
-    if(ui->listWidget_file->itemAt(ui->listWidget_file->mapFromGlobal(QCursor::pos())) != NULL){//有Item的时候再菜单"打开"
+    if(ui->listWidget_file->currentItem() != nullptr){//有Item的时候再菜单"打开"
 //        ndb<<"ITEM";
         rightMenu->addAction(ui->actionOpen);
         
@@ -2601,7 +2619,7 @@ void MainWindow::on_settings_saved(){
             }
             else{
                 label_status->setText("正在进行用户名防抢注验证……");
-                auto manager = new QNetworkAccessManager;
+                auto manager = new QNetworkAccessManager(this);
                 QNetworkRequest request;
                 //构造请求
                 //            request.setRawHeader("Authorization","Bearer github_pa""t_11BF");
@@ -2848,6 +2866,78 @@ void MainWindow::on_test_rtt(){
 }
 
 
+void MainWindow::on_SPTP_ctrlMsg_received(TransmissionEngine::msg_ctrl msg){
+    ninfo<<"收到控制消息 ctrl="<<msg.ctrl<<"value="<<msg.value;
+    
+    if(msg.ctrl=="RESTART_NETWORK"){
+        restart();
+    }
+}
+
+
+void MainWindow::restart(){
+#if defined (Q_OS_WIN) || defined(Q_OS_LINUX)
+    QProcess::startDetached(qApp->applicationFilePath(),qApp->arguments());
+    close();
+    QApplication::processEvents(QEventLoop::AllEvents,1000);
+    multiDelay(3);
+    exit(0);
+#elif defined(Q_OS_ANDROID)
+    QAndroidJniObject activity = QtAndroid::androidActivity();
+    if (!activity.isValid()) return;
+
+    // 1. 获取包名
+    QAndroidJniObject packageName = activity.callObjectMethod(
+        "getPackageName", "()Ljava/lang/String;"
+    );
+
+    // 2. 系统核心：创建启动 Intent
+    QAndroidJniObject intent = QAndroidJniObject::callStaticObjectMethod(
+        "android/content/Intent",
+        "makeMainActivityIntent",
+        "(Ljava/lang/String;)Landroid/content/Intent;",
+        packageName.object()
+    );
+
+    // 3. 关键：清空任务栈，全新冷启动
+    intent.callObjectMethod(
+        "addFlags", "(I)Landroid/content/Intent;",
+        0x10000000 | 0x00008000 | 0x00004000
+    );
+
+    // 4. 系统级服务：AlarmManager （进程死了也会执行！）
+    QAndroidJniObject context = activity.callObjectMethod(
+        "getApplicationContext", "()Landroid/content/Context;"
+    );
+    QAndroidJniObject alarmManager = context.callObjectMethod(
+        "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;",
+        QAndroidJniObject::fromString("alarm").object()
+    );
+
+    // 5. 创建延迟执行的 PendingIntent（100ms 后启动）
+    jlong triggerTime = QAndroidJniObject::callStaticMethod<jlong>(
+        "android/os/SystemClock", "elapsedRealtime", "()J"
+    ) + 100; // 延迟100毫秒，给系统足够时间接收指令
+
+    QAndroidJniObject pendingIntent = QAndroidJniObject::callStaticObjectMethod(
+        "android/app/PendingIntent",
+        "getActivity",
+        "(Landroid/content/Context;ILandroid/content/Intent;I)Landroid/app/PendingIntent;",
+        context.object(), 0, intent.object(), 0x10000000
+    );
+
+    // 6. 系统设置闹钟：100ms后强制启动应用
+    alarmManager.callMethod<void>(
+        "setExact", "(JILandroid/app/PendingIntent;)V",
+        0, triggerTime, pendingIntent.object()
+    );
+
+
+    return;
+#endif
+}
+
+
 void MainWindow::on_pushButton_debug1_clicked(){
 //    ui->textBrowser_debug1->setText(mergeFile(QDir("files/")));
 //    send({"{\n    \"test\":0\n}"});
@@ -2940,7 +3030,8 @@ void MainWindow::on_pushButton_debug1_clicked(){
 //    QApplication::beep();
 //    QSound::play(":/rc/audio/file_send_successfully.wav");
 //    playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));
-    ndb<<generateFileHashMap(syncFolder);
+//    ndb<<generateFileHashMap(syncFolder);
+    m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);
 }
 
 

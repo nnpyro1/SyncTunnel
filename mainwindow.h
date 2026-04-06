@@ -27,8 +27,10 @@
 #include <general.h>
 #include <dialogs/wizard_startup.h>
 #include <QResizeEvent>
+#include <functional>
 using namespace QtCharts;
 
+void resetMainWindow();
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; /*class Dialog;*/ }
@@ -82,7 +84,7 @@ class MainWindow : public QMainWindow
     using fpvoid = std::function<void()>;
     
 public://公有函数
-    MainWindow(QWidget *parent = nullptr,std::function<void(QString)> func_update = nullptr);
+    MainWindow(QWidget *parent = nullptr,std::function<void(QString)> func_update = nullptr,bool bShow=false);
     ~MainWindow();
     
     void show_dir();                            //显示目录到Widget上
@@ -108,6 +110,8 @@ public://公有函数
     bool sendReliableMessage(int dst, QString msg);//向dst发送可靠消息，阻塞直到对方收到
     QVector<QVector<QPair<ipport,ipport>>> planAutoSend(QList<device> dsts);//自动规划向dsts发送的路径
     QMap<QString,QByteArray> generateFileHashMap(QDir baseDir);//更新文件哈希表
+    void initNetwork(std::function<void(QString)> a=nullptr);  //初始化网络
+    void restartNetwork();                      //重启网络
     
 private slots://槽函数
     void on_folder_change();                    //当前目录改变（双击打开）
@@ -121,6 +125,8 @@ private slots://槽函数
     void on_proxy();                            //当开始/停止网络加速
     void on_rightclick_deviceList();            //设备列表被右击
     void on_test_rtt();                         //当测试RTT
+    void on_SPTP_ctrlMsg_received(TransmissionEngine::msg_ctrl);//当SPTP收到控制消息 新版协议，以后不用Json了，迁移至此处
+    void restart();                             //跨平台重启
     
     void on_pushButton_debug1_clicked();//当调试
     

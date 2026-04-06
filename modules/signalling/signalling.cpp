@@ -11,6 +11,7 @@
 #include <QMessageBox>
 #include <QThread>
 #include <QNetworkProxy>
+//#include <QSignalSpy>
 
 
 Signalling::Signalling(){
@@ -97,10 +98,17 @@ QList<Communication::device> Signalling::getUserList(){
     is_waiting_userList = true;//设置让on_msg收集用户
     QEventLoop loop;
     QTimer timer;
-    connect(this,&Signalling::on_userlist_updata,&loop,&QEventLoop::quit);
+//    QSignalSpy spy(this,&Signalling::on_userlist_updata);
+    int cnt1=0,cnt2=0;
+    auto c = connect(this,&Signalling::on_userlist_updata,this,[&]{
+        cnt2++;
+        loop.quit();
+        cnt1++;
+    });
     connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
-    timer.start(2000);
+    timer.start(3000);
     loop.exec();
+    disconnect(c);
     
     
     return user_list;

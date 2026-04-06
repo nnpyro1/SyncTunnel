@@ -5,6 +5,8 @@
 #include <QDataStream>
 #include <QHashFunctions>
 #include <QtDebug>
+#include <QQueue>
+#include <QTimer>
 
 
 class Communication : public QObject
@@ -81,13 +83,15 @@ public://函数
     bool hasPendingDatagrams();                                         //是否有等待中数据包
     
 private://私有函数
-    void on_read(){emit readyRead();}
+    void on_read();
     
 private://私有变量&对象
     QUdpSocket *socket;
     QUdpSocket *socket_stun;
     QUdpSocket *socket_ipv6;
     ipport stun_host = /*{"stun.miwifi.com",3478}*//*{"stun.l.google.com",19302}*/{"stun.chat.bilibili.com",3478};
+    QQueue<QNetworkDatagram> buf;
+    QTimer timer_read;
 };
 
 inline uint qHash(const Communication::ipport &key, uint seed) noexcept{

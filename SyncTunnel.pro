@@ -71,6 +71,11 @@ RC_FILE += rc_std.rc
 win32{
     LIBS += -luser32 -lwinmm
 }
+win32: CONFIG -= console
+win32: CONFIG += windows
+win32: DEFINES += QT_NEEDS_QMAIN
+win32: QMAKE_LFLAGS += -Wl,-subsystem=windows
+win32: QMAKE_LFLAGS += -Wl,-entry=WinMainCRTStartup
 android{
     QT += androidextras
 }
@@ -81,7 +86,7 @@ TRANSLATIONS += \
 
 #CONFIG += console  #仅调试
 #DEFINES += NNPYRO_USE_CONSOLE   #仅调试
-#DEFINES += DEBUG_NO_ENCRYPTION     #仅调试
+#Debug:DEFINES += DEBUG_NO_ENCRYPTION     #仅调试
 DEFINES += NNPYRO_COLORFULCON   #控制台彩色输出
 
 # Default rules for deployment

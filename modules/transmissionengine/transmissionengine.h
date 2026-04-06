@@ -27,10 +27,22 @@ public://构造/析构&枚举&结构体成员
         ss_worst,
     };
     enum msg_type{
+        mt_bh               =0x42484842,
         mt_json             ='{',
         mt_filebody         =0x46424246,
+        mt_ctrl             =0x43545443,
     };
-    
+#pragma pack(push,1)
+    struct msg_common{
+        ipport src;
+        QByteArray msg;
+    };
+    struct msg_ctrl:public msg_common{
+        QByteArray ctrl;
+        QVariant value=QVariant();
+    };
+
+#pragma pack(pop)
 public://公有函数
     //辅助对接communication
     void send(QByteArray msg,bool e=1,int d=-1);            //自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
@@ -40,6 +52,8 @@ public://公有函数
     void SPTP_sendTo(int n,QByteArray data);          //自动分包并发送
     void SPTP_send(QByteArray msg,QList<device> dst);       //自动规划路径并发送给dst
     bool sendReliableMessage(int dst, QString msg);         //向dst发送可靠消息，阻塞直到对方收到
+    QByteArray SPTP_sendCommon(QByteArray msg,int d=-1);    //发送普通二进制消息，返回消息。d输入-3代表不发
+    QByteArray SPTP_sendCtrl(QByteArray ctrl,QVariant v=QVariant(),int d=-1);//发送控制消息。返回消息。d输入-3代表不发
     
     //其他函数
     void setClients(QList<device> clients);                 //设置设备列表
@@ -53,6 +67,8 @@ signals:
     void SPTP_readyRead(QByteArray data);                   //SPTP发送数据可读
     void SPTP_sendFinished();                               //消息发送结束，不管是否成功
     void reliableMessageReceived(QString msg);              //可靠消息收到。
+    void SPTP_commonMsgReceived(msg_common msg);            //收到common消息（少见）
+    void SPTP_ctrlMsgReceived(msg_ctrl msg);                //控制消息收到
     
 signals://私有
     void signal_test_if_connected_finished(QPrivateSignal);         //连通性测试完成
@@ -65,14 +81,28 @@ private slots:
     void on_readyRead();
     void on_request_resend();
     void on_reliableMessage_received(QString msg,QPrivateSignal={});
+    void on_bh_received(QByteArray msg);
     
 private://私有定义
 #pragma pack(push,1)
-    struct header_filebody{
+    struct header_filebody_p{
         qint32 check_type; //证明是header_filebody
         qint32 no;         //当前文件序号
         qint32 total;      //文件总数
     };
+    struct header_common_p{
+        qint32 check_type;
+        quint8 ip_type;     //4=ipv4,6=ipv6
+        quint64 src_public_ip_1;
+        quint64 src_public_ip_2;
+        quint16 src_port;
+    };
+    struct msg_ctrl_p{
+        qint32 check_type;
+        char ctrl[20];
+        char value[100];
+    };
+//    struct header_ctrl
 #pragma pack(pop)
     struct file_sending_task{
         device dst;

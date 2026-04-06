@@ -1349,6 +1349,7 @@ p, li { white-space: pre-wrap; }
     <addaction name="actionRefresh"/>
     <addaction name="separator"/>
     <addaction name="actionShutdown"/>
+    <addaction name="actionRestart_all_applications"/>
    </widget>
    <widget class="QMenu" name="menu">
     <property name="title">
@@ -1543,6 +1544,11 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;从DFHN节点下载已挂起的文件&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; color:#ff0000;&quot;&gt;注意：使用这个功能只能下载通过“挂起文件”挂起的文件，无法下载通过“挂起文件到DFHN”挂起的文件！&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; color:#000000;&quot;&gt;要了解什么是DFHN，请在“其他-&amp;gt;帮助-&amp;gt;DFHN”界面寻找&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionRestart_all_applications">
+   <property name="text">
+    <string>重启所有在线设备的SyncTunnel网络服务</string>
    </property>
   </action>
  </widget>

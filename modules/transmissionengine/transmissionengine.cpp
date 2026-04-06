@@ -64,8 +64,8 @@ void TransmissionEngine::send(QByteArray msg, bool e, int d){
     int ret;
     auto cli = clients;
     auto encodedMsg= e?encode(msg):msg;
-    cli.removeAll(public_ip);//不给自己发送
-    if(d==-1)foreach(auto i,cli)ret=m_communication->send(i,encodedMsg);
+    if(d==-1)cli.removeAll(public_ip);//不给自己发送
+    if(d==-1||d==-2)foreach(auto i,cli)ret=m_communication->send(i,encodedMsg);
     else ret=m_communication->send(clients[d],encodedMsg);
     if(ret!=encodedMsg.size()){
         ncritical<<"发送消息失败：返回"<<ret<<"实际大小"<<encodedMsg.size();
@@ -172,7 +172,7 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
 //    json.insert("no",-1);
     emit messageChanged(tr("正在加密文件……"));
     process_events_without_useript;
-    header_filebody header;
+    header_filebody_p header;
     header.check_type = qToBigEndian((qint32)mt_filebody);
     header.total = qToBigEndian(chunks.size()-1);
     for(int i=0;i<chunks.size();i++){//生成发送内容
@@ -913,6 +913,62 @@ bool TransmissionEngine::sendReliableMessage(int dst, QString msg){
     return true;
 }
 
+QByteArray TransmissionEngine::SPTP_sendCommon(QByteArray msg, int d){
+    header_common_p hCommon;
+    hCommon.check_type = mt_bh;
+    QHostAddress ip(public_ip.ip);
+    if(ip.protocol() == QAbstractSocket::IPv4Protocol){
+        hCommon.ip_type=4;
+        hCommon.src_public_ip_1=qToBigEndian(ip.toIPv4Address());
+        hCommon.src_public_ip_2=0;
+    }
+    else if(ip.protocol() == QAbstractSocket::IPv6Protocol){
+        hCommon.ip_type=6;
+        Q_IPV6ADDR addr = ip.toIPv6Address();
+        memcpy(&hCommon.src_public_ip_1, &addr[0], 8);
+        memcpy(&hCommon.src_public_ip_2, &addr[8], 8);
+    }
+    else{
+        nwarning<<"Unsupported protocol:"<<QMetaEnum::fromType<QAbstractSocket::NetworkLayerProtocol>().valueToKey(ip.protocol());
+        return "";
+    }
+    hCommon.src_port=public_ip.port;
+    //端序转换
+//    hCommon.ip_type = qToBigEndian(hCommon.ip_type);
+    hCommon.src_port = qToBigEndian(hCommon.src_port);
+    hCommon.check_type = qToBigEndian(hCommon.check_type);
+    hCommon.src_public_ip_1 = qToBigEndian(hCommon.src_public_ip_1);
+    hCommon.src_public_ip_2 = qToBigEndian(hCommon.src_public_ip_2);
+    //发送
+    QByteArray fullmsg;
+    fullmsg.resize(sizeof(hCommon));
+    memcpy(fullmsg.data(),&hCommon,sizeof(hCommon));
+    fullmsg.append(msg);
+    if(d!=-3)send(fullmsg,1,d);
+    return fullmsg;
+}
+
+QByteArray TransmissionEngine::SPTP_sendCtrl(QByteArray ctrl, QVariant v, int d){
+    msg_ctrl_p msg;
+    memset(&msg,0,sizeof(msg));
+    if(ctrl.size()>=20){
+        nwarning<<"Ctrl尺寸过大";
+        return "";
+    }
+    QString value = v.toString();
+    if(value.size()>=100){
+        nwarning<<"value尺寸过大";
+        return "";
+    }
+    msg.check_type=qToBigEndian((quint32)mt_ctrl);
+    strcpy(msg.ctrl,ctrl.toStdString().c_str());
+    strcpy(msg.value,value.toStdString().c_str());
+    QByteArray data;
+    data.resize(sizeof(msg));
+    memcpy(data.data(),&msg,sizeof(msg));
+    return SPTP_sendCommon(data,d);
+}
+
 void TransmissionEngine::setClients(QList<device> clients){
     ninfo<<"TransmissionEngine的clients"<<clients;
     this->clients=clients;
@@ -957,7 +1013,7 @@ void TransmissionEngine::multiDelay(float ms)
 
 
 void TransmissionEngine::on_readyRead(){
-    ndb<<"进入消息处理on_readyRead";
+//    ndb<<"进入消息处理on_readyRead";
     while(m_communication->hasPendingDatagrams() /*|| ((!currentReliableMsg.isEmpty())&&reliableMsg_available)*/){
     bool isHandled = false;
     bool penDingDatagramFlag = m_communication->hasPendingDatagrams();
@@ -986,6 +1042,11 @@ void TransmissionEngine::on_readyRead(){
     
     if(!jd.isObject()){
         if(!msg.startsWith("FB")&&!msg.startsWith("BF"))ninfo<<"var:msg = "<<msg;
+        //外泄处理控制包
+        if(msg.startsWith("BH")||msg.startsWith("HB")){
+            QMetaObject::invokeMethod(this,[=]{on_bh_received(msg);},Qt::QueuedConnection);
+        }
+        //自己的
         if(msg == "FILE_RELEASE_SUCCESSFULLY" && !chunks.empty()){
             isHandled=true;
             emit signal_resend_finished();
@@ -997,7 +1058,7 @@ void TransmissionEngine::on_readyRead(){
         }
         else if(msg.startsWith("FB")||msg.startsWith("BF")){
             isHandled=true;
-            if(msg.size()<(int)sizeof(header_filebody)){
+            if(msg.size()<(int)sizeof(header_filebody_p)){
                 nwarning<<"Warning:长度过小";
             }
             else{
@@ -1006,7 +1067,7 @@ void TransmissionEngine::on_readyRead(){
 //                        s->setEnabled(false);
 //                    }
 //                }
-                header_filebody header;
+                header_filebody_p header;
                 memcpy(&header,msg.constData(),sizeof(header));
                 header.no=qFromBigEndian(header.no);
                 header.check_type=qFromBigEndian(header.check_type);
@@ -1127,7 +1188,7 @@ void TransmissionEngine::on_readyRead(){
 //            timer_is_uploading.stop();
 //            timer_is_uploading.start(10000);
 //            label_status->setText("正在回复重传请求……");
-        header_filebody header;
+        header_filebody_p header;
         header.check_type = qToBigEndian((qint32)mt_filebody);
         header.total=qToBigEndian(chunks.size()-1);
         header.no = qToBigEndian(json["request_resend"].toInt());
@@ -1153,7 +1214,7 @@ void TransmissionEngine::on_readyRead(){
                 emit messageChanged("<font color=\"red\">错误：收到未知来源的连通性测试包("+sender+")</font>");
             }
             else{
-                QThread::msleep(20);
+//                QThread::msleep(20);
                 ndb<<"发送了acktestifconnected啊啊啊"<<sender_index;
                 send("{\n    \"opt\":\"ack_test_if_connected\"\n}",1,sender_index);
             }
@@ -1200,7 +1261,7 @@ void TransmissionEngine::on_readyRead(){
             }
     //        receive_last_ack_index = ack_pack;
             ninfo<<"丢失"<<lost;
-            QThread::usleep(2000);
+//            QThread::usleep(2000);
             QJsonObject rpJson;
             rpJson.insert("lost",QString::number(lost));
             rpJson.insert("uuid",json["uuid"].toString());
@@ -1404,6 +1465,77 @@ void TransmissionEngine::on_reliableMessage_received(QString msg, TransmissionEn
     
     if(!is_handled){
         emit reliableMessageReceived(msg);
+    }
+}
+
+
+void TransmissionEngine::on_bh_received(QByteArray msg){
+    const int headerSize = sizeof(header_common_p);
+    if (msg.size() < headerSize) {
+        nwarning<<"BH数据包长度不足，丢弃";
+        return;
+    }
+
+    header_common_p hCommon;
+    memcpy(&hCommon, msg.constData(), headerSize);
+
+    hCommon.check_type      = qFromBigEndian(hCommon.check_type);
+    hCommon.src_port        = qFromBigEndian(hCommon.src_port);
+    hCommon.src_public_ip_1 = qFromBigEndian(hCommon.src_public_ip_1);
+    hCommon.src_public_ip_2 = qFromBigEndian(hCommon.src_public_ip_2);
+    if (hCommon.check_type != mt_bh) {
+        nwarning<<"BH包类型校验失败";
+        return;
+    }
+    QHostAddress srcIp;
+    quint16 srcPort = hCommon.src_port;
+
+    if (hCommon.ip_type == 4) {
+        quint32 ipv4Host = qFromBigEndian(static_cast<quint32>(hCommon.src_public_ip_1));
+        srcIp = QHostAddress(ipv4Host);
+    }
+    else if (hCommon.ip_type == 6) {
+        Q_IPV6ADDR ipv6Addr;
+        memcpy(&ipv6Addr[0], &hCommon.src_public_ip_1, 8);
+        memcpy(&ipv6Addr[8], &hCommon.src_public_ip_2, 8);
+        srcIp = QHostAddress(ipv6Addr);
+    }
+    else {
+        nwarning << "不支持的IP类型：" << hCommon.ip_type;
+        return;
+    }
+    
+    QByteArray payload1 = msg.mid(headerSize);
+    msg_common msgCommon;
+    msgCommon.src={srcIp.toString(),srcPort};
+    msgCommon.msg=payload1;
+    
+    if(payload1.startsWith("CT")||payload1.startsWith("TC")){
+        if(payload1.size() < (int)sizeof(msg_ctrl_p)) return;
+    
+        msg_ctrl_p ctrl;
+        memcpy(&ctrl, payload1.constData(), sizeof(ctrl));
+    
+        // 端序转换
+        ctrl.check_type = qFromBigEndian(ctrl.check_type);
+        if(ctrl.check_type != mt_ctrl) return;
+    
+        // 读取指令和参数
+        QByteArray cmd = QByteArray(ctrl.ctrl);
+        QString value = QByteArray(ctrl.value);
+    
+        // QVariant 转回原始类型
+        QVariant var = value;;
+        
+        msg_ctrl msgCtrl;
+        msgCtrl.src=msgCommon.src;
+        msgCtrl.ctrl=cmd;
+        msgCtrl.value=value;
+        
+        emit SPTP_ctrlMsgReceived(msgCtrl);
+    }
+    else{
+        emit SPTP_commonMsgReceived(msgCommon);
     }
 }
 
