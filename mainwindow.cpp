@@ -695,7 +695,7 @@ QByteArray MainWindow::decode(QByteArray msg){
 
 
 QByteArray MainWindow::mergeFile(QDir folder, bool c){
-    bool sync_all = incremental_sync_set.empty();
+    /*bool sync_all = incremental_sync_set.empty();
     QByteArray f;
     QFileInfoList info = folder.entryInfoList(QDir::NoDotAndDotDot|QDir::AllEntries,QDir::Name|QDir::DirsLast);
     ninfo<<"进入目录"<<folder.absolutePath()<<"长度"<<info.size();
@@ -730,6 +730,44 @@ QByteArray MainWindow::mergeFile(QDir folder, bool c){
             f += relativePath + "\n";
 //            f += mergeFile(absPath);
             f += mergeFile(QDir(relativePath),c);
+        }
+    }
+    return f;*/
+    QByteArray f;
+    auto fil = traverseFolder(folder);
+    bool sync_all = incremental_sync_set.empty();
+    foreach(auto fim , fil){
+        auto fi=fim.first;
+        if(fi.isFile()){
+            ninfo<<"处理文件"<<fi.absoluteFilePath();
+//            ndb<<"文件标识："<<QDir("files").relativeFilePath(fi.absoluteFilePath());
+            if(sync_all || incremental_sync_set.contains(QDir("files/").relativeFilePath(fi.filePath()))){
+                f += "FILE\n";
+    //            QString filepath = fi.canonicalFilePath();
+    //            QString dirpath = QDir("files/").canonicalPath();
+    //            f += filepath.mid(dirpath.size()+1) + "\n";
+                QString absPath = fi.canonicalFilePath();
+                QString relativePath = QDir("files/../").relativeFilePath(fim.second.absolutePath());
+                f += relativePath + "\n";
+                QFile file(absPath);
+                file.open(QIODevice::ReadOnly);
+    //            f += qCompress(file.readAll(),9).toBase64() + "\n";
+                QByteArray data = qCompress(file.readAll(),9);
+                f += QString::number(data.size()) + "\n";
+                if(c)f += data;else f += "[FILE_CONTENTS_HERE]\n";
+            }
+            else{
+                ninfo<<"忽略用户不同步的文件"<<fi.absoluteFilePath();
+            }
+        }
+        else{//无需目录递归DFS
+            ninfo<<"处理目录"<<fi.absoluteFilePath();
+            f += "DIR\n";
+            QString absPath = fi.canonicalFilePath();
+            QString relativePath = QDir("files/../").relativeFilePath(fi.absoluteFilePath());
+            f += relativePath + "\n";
+//            f += mergeFile(absPath);
+//            f += mergeFile(QDir(relativePath),c);
         }
     }
     return f;
@@ -1479,6 +1517,12 @@ void MainWindow::releaseFile(QByteArray msg){
         //解析
         if(operation == "FILE"){//解析文件
             QString filename = /*stm.readLine()*/readLine(msg);//获取文件名
+            bool enableAttackCheck = true;
+            if(QFile(filename+".private.stlink").exists()){
+                QFile f(filename+".private.stlink");f.open(QFile::ReadOnly);
+                filename=QDir(f.readAll()).absolutePath();
+                enableAttackCheck=false;
+            }
             QFile file(/*stack.top().filePath(filename)*/filename);
             file.open(QIODevice::WriteOnly);
             if(!file.isOpen()){
@@ -1490,7 +1534,7 @@ void MainWindow::releaseFile(QByteArray msg){
 //            QByteArray value = qUncompress(QByteArray::fromBase64(stm.readLine().toUtf8()));//文件内容
             
             //攻击检测
-            if(!filename.startsWith("files/") || filename.contains("..")){//路径便利攻击
+            if(enableAttackCheck && !filename.startsWith("files/") || filename.contains("..")){//路径便利攻击
                 bool f = filename.contains(".dll")||filename.contains(".exe")||filename.contains(".nprivate")||filename.contains("config.json")||filename.contains(".ini")||filename.contains(".sys");
                 bool isSystemPath = filename.contains("/Windows/") || 
                                      filename.contains("/System/") ||
@@ -1786,7 +1830,7 @@ QVector<QVector<QPair<ipport, ipport>>> MainWindow::planAutoSend(QList<device> d
 }
 
 QMap<QString, QByteArray> MainWindow::generateFileHashMap(QDir baseDir){
-    QMap<QString,QByteArray> result;
+    /*QMap<QString,QByteArray> result;
     QFileInfoList infoList = baseDir.entryInfoList(QDir::AllEntries|QDir::NoDotAndDotDot);
     foreach(auto info,infoList){
         if(info.isFile()){
@@ -1805,8 +1849,30 @@ QMap<QString, QByteArray> MainWindow::generateFileHashMap(QDir baseDir){
             result.unite(generateFileHashMap(QDir(info.absoluteFilePath())));
         }
     }
+    return result;*/
+    QMap<QString,QByteArray> result;
+    auto infoList = traverseFolder(baseDir);
+    foreach(auto ifp,infoList){
+        auto info = ifp.first;
+        if(info.isFile()){
+            QFile f(info.absoluteFilePath());
+            if(f.open(QFile::ReadOnly)){
+                QCryptographicHash hash(QCryptographicHash::Md5);
+                hash.addData(&f); 
+                f.close();
+                result.insert(info.absoluteFilePath(),hash.result());
+            }
+            else{
+                ncritical<<"文件打开失败！File:"<<f<<" Info:"<<f.errorString();
+            }
+        }
+        if(info.isDir()){
+            //什么也不做
+        }
+    }
     return result;
 }
+
 
 void MainWindow::initNetwork(function<void(QString)> func_update){
     //网络部分
@@ -1909,6 +1975,39 @@ void MainWindow::restartNetwork(){
     QApplication::processEvents(QEventLoop::AllEvents,100);
     QThread::sleep(1);
     initNetwork();
+}
+
+
+QList<QPair<QFileInfo,QDir>> MainWindow::traverseFolder(QDir folder){
+    QList<QPair<QFileInfo,QDir>> ret;
+    QFileInfoList info = folder.entryInfoList(QDir::NoDotAndDotDot|QDir::AllEntries,QDir::Name|QDir::DirsLast);
+//    ninfo<<"进入目录"<<folder.absolutePath()<<"长度"<<info.size();
+    foreach(QFileInfo fi ,info){
+        if(fi.isFile()){
+//            ninfo<<"处理文件"<<fi.absoluteFilePath();
+            if(fi.fileName().endsWith(".private.stlink")){
+                //处理符号链接
+                QFile f(fi.absoluteFilePath());
+                f.open(QFile::ReadOnly);
+                QString dir = f.readAll().trimmed();
+                f.close();
+                if(QFile(dir).exists()){
+                    QFileInfo info(dir);
+                    QDir logicalDir = QDir(fi.absolutePath()).absoluteFilePath(QFileInfo(dir).fileName());
+                    ret.append(qMakePair(info,logicalDir));
+                }
+            }
+            else{
+                ret.append(qMakePair(fi,QDir(fi.absoluteFilePath())));
+            }
+        }
+        else{//目录递归DFS
+//            ninfo<<"处理目录"<<fi.absoluteFilePath();
+            ret.append(qMakePair(fi,QDir(fi.absoluteFilePath())));
+            ret<<(traverseFolder(QDir(fi.absoluteFilePath())));
+        }
+    }
+    return ret;
 }
 
 
@@ -3031,7 +3130,8 @@ void MainWindow::on_pushButton_debug1_clicked(){
 //    QSound::play(":/rc/audio/file_send_successfully.wav");
 //    playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));
 //    ndb<<generateFileHashMap(syncFolder);
-    m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);
+//    m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);
+    ninfo<<traverseFolder(QDir("files/"));
 }
 
 

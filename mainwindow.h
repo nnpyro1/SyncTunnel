@@ -112,6 +112,7 @@ public://公有函数
     QMap<QString,QByteArray> generateFileHashMap(QDir baseDir);//更新文件哈希表
     void initNetwork(std::function<void(QString)> a=nullptr);  //初始化网络
     void restartNetwork();                      //重启网络
+    QList<QPair<QFileInfo,QDir>>traverseFolder(QDir dir);//遍历  
     
 private slots://槽函数
     void on_folder_change();                    //当前目录改变（双击打开）
