@@ -11,6 +11,7 @@
 #include <QQueue>
 #include <memory>
 #include <QMediaPlayer>
+#include <core/basic/utils.h>
 
 class TransmissionEngine : public QObject
 {
@@ -46,8 +47,8 @@ public://构造/析构&枚举&结构体成员
 public://公有函数
     //辅助对接communication
     void send(QByteArray msg,bool e=1,int d=-1);            //自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
-    QByteArray encode(QByteArray msg);                      //加密msg并返回密文
-    QByteArray decode(QByteArray msg);                      //解密msg并返回解密后的值
+    QByteArray encode(const QByteArray &msg);               //加密msg并返回密文
+    QByteArray decode(const QByteArray &msg);               //解密msg并返回解密后的值
     //SPTP协议
     void SPTP_sendTo(int n,QByteArray data);          //自动分包并发送
     void SPTP_send(QByteArray msg,QList<device> dst);       //自动规划路径并发送给dst

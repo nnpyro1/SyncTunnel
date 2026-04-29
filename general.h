@@ -12,6 +12,15 @@
 #define ncritical noutput(Critical)
 
 
+//工具宏定义
+#define RUN_LATER(sth) QMetaObject::invokeMethod(QThread::currentThread(),[=]{sth},Qt::QueuedConnection);
+#define RUN_IN_MAIN_THREAD(sth) QMetaObject::invokeMethod(qApp,[=]{sth},Qt::QueuedConnection);
+
+
+//仅值宏
+#define EXIT_CODE_RESTART  ( 'R' << 16 | 'S' << 8 | 'T' )
+
+
 //跨平台设备定义
 #include <stdio.h>
 #ifdef Q_OS_WIN

@@ -3,24 +3,8 @@
 #include <QSslSocket>
 #include <QSplashScreen>
 
-MainWindow* g_mainWindow = nullptr;
 
-void resetMainWindow()
-{
-    QMetaObject::invokeMethod(qApp,[]{
-        if (g_mainWindow)
-        {
-            g_mainWindow->hide();
-            g_mainWindow->deleteLater();
-            g_mainWindow = nullptr;
-        }
-        
-        g_mainWindow = new MainWindow(nullptr,nullptr,true);
-        g_mainWindow->show();
-    },Qt::QueuedConnection);
-}
-
-int main(int argc, char *argv[])
+int nMain(int argc, char *argv[])
 {
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication a(argc, argv);
@@ -34,8 +18,24 @@ int main(int argc, char *argv[])
     for(int i=0;i<10;i++){splash.raise();
     a.processEvents();}
     
-    g_mainWindow = new MainWindow(nullptr,[&](QString a){splash.showMessage(a,Qt::AlignBottom|Qt::AlignHCenter);});
-    g_mainWindow->show();
-    splash.finish(g_mainWindow);
+    //创建对象
+    QThread workThread;
+    BusinessLogic bl(nullptr);
+    bl.moveToThread(&workThread);
+    workThread.start();
+    
+    MainWindow w(&bl,nullptr,[&](QString a){splash.showMessage(a,Qt::AlignBottom|Qt::AlignHCenter);});
+    w.show();
+    splash.finish(&w);
     return a.exec();
+}
+
+
+int main(int argc,char *argv[]){
+    do{
+        int ret=nMain(argc,argv);
+        if(ret!=EXIT_CODE_RESTART){
+            return ret;
+        }
+    }while(1);
 }

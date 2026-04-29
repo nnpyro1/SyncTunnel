@@ -7,6 +7,9 @@
 #include <QtDebug>
 #include <QQueue>
 #include <QTimer>
+#include <QThread>
+#include <QMutex>
+#include <QMutexLocker>
 
 
 class Communication : public QObject
@@ -92,6 +95,7 @@ private://私有变量&对象
     ipport stun_host = /*{"stun.miwifi.com",3478}*//*{"stun.l.google.com",19302}*/{"stun.chat.bilibili.com",3478};
     QQueue<QNetworkDatagram> buf;
     QTimer timer_read;
+    
 };
 
 inline uint qHash(const Communication::ipport &key, uint seed) noexcept{

@@ -1,3 +1,4 @@
+#pragma once
 #include <QObject> 
 #include <qmqttclient.h>
 #include "../communication/communication.h"

@@ -53,8 +53,9 @@
 using namespace std;
 
 
-MainWindow::MainWindow(QWidget *parent, std::function<void(QString)> func_update, bool bShow)
+MainWindow::MainWindow(BusinessLogic *bl,QWidget *parent, std::function<void(QString)> func_update, bool bShow)
     : QMainWindow(parent)
+    , businesslogic(bl)
     , ui(new Ui::MainWindow)
     , settings("config/settings.ini",QSettings::IniFormat)
 {
@@ -1534,7 +1535,7 @@ void MainWindow::releaseFile(QByteArray msg){
 //            QByteArray value = qUncompress(QByteArray::fromBase64(stm.readLine().toUtf8()));//文件内容
             
             //攻击检测
-            if(enableAttackCheck && !filename.startsWith("files/") || filename.contains("..")){//路径便利攻击
+            if((enableAttackCheck && !filename.startsWith("files/")) || filename.contains("..")){//路径便利攻击
                 bool f = filename.contains(".dll")||filename.contains(".exe")||filename.contains(".nprivate")||filename.contains("config.json")||filename.contains(".ini")||filename.contains(".sys");
                 bool isSystemPath = filename.contains("/Windows/") || 
                                      filename.contains("/System/") ||
@@ -2008,50 +2009,6 @@ QList<QPair<QFileInfo,QDir>> MainWindow::traverseFolder(QDir folder){
         }
     }
     return ret;
-}
-
-
-void /*MainWindow::*/log(QtMsgType t, const QMessageLogContext &context, const QString &logstr){
-    if(output_to_file){
-        QString time = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss:zzz");
-        QString opt;
-        switch(t){
-        case QtDebugMsg:opt="DEBUG";break;
-        case QtInfoMsg:opt="INFO";break;
-        case QtWarningMsg:opt="WARNING";break;
-        case QtCriticalMsg:opt="CRITICAL";break;
-        case QtFatalMsg:opt="FATAL";break;
-        }
-        
-        if(!logFile->isOpen())logFile->open(QFile::WriteOnly);
-        logFile->write(QString("[%1 %2]:%3\n\n").arg(time).arg(opt).arg(logstr).toLocal8Bit());
-        Q_UNUSED(context);
-    }
-    else{
-        QString time = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss:zzz");
-        QString color;
-        switch(t) {
-        case QtDebugMsg:
-            color = "\033[2m";  // 灰色 (调试信息)
-            break;
-        case QtInfoMsg:
-            color = "\033[0m";  // 绿色 (普通信息)
-            break;
-        case QtWarningMsg:
-            color = "\033[33m";  // 黄色 (警告)
-            break;
-        case QtCriticalMsg:
-            color = "\033[31m";  // 红色 (错误)
-            break;
-        case QtFatalMsg:
-            color = "\033[1;41;37m";  // 白字红底加粗 (致命错误)
-            break;
-        default:
-            color = "\033[0m";  // 默认重置颜色
-            break;
-        }
-        cout<<QString("%1[%2]%3\033[0m").arg(color).arg(time).arg(logstr).toLocal8Bit().constData()<<endl;
-    }
 }
 
 

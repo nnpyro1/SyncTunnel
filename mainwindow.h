@@ -28,6 +28,7 @@
 #include <dialogs/wizard_startup.h>
 #include <QResizeEvent>
 #include <functional>
+#include <businesslogic.h>
 using namespace QtCharts;
 
 void resetMainWindow();
@@ -84,7 +85,7 @@ class MainWindow : public QMainWindow
     using fpvoid = std::function<void()>;
     
 public://公有函数
-    MainWindow(QWidget *parent = nullptr,std::function<void(QString)> func_update = nullptr,bool bShow=false);
+    MainWindow(BusinessLogic *bl,QWidget *parent = nullptr,std::function<void(QString)> func_update = nullptr,bool bShow=false);
     ~MainWindow();
     
     void show_dir();                            //显示目录到Widget上
@@ -150,6 +151,8 @@ private://模块
     Storage *m_storage;
     Signalling *m_signalling;
     TransmissionEngine *m_transmissionengine;
+    
+    BusinessLogic *businesslogic;
     
 private://私有变量
     Ui::MainWindow *ui;
@@ -242,8 +245,5 @@ private:
     
 };
 
-static void log(QtMsgType t,const QMessageLogContext &context,const QString &logstr);
-static QFile *logFile;
-static bool output_to_file = false;
 
 #endif // MAINWINDOW_H

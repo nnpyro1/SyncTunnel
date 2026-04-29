@@ -73,29 +73,32 @@ void TransmissionEngine::send(QByteArray msg, bool e, int d){
 }
 
 
-QByteArray TransmissionEngine::encode(QByteArray msg){
-#ifndef DEBUG_NO_ENCRYPTION
-    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray key = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
-    QByteArray iv = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Md5);
-    QByteArray encode = encription.encode(msg,key,iv)/*.toBase64()*/;
-    return /*qCompress(*/encode/*,9)*/;
-#else   
-    return msg;
-#endif
+//转而使用Utils::encode/decode(msg)
+QByteArray TransmissionEngine::encode(const QByteArray &msg){
+//#ifndef DEBUG_NO_ENCRYPTION
+//    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
+//    QByteArray key = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
+//    QByteArray iv = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Md5);
+//    QByteArray encode = encription.encode(msg,key,iv)/*.toBase64()*/;
+//    return /*qCompress(*/encode/*,9)*/;
+//#else   
+//    return msg;
+//#endif
+    return Utils::encode(msg,pwd);
 }
 
 
-QByteArray TransmissionEngine::decode(QByteArray msg){
-#ifndef DEBUG_NO_ENCRYPTION
-    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray key = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
-    QByteArray iv = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Md5);
-    QByteArray decoded = encription.removePadding(encription.decode(/*QByteArray::fromBase64(msg)*//*qUncompress(*/msg/*)*/,key,iv));
-    return decoded;
-#else
-    return msg;
-#endif
+QByteArray TransmissionEngine::decode(const QByteArray &msg){
+//#ifndef DEBUG_NO_ENCRYPTION
+//    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
+//    QByteArray key = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
+//    QByteArray iv = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Md5);
+//    QByteArray decoded = encription.removePadding(encription.decode(/*QByteArray::fromBase64(msg)*//*qUncompress(*/msg/*)*/,key,iv));
+//    return decoded;
+//#else
+//    return msg;
+//#endif
+    return Utils::decode(msg,pwd);
 }
 
 
