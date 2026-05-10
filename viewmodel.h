@@ -1,0 +1,67 @@
+#ifndef VIEWMODEL_H
+#define VIEWMODEL_H
+
+#include <QObject>
+#include <businesslogic.h>
+#include <core/basic/observable.h>
+
+class ViewModel : public QObject
+{
+    Q_OBJECT
+public:
+    explicit ViewModel(BusinessLogic *businesslogic,QObject *parent = nullptr);
+    
+public slots://以下是直接从BusinessLogic迁移的槽
+    void on_folder_change(QString textOnItem);
+    void on_settings_saved(QString username_, QString pwd_, QString mqttServer_, 
+                           int mqttPort_, QString githubUser_, QString githubPat_, 
+                           QVariant skin_, bool recordLog_, bool disableNotice_, 
+                           QString description_);                   //当设置保存
+    void on_hangup();                                               //当文件挂起
+    void on_download();                                             //文件挂起下载
+    void on_sync_pat();                                             //同步Github PAT
+    void on_shutdown_current(int id);                               //关闭选中
+    void on_test_rtt();                                             //测试RTT
+    void on_request_file(int index);                                //请求文件
+    /** @brief subdir输入|开头代表确定*/
+    void on_copy_remote_file_operation_requested(QString subdir,int);//远程复制文件
+    void on_add_schedule(Schedule *schedule);                       //增加日程
+    void on_remove_schedule(int index);                             //删除日程
+    void on_suspended();                                            //退后台
+    void on_hangup_to_dfhn();                                       //挂起到DFHN
+    void on_download_from_dfhn();                                   //从DFHN上面下
+    void on_restart_all();                                          //重启全部
+    
+signals:
+    void tempMessageChanged(QString tmpMessage,int maxtime=5000);
+    void messageBoxRequested(QString title,QString content,BusinessLogic::MessageBoxType type,bool doublebtn=false,std::function<void()> actionOnOk=nullptr,std::function<void()> actionOnCancel=nullptr);
+    void destoryShutdownBlock();
+    void remoteFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);
+    
+public://公有Observable
+    // ### 注意，这些OBS都没有在VM里面调用use。请编译前加上代码并删除此行。 ###
+    OBS(QString,status);
+    OBS(QString,styleSheet);
+    OBS(int,currentSkinIndex);
+    OBS(bool,recordLogState);
+    OBS(bool,disableNoticeState);
+    OBS(QString,description);
+    OBS(bool,autoSyncState);
+    OBS(int,currentPageIndex);
+    OBS(bool,ipv6UsageState);
+    OBS(QByteArray,scheduleBytes);
+    OBS(QList<Communication::device>,clients);
+    
+private slots://私有槽
+    void on_businessEventOccur(BusinessLogic::BusinessEvent event,QVariantMap map);
+    void on_sendInfoChange(TransmissionEngine::SendInfo info);
+    void on_schedule_update(QByteArray schedule);
+    void on_remoteFileFolderUpdate(QString folder,QSet<QPair<bool,QString>> list);
+    void on_deviceListUpdate(QList<device> deviceList);
+    void on_rttTestResultUpdate(QList<QVariantMap> rttResult);
+    
+private:
+    BusinessLogic *bl;
+};
+
+#endif // VIEWMODEL_H

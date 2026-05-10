@@ -24,9 +24,12 @@ public://公有声明
         QString ip;
         quint16 port;
         
-        inline operator const QString() const{
+        inline QString toString() const{
             if(ip.contains(':')) return QString("[%1]:%2").arg(ip).arg(port);
             else return QString("%1:%2").arg(ip).arg(port);
+        }
+        inline operator const QString() const{
+            return toString();
         }
         inline friend QDataStream& operator<<(QDataStream& out, const ipport& value) {
             out << value.ip << value.port;
@@ -63,6 +66,7 @@ public://公有声明
         }
         inline friend bool operator==(const ipport &l,const device &r){return r==l;}
     };
+    
     
     enum DeviceFlag{
         WindowsDevice,

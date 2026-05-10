@@ -33,7 +33,7 @@ public://构造/析构&枚举&结构体成员
         mt_filebody         =0x46424246,
         mt_ctrl             =0x43545443,
     };
-#pragma pack(push,1)
+    
     struct msg_common{
         ipport src;
         QByteArray msg;
@@ -42,8 +42,11 @@ public://构造/析构&枚举&结构体成员
         QByteArray ctrl;
         QVariant value=QVariant();
     };
+    struct SendInfo{
+        int i,total,reqAckLoop;
+        double delay;
+    };
 
-#pragma pack(pop)
 public://公有函数
     //辅助对接communication
     void send(QByteArray msg,bool e=1,int d=-1);            //自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
@@ -64,6 +67,7 @@ public://公有函数
     
 signals:
     void messageChanged(QString message);                   //当需要在页面上显示消息的时候触发
+    void sendInfoChanged(SendInfo info);                    //发送状态
     void communicationReadyRead(QByteArray msg);            //对于readyRead，应该联接这个而非Communication::readyRead
     void SPTP_readyRead(QByteArray data);                   //SPTP发送数据可读
     void SPTP_sendFinished();                               //消息发送结束，不管是否成功
@@ -101,7 +105,7 @@ private://私有定义
     struct msg_ctrl_p{
         qint32 check_type;
         char ctrl[20];
-        char value[100];
+        char value[1400];
     };
 //    struct header_ctrl
 #pragma pack(pop)

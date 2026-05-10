@@ -267,15 +267,12 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
                 dw="MB";dsp=speed/(1024*1024);
             }
             if(send_current_delay>20||i%4==0){
-                emit messageChanged(QString(tr("发送文件中:包%1/%2 显示%3毫秒 速度%4%5/s \n本轮丢包%6% 延迟%7ms 验证轮%8个 累计%9 稳定%10\nGAB%12:%11:%13 状态%14 探索%15")).arg(i).arg(send_buf.size()-1).arg(clock.elapsed()).arg(dsp,0,'f',4).arg(dw).arg(display_lost).arg(send_current_delay).arg(send_req_ack_loop).arg(send_lost_loop_count).arg(stable_delay).arg(average_loss,0,'f',3).arg(average_good_loss,0,'f',3).arg(average_bad_loss,0,'f',3).arg(state).arg(is_exploring));
-//                line_delay->append(i,send_current_delay);
-//                line_ackloop->append(i,send_req_ack_loop);
-//                line_speed->append(i,speed/1024.);//KB/s
-//                axis_x->setRange(0,i+5);
-//                if(speed > axis_y_r->max()) axis_y_r->setRange(0,speed+15);
-//                chart_send->update();
-//                ui->widget_info_chart1->update();
-//                ui->label_info_time->setText(QString("共记录%1s").arg(clock_total.elapsed()/1000.));
+//                emit messageChanged(QString(tr("发送文件中:包%1/%2 显示%3毫秒 速度%4%5/s \n本轮丢包%6% 延迟%7ms 验证轮%8个 累计%9 稳定%10\nGAB%12:%11:%13 状态%14 探索%15")).arg(i).arg(send_buf.size()-1).arg(clock.elapsed()).arg(dsp,0,'f',4).arg(dw).arg(display_lost).arg(send_current_delay).arg(send_req_ack_loop).arg(send_lost_loop_count).arg(stable_delay).arg(average_loss,0,'f',3).arg(average_good_loss,0,'f',3).arg(average_bad_loss,0,'f',3).arg(state).arg(is_exploring));
+                SendInfo info;
+                info.i=i;info.total=chunks.size();
+                info.delay=send_current_delay;
+                info.reqAckLoop=send_req_ack_loop;
+                emit sendInfoChanged(info);
             }
             clock.restart();
         }
@@ -959,7 +956,7 @@ QByteArray TransmissionEngine::SPTP_sendCtrl(QByteArray ctrl, QVariant v, int d)
         return "";
     }
     QString value = v.toString();
-    if(value.size()>=100){
+    if(value.size()>=1400){
         nwarning<<"value尺寸过大";
         return "";
     }

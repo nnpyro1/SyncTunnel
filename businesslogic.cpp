@@ -7,6 +7,7 @@
 #include <passport.h>
 #include <iostream>
 #include <QRandomGenerator>
+#include <QBuffer>
 
 
 BusinessLogic::BusinessLogic(QObject *parent) : QObject(parent) ,useless(QDir().mkpath("config")) ,settings("config/settings.ini",QSettings::IniFormat){
@@ -121,7 +122,8 @@ void BusinessLogic::init(){
         file_QSS.open(QFile::ReadOnly);
 //        setStyleSheet("");
 //        qApp->setStyleSheet(file_QSS.readAll());
-        emit operateRequested("qApp","setStyleSheet",file_QSS.readAll());
+//        emit operateRequested("qApp","setStyleSheet",file_QSS.readAll());
+        emit businessEventOccurred(BusinessEvent::StyleSheetUpdated,{{"stylesheet",file_QSS.readAll()}});
         break;
     case Light:
         currentSkin=skin;
@@ -129,7 +131,8 @@ void BusinessLogic::init(){
         file_QSS.open(QFile::ReadOnly);
 //        setStyleSheet("");
 //        qApp->setStyleSheet(file_QSS.readAll());
-        emit operateRequested("qApp","setStyleSheet",file_QSS.readAll());
+//        emit operateRequested("qApp","setStyleSheet",file_QSS.readAll());
+        emit businessEventOccurred(BusinessEvent::StyleSheetUpdated,{{"stylesheet",file_QSS.readAll()}});
         break;
     case Golden:
         if(checkSkin(Golden)){
@@ -137,13 +140,15 @@ void BusinessLogic::init(){
             file_QSS.setFileName(":/rc/style/golden.qss");
             file_QSS.open(QFile::ReadOnly);
 //            setStyleSheet("");
-            emit operateRequested("","setStyleSheet","");
-//            qApp->setStyleSheet(file_QSS.readAll());
-            emit operateRequested("qApp","setStyleSheet",file_QSS.readAll());
-            emit operateRequested("","setWindowTitle",tr("SyncTunnel 同步隧道（金色流光限定版） 感谢您本对软件做出的贡献"));
+//            emit operateRequested("","setStyleSheet","");
+////            qApp->setStyleSheet(file_QSS.readAll());
+//            emit operateRequested("qApp","setStyleSheet",file_QSS.readAll());
+//            emit operateRequested("","setWindowTitle",tr("SyncTunnel 同步隧道（金色流光限定版） 感谢您本对软件做出的贡献"));
+            emit businessEventOccurred(BusinessEvent::StyleSheetUpdated,{{"stylesheet",file_QSS.readAll()}});
         }
         else{
-            emit messageBoxRequested(tr("SyncTunnel"),tr("您无法使用限量版UI。"),MessageBoxType::Information);
+//            emit messageBoxRequested(tr("SyncTunnel"),tr("您无法使用限量版UI。"),MessageBoxType::Information);
+            emit businessEventOccurred(BusinessEvent::PremiumUiUnauthorized);
         }
         break;
     case Silver:
@@ -152,17 +157,20 @@ void BusinessLogic::init(){
             file_QSS.setFileName(":/rc/style/silver.qss");
             file_QSS.open(QFile::ReadOnly);
 //            setStyleSheet("");
-            emit operateRequested("","setStyleSheet","");
-            qApp->setStyleSheet(file_QSS.readAll());
-            emit operateRequested("","setWindowTitle",tr("SyncTunnel 同步隧道（银色星辰限定版）"));
+//            emit operateRequested("","setStyleSheet","");
+//            qApp->setStyleSheet(file_QSS.readAll());
+//            emit operateRequested("","setWindowTitle",tr("SyncTunnel 同步隧道（银色星辰限定版）"));
+            emit businessEventOccurred(BusinessEvent::StyleSheetUpdated,{{"stylesheet",file_QSS.readAll()}});
         }
         else{
-            emit messageBoxRequested(tr("SyncTunnel"),tr("您无法使用限量版UI。"),MessageBoxType::Information);
+//            emit messageBoxRequested(tr("SyncTunnel"),tr("您无法使用限量版UI。"),MessageBoxType::Information);
+            emit businessEventOccurred(BusinessEvent::PremiumUiUnauthorized);
         }
         break;
     }
 //    ui->comboBox_settings_uiskin->setCurrentIndex(currentSkin);
-    emit operateRequested("ui->comboBox_settings_uiskin","setCurrentIndex",currentSkin);
+//    emit operateRequested("ui->comboBox_settings_uiskin","setCurrentIndex",currentSkin);
+    emit businessEventOccurred(BusinessEvent::CurrentSkinIndexUpdated,{{"index",(int)currentSkin}});
     ninfo<<"current Skin="<<currentSkin;
 //    读取JSON配置
     QFile file_json("config/config.json");
@@ -176,13 +184,16 @@ void BusinessLogic::init(){
         qInstallMessageHandler(static_cast<QtMessageHandler>(log));
         ninfo<<"日志输出重定向到文件";
 //        ui->checkBox_settings_recordLog->setCheckState(Qt::Checked);
-        emit operateRequested("ui->checkBox_settings_recordLog","setCheckState",Qt::Checked);
+//        emit operateRequested("ui->checkBox_settings_recordLog","setCheckState",Qt::Checked);
+        emit businessEventOccurred(BusinessEvent::RecordLogStateUpdated,{{"state",true}});
     }
-    if(json_settings["disable_notice"].toBool())/*ui->checkBox_settings_disableNotice->setCheckState(Qt::Checked);*/emit operateRequested("ui->checkBox_settings_disableNotice","setCheckState",Qt::Checked);
+//    if(json_settings["disable_notice"].toBool())/*ui->checkBox_settings_disableNotice->setCheckState(Qt::Checked);*/emit operateRequested("ui->checkBox_settings_disableNotice","setCheckState",Qt::Checked);
+    if(json_settings["disable_notice"].toBool()) emit businessEventOccurred(BusinessEvent::RecordLogStateUpdated,{{"state",true}});
     device_description=json_settings["description"].toString();
 //    device_flag=json_settings["device_flag"].toInt();
 //    ui->lineEdit_settings_description->setText(device_description);
-    emit operateRequested("ui->lineEdit_settings_description","setText",device_description);
+//    emit operateRequested("ui->lineEdit_settings_description","setText",device_description);
+    emit businessEventOccurred(BusinessEvent::DescriptionUpdated,{{"description",device_description}});
     if(settings.contains("ApplicationSettings/syncSourceDir")){
         syncFolder=QDir(settings.value("ApplicationSettings/syncSourceDir").toString());
     }
@@ -191,38 +202,45 @@ void BusinessLogic::init(){
     }
     is_autoSync=settings.value("ApplicationSettings/isAutoSync").toBool();
 //    ui->checkBox_file_autoSync->setCheckState(is_autoSync?Qt::Checked:Qt::Unchecked);
-    emit operateRequested("ui->ui->checkBox_file_autoSync","setCheckState",is_autoSync?Qt::Checked:Qt::Unchecked);
+//    emit operateRequested("ui->ui->checkBox_file_autoSync","setCheckState",is_autoSync?Qt::Checked:Qt::Unchecked);
+    emit businessEventOccurred(BusinessEvent::AutoSyncEnableStateUpdated,{{"state",false}});
     //读取Schedule日程配置
     QFile file_schedule("config/schedule.dat");
     file_schedule.open(QFile::ReadOnly);
-    QDataStream d(&file_schedule);
-    while(!d.atEnd()){
-        Schedule *s = new Schedule(this); 
-        d>>(*s);
-        schedule_list.append(s);
-//        ui->listWidget_schedule->addItem(s->toString());
-        emit operateRequested("ui->listWidget_schedule","addItem",s->toString());
-    }
+//    QDataStream d(&file_schedule);
+//    while(!d.atEnd()){
+//        Schedule *s = new Schedule(this); 
+//        d>>(*s);
+//        schedule_list.append(s);
+////        ui->listWidget_schedule->addItem(s->toString());
+////        emit operateRequested("ui->listWidget_schedule","addItem",s->toString());
+//    }
+    unserSchedule(file_schedule.readAll());
+//    emit businessEventOccurred(BusinessEvent::ScheduleUpdated,{{"schedule",scheduleStringList}});
+//    emit scheduleUpdated(generateScheduleText());
+    emit scheduleUpdated(serSchedule());
     file_schedule.close();
 
     //设置当前页
     QDir dir_empty_label1("config/empty/label1");
     if(dir_empty_label1.exists()){
 //        ui->tabWidget->setCurrentIndex(0);
-        emit operateRequested("ui->tabWidget","setCurrentIndex",0);
+//        emit operateRequested("ui->tabWidget","setCurrentIndex",0);
+        emit businessEventOccurred(BusinessEvent::PageIndexUpdated,{{"index",0}});
         is_first_launch = false;
     }
     else{
         dir_empty_label1.mkpath(".");
 //        ui->tabWidget->setCurrentIndex(5);
-        emit operateRequested("ui->tabWidget","setCurrentIndex",5);
+//        emit operateRequested("ui->tabWidget","setCurrentIndex",5);
+        emit businessEventOccurred(BusinessEvent::PageIndexUpdated,{{"index",5}});
         is_first_launch = true;
     }
     QDir dir_emty_label2("config/empty/label2");//不启用关机阻止
     if(!dir_emty_label2.exists()){
 #ifdef Q_OS_WIN
 //        ShutdownBlockReasonCreate((HWND)winId(),L"如果想要离线非挂起高速无限同步文件请不要关机 SyncTunnel 离线文件同步服务");
-        emit operateRequested("","ShutdownBlockReasonCreate","");
+//        emit operateRequested("","ShutdownBlockReasonCreate","");
 #endif
     }
     QDir dir_empty_label3("config/empty/label3");//DFHN客户端
@@ -417,7 +435,8 @@ void BusinessLogic::init(){
     //初始化网络
     //网络部分
     //发起STUN
-    emit messageChanged(tr("正在获取公网IP……"));
+//    emit messageChanged(tr("正在获取公网IP……"));
+    emit businessEventOccurred(BusinessEvent::GettingPublicIp);
     if(QDir("config/empty/label3").exists())QCoreApplication::processEvents();
     public_ip = m_communication->stun();
     public_ip.description=device_description;
@@ -429,14 +448,17 @@ void BusinessLogic::init(){
         public_ip = m_communication->getIPv6();
         
         if(public_ip == Communication::ipport{"",0}){
-            emit messageBoxRequested(tr("获取公网IP"),tr("您的设备获取IPv4公网IP失败，且不支持IPV6。\n请如果是第一次发生，请重试。\n如果多次发生，请只使用文件挂起功能或更换网络环境。"),MessageBoxType::Warning);
+//            emit messageBoxRequested(tr("获取公网IP"),tr("您的设备获取IPv4公网IP失败，且不支持IPV6。\n请如果是第一次发生，请重试。\n如果多次发生，请只使用文件挂起功能或更换网络环境。"),MessageBoxType::Warning);
 //            QProcess::startDetached(QCoreApplication::applicationFilePath(),QCoreApplication::arguments());
 //            QCoreApplication::quit();
 //            abort();
 //            QApplication::processEvents();
+            emit businessEventOccurred(BusinessEvent::PublicIpGetFailed);
+            Utils::restart();
         }
     }
-    emit messageChanged(tr("正在获取上线用户列表……"));
+//    emit messageChanged(tr("正在获取上线用户列表……"));
+    emit businessEventOccurred(BusinessEvent::GettingDeviceList);
     ninfo<<"var:public ip="<<public_ip;
     //MQTT
     m_signalling->connectToHost(/*{"broker.emqx.io",1883}*/mqtt_server);
@@ -445,7 +467,8 @@ void BusinessLogic::init(){
     m_signalling->setUser(public_ip,user_name);
     clients = m_signalling->getUserList();//获取用户列表
     if(1)foreach(auto i,clients)qDebug()<<i;
-    emit messageChanged(tr("加载成功"));
+//    emit messageChanged(tr("加载成功"));
+    emit businessEventOccurred(BusinessEvent::LoadedSuccessfully);
     emit deviceListUpdated(clients);
     
     //等待直到用户列表获取完成
@@ -469,7 +492,7 @@ void BusinessLogic::init(){
     connect(m_transmissionengine,&TransmissionEngine::communicationReadyRead,this,&BusinessLogic::on_readyRead);
     connect(m_transmissionengine,&TransmissionEngine::SPTP_readyRead,this,&BusinessLogic::on_SPTP_readyRead);
     connect(m_transmissionengine,&TransmissionEngine::messageChanged,this,[this](QString msg){emit messageChanged(msg);});
-    connect(m_transmissionengine,&TransmissionEngine::SPTP_sendFinished,this,[this]{emit messageChanged("发送成功");playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));});
+    connect(m_transmissionengine,&TransmissionEngine::SPTP_sendFinished,this,[this]{emit businessEventOccurred(BusinessEvent::SendedSuccessfully);playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));});
     connect(m_transmissionengine,&TransmissionEngine::SPTP_ctrlMsgReceived,this,&BusinessLogic::on_SPTP_ctrlMsg_received);
     connect(m_signalling,&Signalling::on_userlist_updata,this,[this](QList<Communication::device> userl){
         clients = userl;if(1)foreach(auto i,clients)qDebug()<<i;
@@ -481,7 +504,7 @@ void BusinessLogic::init(){
                 QThread::msleep(20);
             }
         });
-        emit messageChanged(tr("用户列表更新成功"));
+//        emit messageChanged(tr("用户列表更新成功"));
 //        ui->tableWidget_deviceList->clearContents();ui->tableWidget_deviceList->setRowCount(0);ndb<<"IN";
 //        if(m_transmissionengine)m_transmissionengine->setClients(clients);
         
@@ -496,6 +519,7 @@ void BusinessLogic::init(){
 //        if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i.toFullString());}
         emit deviceListUpdated(clients);
     });
+    connect(m_transmissionengine,&TransmissionEngine::sendInfoChanged,this,&BusinessLogic::sendInfoChanged);
     
     //打洞
     for(int i=0;i<5;i++){
@@ -503,7 +527,8 @@ void BusinessLogic::init(){
         send("{\n    \"hole\":2\n}");
         QThread::msleep(50);
     }
-    emit messageChanged(tr("加载成功"));
+//    emit messageChanged(tr("加载成功"));
+    emit businessEventOccurred(BusinessEvent::LoadedSuccessfully);
     
     
     //参数处理
@@ -511,12 +536,14 @@ void BusinessLogic::init(){
     auto args = QApplication::arguments();
     
     if(args.contains("-proxy")){//加速
-        emit messageBoxRequested("加速功能已禁用","O(∩_∩)O哈哈~，我知道你的小心思\n但是，网络加速功能 已 经 被 禁 用 了 ！",MessageBoxType::Information);
+//        emit messageBoxRequested("加速功能已禁用","O(∩_∩)O哈哈~，我知道你的小心思\n但是，网络加速功能 已 经 被 禁 用 了 ！",MessageBoxType::Information);
 //        on_proxy();
+        emit businessEventOccurred(BusinessEvent::ProxyBanned);
     }
     if(args.contains("-ipv6")){//强制使用ipv6
 //        ui->checkBox_settings_ipv6->setChecked(true);
-        emit operateRequested("ui->checkBox_settings_ipv6","setChecked",true);
+//        emit operateRequested("ui->checkBox_settings_ipv6","setChecked",true);
+        emit businessEventOccurred(BusinessEvent::Ipv6UsageStateUpdated,{{"state",true}});
     }
     if(args.contains("CON_MODE")){
         output_to_file=false;
@@ -638,7 +665,8 @@ bool BusinessLogic::checkSkin(BusinessLogic::skinType skin){
     //处理
     if(reply->error() != QNetworkReply::NoError){
 //        QMessageBox::critical(this,tr("样式查询"),tr("连接至服务器错误，无法使用限定款UI界面。\nError:")+reply->errorString());
-        emit messageBoxRequested(tr("样式查询"),tr("连接至服务器错误，无法使用限定款UI界面。\nError:")+reply->errorString(),MessageBoxType::Critical);
+//        emit messageBoxRequested(tr("样式查询"),tr("连接至服务器错误，无法使用限定款UI界面。\nError:")+reply->errorString(),MessageBoxType::Critical);
+        emit businessEventOccurred(BusinessEvent::SkinCheckFailed,{{"error",reply->errorString()}});
         delete manager;
         return false;
     }   
@@ -673,7 +701,8 @@ void BusinessLogic::on_settings_saved(QString username_,QString pwd_,QString mqt
     if(user_name!=username_||pwd!=pwd_){//保存用户名密码
         auto un=username_,p=pwd_;
         if(un.size()<8||p.size()<8){
-            emit messageBoxRequested("无法设置用户名密码","用户名密码过短。要求用户名和密码不少于8字符",MessageBoxType::Warning);
+//            emit messageBoxRequested("无法设置用户名密码","用户名密码过短。要求用户名和密码不少于8字符",MessageBoxType::Warning);
+            emit businessEventOccurred(BusinessEvent::UsernamePasswordTooShort);
             return;
         }
         if(user_name!=username_ && !QDir("config/empty/label1/ext-label-private/label-SyncTunnel-Username-uploaded/").exists()){
@@ -688,7 +717,8 @@ void BusinessLogic::on_settings_saved(QString username_,QString pwd_,QString mqt
 //            }
             if(0){}
             else{
-                emit messageChanged("正在进行验证……");
+//                emit messageChanged("正在进行验证……");
+                emit businessEventOccurred(BusinessEvent::UploadingFirstLaunchInformation);
                 auto manager = new QNetworkAccessManager(this);
                 QNetworkRequest request;
                 //构造请求
@@ -712,7 +742,8 @@ void BusinessLogic::on_settings_saved(QString username_,QString pwd_,QString mqt
                 QTimer::singleShot(15000,&loop,&QEventLoop::quit);
                 loop.exec();
                 if(reply->error() != QNetworkReply::NoError || !reply->isFinished()){
-                    emit messageBoxRequested("错误","错误：无法请求数据到服务器。详细信息："+reply->errorString()+"\n但是这不影响您继续正常使用软件。单击“确定”继续保存",MessageBoxType::Critical);
+//                    emit messageBoxRequested("错误","错误：无法请求数据到服务器。详细信息："+reply->errorString()+"\n但是这不影响您继续正常使用软件。单击“确定”继续保存",MessageBoxType::Critical);
+                    emit businessEventOccurred(BusinessEvent::UploadingFirstLaunchInformationFailed,{{"error",reply->errorString()}});
                     //允许用户暂时使用
 //                    return;
                 }
@@ -805,27 +836,27 @@ void BusinessLogic::on_settings_saved(QString username_,QString pwd_,QString mqt
     }
 }
 
-void BusinessLogic::on_hangup(){
-    if((GetAsyncKeyState('F')&0x8000)==0){
-        emit messageBoxRequested("文件挂起","现在文件挂起功能非常的坏，强烈不建议使用，大概率失败、卡死、闪退、崩溃，建议用DFHN（详见设置）作为替代品。如果你硬要用文件挂起，那么你就按住F再来点击按钮。记住，目前文件挂起强烈不建议使用。",MessageBoxType::Information);
-        return;
-    }
+void BusinessLogic::on_hangup(){ //在找到可用替代方案之前，禁止文件挂起
+//    if((GetAsyncKeyState('F')&0x8000)==0){
+//        emit messageBoxRequested("文件挂起","现在文件挂起功能非常的坏，强烈不建议使用，大概率失败、卡死、闪退、崩溃，建议用DFHN（详见设置）作为替代品。如果你硬要用文件挂起，那么你就按住F再来点击按钮。记住，目前文件挂起强烈不建议使用。",MessageBoxType::Information);
+//        return;
+//    }
     
-    emit messageChanged(tr("正在挂起文件"));
-    QByteArray fileContent = encode(Utils::mergeFile(QDir("files/")));
-    if(m_storage->upload(fileContent)){
-        emit messageChanged(tr("文件挂起成功"));
-        emit messageBoxRequested("文件挂起",tr("文件挂起成功！"),MessageBoxType::Information);
-    }
-    else{
-        emit messageChanged(tr("文件挂起失败"));
-        messageBoxRequested("文件挂起",tr("文件挂起失败！\n\n可能是由于网络波动、服务器关闭等原因。\n文件不能重复挂起，如果第一次文件挂起成功那么第二次重复挂起必定失败。建议检查文件挂起状态是否为“已挂起”。\nGitHub限制每小时最多5000请求，请勿频繁操作文件。（解决办法参见帮助文档）\n\n详细信息参见帮助文档。"),MessageBoxType::Critical);
-    }
+//    emit messageChanged(tr("正在挂起文件"));
+//    QByteArray fileContent = encode(Utils::mergeFile(QDir("files/")));
+//    if(m_storage->upload(fileContent)){
+//        emit messageChanged(tr("文件挂起成功"));
+//        emit messageBoxRequested("文件挂起",tr("文件挂起成功！"),MessageBoxType::Information);
+//    }
+//    else{
+//        emit messageChanged(tr("文件挂起失败"));
+//        messageBoxRequested("文件挂起",tr("文件挂起失败！\n\n可能是由于网络波动、服务器关闭等原因。\n文件不能重复挂起，如果第一次文件挂起成功那么第二次重复挂起必定失败。建议检查文件挂起状态是否为“已挂起”。\nGitHub限制每小时最多5000请求，请勿频繁操作文件。（解决办法参见帮助文档）\n\n详细信息参见帮助文档。"),MessageBoxType::Critical);
+//    }
 }
 
 
 void BusinessLogic::on_download(){
-    emit messageBoxRequested("文件挂起","现在文件挂起功能非常的坏，强烈不建议使用，大概率失败、卡死、闪退、崩溃,所以还是别用了，考虑一下DFHN（详见设置）作为替代品",MessageBoxType::Information);
+//    emit messageBoxRequested("文件挂起","现在文件挂起功能非常的坏，强烈不建议使用，大概率失败、卡死、闪退、崩溃,所以还是别用了，考虑一下DFHN（详见设置）作为替代品",MessageBoxType::Information);
 }
 
 
@@ -838,7 +869,8 @@ void BusinessLogic::on_sync_pat(){
 void BusinessLogic::on_shutdown_current(int id){
     int index = id;
     if(index==-1){
-        emit messageBoxRequested(tr("关闭选中的设备"),tr("请先选中一个设备！"),MessageBoxType::Warning);return;
+//        emit messageBoxRequested(tr("关闭选中的设备"),tr("请先选中一个设备！"),MessageBoxType::Warning);return;
+        return;
     }
     m_communication->send(clients[index],encode("{\n    \"cmd\":\"shutdown -s -t 10\"\n}"));
 }
@@ -851,19 +883,31 @@ void BusinessLogic::on_test_rtt(){
     //发送测试信息
     send("{\n    \"opt\":\"rtt_test\"\n}");
     
-    emit messageChanged("正在测试RTT");
+//    emit messageChanged("正在测试RTT");
+    emit businessEventOccurred(BusinessEvent::TestingRTT);
     QEventLoop loop;
     QTimer timer;
     connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
     timer.start(2000);
     loop.exec();
-    emit messageChanged("RTT测试成功");
+//    emit messageChanged("RTT测试成功");
+    emit businessEventOccurred(BusinessEvent::RTTTestSuccessfully);
     
-    QString result_str;
+//    QString result_str;
+    QList<QVariantMap> rttResult;
     for(auto it=rtt_result.begin();it!=rtt_result.end();it++){
-        result_str.append(QString("device%4:%1\tdelay:%2\tRTT:%3\n").arg(clients[it.key()]).arg(it.value()).arg(it.value()/2).arg(it.key()));
+        auto c=clients[it.key()];
+//        result_str.append(QString("device%4:%1\tdelay:%2\tRTT:%3\n").arg(clients[it.key()]).arg(it.value()).arg(it.value()/2).arg(it.key()));
+        rttResult.append({
+                             {"id",it.key()},
+                             {"ip",c.ip},
+                             {"port",c.port},
+                             {"rtt",it.value()/2.},
+                             {"delay",it.value()}
+                         });
     }
-    emit messageBoxRequested("RTT测试结果","下面是本轮RTT测试的结果：\n\n"+result_str,MessageBoxType::Information);
+//    emit messageBoxRequested("RTT测试结果","下面是本轮RTT测试的结果：\n\n"+result_str,MessageBoxType::Information);
+    emit rttTestResultUpdated(rttResult);
 }
 
 
@@ -872,7 +916,8 @@ BusinessLogic::Result BusinessLogic::on_request_file(int index){
         return Result(QString("Index %1 out of range(0-%2)").arg(index).arg(clients.size()));
     }
     send("REQ_FILE",1,index);
-    emit messageChanged("正在等待发送方响应...");
+//    emit messageChanged("正在等待发送方响应...");
+    emit businessEventOccurred(BusinessEvent::WaitingForResponse);
     return Result();
 }
 
@@ -891,7 +936,8 @@ void BusinessLogic::on_copy_remote_file_operation_requested(QString subdir, int 
 void BusinessLogic::on_add_schedule(Schedule *schedule){
     schedule_list.append(schedule);
     QFile f("config/schedule.dat");f.open(QFile::WriteOnly);QDataStream d(&f);foreach(auto i,schedule_list)d<<(*i);f.close();
-    emit scheduleUpdated(generateScheduleText());
+//    emit /*scheduleUpdated*/(generateScheduleText());
+    emit scheduleUpdated(serSchedule());
 }
 
 
@@ -901,7 +947,8 @@ BusinessLogic::RSLT BusinessLogic::on_remove_schedule(int index){
     }
     schedule_list.removeAt(index);
     QFile f("config/schedule.dat");f.open(QFile::WriteOnly);QDataStream d(&f);foreach(auto i,schedule_list)d<<(*i);f.close();
-    emit scheduleUpdated(generateScheduleText());
+//    emit scheduleUpdated(generateScheduleText());
+    emit scheduleUpdated(serSchedule());    
     return Result();
 }
 
@@ -919,7 +966,8 @@ void BusinessLogic::on_hangup_to_dfhn(){
             l.append(i);
     }
     if(l.empty())
-        emit messageBoxRequested("挂起","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN",MessageBoxType::Warning);
+//        emit messageBoxRequested("挂起","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN",MessageBoxType::Warning);
+        emit businessEventOccurred(BusinessEvent::DFHNDeviceNotFound);
     else sendFile(l);
     //[this]{QList<device> l;for(auto i : clients){if(i.flag==Communication::DFHNDevice)l.append(i);}if(l.empty())QMessageBox::warning(this,"挂起","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN");else sendFile(l);});
     //[this]{QList<device> l;for(auto i : clients){if(i.flag==Communication::DFHNDevice)l.append(i);}if(l.empty())QMessageBox::warning(this,"下载","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN");else send("REQ_FILE",1,clients.indexOf(l[0]));});
@@ -933,7 +981,8 @@ void BusinessLogic::on_download_from_dfhn(){
             l.append(i);
     }
     if(l.empty())
-        emit messageBoxRequested("下载","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN",MessageBoxType::Warning);
+//        emit messageBoxRequested("下载","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN",MessageBoxType::Warning);
+        emit businessEventOccurred(BusinessEvent::DFHNDeviceNotFound);
     else send("REQ_FILE",1,clients.indexOf(l[0]));
 }
 
@@ -950,7 +999,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
     if(!jd.isObject()){
         if(!msg.startsWith("FB")&&!msg.startsWith("BF"))ninfo<<"var:msg = "<<msg;
         if(msg == "FILE_RELEASE_SUCCESSFULLY" && !chunks.empty()){
-            emit messageChanged(tr("文件发送可能成功"));
+//            emit messageChanged(tr("文件发送可能成功"));
         }
         else if(msg == "REQ_FILE"){
             if(timer_is_uploading.isActive()){
@@ -993,10 +1042,12 @@ void BusinessLogic::on_readyRead(QByteArray msg){
 //            replyJson.insert("hole",3);
 //            send(QJsonDocument(json).toJson());
             send("{\n    \"hole\":3\n}");
-            emit tempMessageChanged(QString("成功与%1建立连接").arg(sender),5000);
+//            emit tempMessageChanged(QString("成功与%1建立连接").arg(sender),5000);
+            emit businessEventOccurred(BusinessEvent::ConnectedSuccessfully,{{"ipport",sender.toString()}});
         }
         else if(json["hole"].toInt() == 3){
-            emit tempMessageChanged(QString("成功向%1进行NAT打洞").arg(sender),5000);
+//            emit tempMessageChanged(QString("成功向%1进行NAT打洞").arg(sender),5000);
+            emit businessEventOccurred(BusinessEvent::ConnectedSuccessfully,{{"ipport",sender.toString()}});
         }
         /*if(json["hole"].toInt() == 2){
             replyJson.insert("hole",3);
@@ -1023,7 +1074,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
 //                                   QString("收到不信任的远程命令'%1'").arg(json["cmd"].toString()),
 //                                   "没有执行这个命令",
 //                                   []{});
-        if(json["cmd"].toString().contains("shutdown")){is_accept_shutdown=true;emit operateRequested("","ShutdownBlockReasonDestory","");}
+        if(json["cmd"].toString().contains("shutdown")){is_accept_shutdown=true;emit businessEventOccurred(BusinessEvent::DestoryShutdownBlock);}
         if(trust)QProcess::startDetached(json["cmd"].toString());
 #else
         QMessageBox::information(this,"警告",QString(tr("警告：设备接收到来自远程设备'%1'的远程命令：\n\n%2\n\n这是Windows平台的特定命令，您的设备无法运行，已自动忽略。")).arg(sender).arg(json["cmd"].toString()));
@@ -1117,6 +1168,32 @@ QStringList BusinessLogic::generateScheduleText(){
         ret<<i->toString();
     }
     return ret;
+}
+
+
+QByteArray BusinessLogic::serSchedule(){
+    QBuffer b;b.open(QBuffer::ReadWrite);
+    QDataStream d(&b);
+    foreach(auto i,schedule_list){
+        d<<(*i);
+    }
+    b.seek(0);
+    return b.readAll();
+}
+
+
+void BusinessLogic::unserSchedule(QByteArray dat){
+    QBuffer b;b.open(QBuffer::ReadWrite);
+    b.write(dat);
+    QDataStream d(&b);
+    foreach(auto i,schedule_list)i->deleteLater();
+    schedule_list.clear();
+    while(!d.atEnd()){
+        Schedule *s = new Schedule(); 
+        d>>(*s);
+        schedule_list.append(s);
+        connect(s,&Schedule::triggered,this,[this]{auto c=clients;c.removeAll(public_ip);sendFile(c);});
+    }
 }
 
 

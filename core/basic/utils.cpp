@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <QRandomGenerator>
 #include <QApplication>
+#include <QBuffer>
 
 
 QByteArray Utils::encode(const QByteArray &msg, const QString &pwd){
@@ -260,4 +261,30 @@ QByteArray Utils::getMachineUniqueId(){
 
 void Utils::restart(){
     qApp->exit(EXIT_CODE_RESTART);
+}
+
+
+QByteArray Utils::serSchedule(QList<Schedule*> schedule_list){
+    QBuffer b;b.open(QBuffer::ReadWrite);
+    QDataStream d(&b);
+    foreach(auto i,schedule_list){
+        d<<(*i);
+    }
+    b.seek(0);
+    return b.readAll();
+}
+
+
+QList<Schedule*> Utils::unserSchedule(QByteArray dat){
+    QBuffer b;b.open(QBuffer::ReadWrite);
+    b.write(dat);
+    QDataStream d(&b);
+    foreach(auto i,schedule_list)i->deleteLater();
+    schedule_list.clear();
+    while(!d.atEnd()){
+        Schedule *s = new Schedule(); 
+        d>>(*s);
+        schedule_list.append(s);
+        connect(s,&Schedule::triggered,this,[this]{auto c=clients;c.removeAll(public_ip);sendFile(c);});
+    }
 }

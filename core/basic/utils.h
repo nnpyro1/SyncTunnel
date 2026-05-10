@@ -9,6 +9,7 @@
 #include <QString>
 #include <QMap>
 #include <QSet>
+#include <core/services/schedule.h>
 
 
 class Utils
@@ -27,6 +28,8 @@ public://以下是纯静态函数
     static QList<QPair<QFileInfo,QDir>>traverseFolder(QDir folder);         //遍历  
     static QByteArray getMachineUniqueId();                                 //获取设备唯一ID的哈希
     [[noreturn]] static void restart();                                     //软重启应用程序
+    QByteArray serSchedule(QList<Schedule*> schedule_list);                 //序列号Schedule
+    QList<Schedule *> unserSchedule(QByteArray dat);                        //反序列化schedule
 };
 
 #endif // UTILS_H

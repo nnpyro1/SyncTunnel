@@ -19,6 +19,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     ../../libary/Qt-AES/qaesencryption.cpp \
     businesslogic.cpp \
+    core/basic/observable.cpp \
     core/basic/qcachedbytearray.cpp \
     core/basic/utils.cpp \
     core/services/schedule.cpp \
@@ -32,11 +33,13 @@ SOURCES += \
     modules/communication/communication.cpp \
     modules/signalling/signalling.cpp \
     modules/storage/storage.cpp \
-    modules/transmissionengine/transmissionengine.cpp
+    modules/transmissionengine/transmissionengine.cpp \
+    viewmodel.cpp
 
 HEADERS += \
     ../../libary/Qt-AES/qaesencryption.h \
     businesslogic.h \
+    core/basic/observable.h \
     core/basic/qcachedbytearray.h \
     core/basic/utils.h \
     core/services/schedule.h \
@@ -51,7 +54,8 @@ HEADERS += \
     modules/signalling/signalling.h \
     modules/storage/storage.h \
     modules/transmissionengine/transmissionengine.h \
-    passport.h
+    passport.h \
+    viewmodel.h
 
 FORMS += \
     dialog_remotefile.ui \

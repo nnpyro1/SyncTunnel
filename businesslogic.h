@@ -39,6 +39,35 @@ public:
         Warning,
         Critical,
     };
+    enum class BusinessEvent{
+        //操作类（需要提供参数，详见调用处）
+        StyleSheetUpdated,
+        CurrentSkinIndexUpdated,
+        RecordLogStateUpdated,
+        DisableNoticeStateUpdated,
+        DescriptionUpdated,
+        AutoSyncEnableStateUpdated,
+        PageIndexUpdated,
+        Ipv6UsageStateUpdated,
+        DestoryShutdownBlock,
+        //状态更新/提示类（可选提供参数，详见调用处）
+        PremiumUiUnauthorized,
+        GettingPublicIp,
+        PublicIpGetFailed,
+        GettingDeviceList,
+        LoadedSuccessfully,
+        SendedSuccessfully,
+        ProxyBanned,
+        SkinCheckFailed,            //需要QString error参数
+        UsernamePasswordTooShort,
+        UploadingFirstLaunchInformation,
+        UploadingFirstLaunchInformationFailed,//需要QString error参数
+        TestingRTT,
+        RTTTestSuccessfully,
+        WaitingForResponse,
+        DFHNDeviceNotFound,
+        ConnectedSuccessfully,//需要QString ipport参数
+    };
     
     struct Result{
         bool is_succeeded;
@@ -59,14 +88,17 @@ public://公有函数
     Q_INVOKABLE bool checkSkin(skinType skin);                      //检查skin是否可用
     
 signals:
-    void messageChanged(QString msg);                                               //当显示在右下角的信息改变
-    void tempMessageChanged(QString msg,int timeout=0);                             //当显示在左下角的信息改变
-    void messageBoxRequested(QString title,QString content,MessageBoxType type);    //请求弹出messageBox
-    void operateRequested(QString object,QString method,QVariant value=QVariant()); //请求
+    void messageChanged(QString msg);                                               //当显示在右下角的信息改变，仅为了TransmissionEngine兼容使用，其余禁止使用
+//    void tempMessageChanged(QString msg,int timeout=0);                             //当显示在左下角的信息改变
+//    void messageBoxRequested(QString title,QString content,MessageBoxType type);    //请求弹出messageBox
+//    void operateRequested(QString object,QString method,QVariant value=QVariant()); //请求
+    void businessEventOccurred(BusinessEvent event,QVariantMap args=QVariantMap()); //当事件触发
+    void sendInfoChanged(TransmissionEngine::SendInfo info);                        //发送砖头
     
-    void scheduleUpdated(QStringList textToShow);                                   //日程更新
+    void scheduleUpdated(QByteArray schedule);                                      //日程更新
     void remoteFileFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);    //远程目录改变
     void deviceListUpdated(QList<device> deviceList);                               //设备列表改变
+    void rttTestResultUpdated(QList<QVariantMap> rttResult);                        //测试RTT结果更新，每个QVariantMap需要有id,ip,port,rtt,delay
     
 public slots://以下是公有槽，需在外部联接
     void on_folder_change(QString textOnItem);
@@ -98,6 +130,8 @@ private://私有函数
     QByteArray encode(const QByteArray &msg);                       //加密msg并返回密文
     QByteArray decode(const QByteArray &msg);                       //解密msg并返回解密后的值
     QStringList generateScheduleText();                             //生成schedule的文本
+    QByteArray serSchedule();                                       //序列号Schedule
+    void unserSchedule(QByteArray dat);                             //反序列化schedule
     
 private:
     Communication *m_communication;
