@@ -26,6 +26,7 @@ private slots://私有槽
 signals://信号
 //    void private_on_user_list_finished(QPrivateSignal);
     void on_userlist_updata(QList<Communication::device> list);         //用户列表
+    void errorOccurred(QString errorString);    
     
 private://私有函数
     void send_msg_to_get_user_list(int c);

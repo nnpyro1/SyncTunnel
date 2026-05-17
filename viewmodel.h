@@ -5,6 +5,11 @@
 #include <businesslogic.h>
 #include <core/basic/observable.h>
 
+//Q_DECLARE_METATYPE区
+Q_DECLARE_METATYPE(QSet<QString>)
+Q_DECLARE_METATYPE(QDir)
+
+
 class ViewModel : public QObject
 {
     Q_OBJECT
@@ -12,7 +17,8 @@ public:
     explicit ViewModel(BusinessLogic *businesslogic,QObject *parent = nullptr);
     
 public slots://以下是直接从BusinessLogic迁移的槽
-    void on_folder_change(QString textOnItem);
+    void sendFile(QList<device> dsts);
+    void on_folder_change(QDir dir);
     void on_settings_saved(QString username_, QString pwd_, QString mqttServer_, 
                            int mqttPort_, QString githubUser_, QString githubPat_, 
                            QVariant skin_, bool recordLog_, bool disableNotice_, 
@@ -37,6 +43,7 @@ signals:
     void messageBoxRequested(QString title,QString content,BusinessLogic::MessageBoxType type,bool doublebtn=false,std::function<void()> actionOnOk=nullptr,std::function<void()> actionOnCancel=nullptr);
     void destoryShutdownBlock();
     void remoteFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);
+    void sendInfoChanged(TransmissionEngine::SendInfo info);
     
 public://公有Observable
     // ### 注意，这些OBS都没有在VM里面调用use。请编译前加上代码并删除此行。 ###
@@ -51,6 +58,12 @@ public://公有Observable
     OBS(bool,ipv6UsageState);
     OBS(QByteArray,scheduleBytes);
     OBS(QList<Communication::device>,clients);
+    OBS(QDir,current_dir);
+    OBS(QString,user_name);
+    OBS(QString,pwd);
+//    OBS(QSet<QString>,incremental_sync_set);
+//    QDir o_current_dir;
+    QSet<QString> incremental_sync_set;
     
 private slots://私有槽
     void on_businessEventOccur(BusinessLogic::BusinessEvent event,QVariantMap map);

@@ -275,16 +275,16 @@ QByteArray Utils::serSchedule(QList<Schedule*> schedule_list){
 }
 
 
-QList<Schedule*> Utils::unserSchedule(QByteArray dat){
-    QBuffer b;b.open(QBuffer::ReadWrite);
-    b.write(dat);
-    QDataStream d(&b);
-    foreach(auto i,schedule_list)i->deleteLater();
-    schedule_list.clear();
-    while(!d.atEnd()){
-        Schedule *s = new Schedule(); 
-        d>>(*s);
-        schedule_list.append(s);
-        connect(s,&Schedule::triggered,this,[this]{auto c=clients;c.removeAll(public_ip);sendFile(c);});
-    }
-}
+//QList<Schedule*> Utils::unserSchedule(QByteArray dat){
+//    QBuffer b;b.open(QBuffer::ReadWrite);
+//    b.write(dat);
+//    QDataStream d(&b);
+//    foreach(auto i,schedule_list)i->deleteLater();
+//    schedule_list.clear();
+//    while(!d.atEnd()){
+//        Schedule *s = new Schedule(); 
+//        d>>(*s);
+//        schedule_list.append(s);
+//        connect(s,&Schedule::triggered,this,[this]{auto c=clients;c.removeAll(public_ip);sendFile(c);});
+//    }
+//}

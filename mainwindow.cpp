@@ -38,6 +38,8 @@
 #include <QMetaEnum>
 #include <qcachedbytearray.h>
 #include <passport.h>
+#include <QFileDialog>
+#include <QShortcut>
 #ifdef Q_OS_ANDROID
 #include <QAndroidJniEnvironment>
 #include <QAndroidJniObject>
@@ -591,54 +593,6 @@
 //    m_transmissionengine->deleteLater();
 //    delete ui;
 //    delete logFile;
-//}
-
-
-//void MainWindow::show_dir(){        //显示目录
-//    ui->listWidget_file->clear();
-//    current_dir.refresh();
-////    ndb<<"var:current_dir"<<current_dir.absolutePath()<<"   exists"<<current_dir.exists();
-//    QFileInfoList fil = current_dir.entryInfoList(QDir::NoDotAndDotDot|QDir::AllEntries,QDir::Name|QDir::DirsFirst);
-////    ndb<<"list size:"<<fil.size();
-    
-//    //添加上级目录
-//    if(current_dir != QDir("files")){//不能更往前了
-////        ndb<<"PRE";
-//        QListWidgetItem *item = new QListWidgetItem;
-//        item->setText(tr("(上级目录)"));
-//        item->setData(Qt::UserRole,QVariant("pre"));//设置标签
-//        ui->listWidget_file->addItem(item);
-//    }
-
-    
-//    //遍历并输出
-//    bool sync_all = incremental_sync_set.empty();
-//    foreach(auto info,fil){
-////        ndb<<"for";
-//        if(info.isDir()){
-//            QListWidgetItem *item = new QListWidgetItem;
-//            item->setText(info.fileName());
-//            item->setData(Qt::UserRole,QVariant("folder"));//设置标签
-////            item->setForeground(QBrush(QColor(100,0,0)));
-//            item->setIcon(QFileIconProvider().icon(QFileIconProvider::Folder));
-//            ui->listWidget_file->addItem(item);
-//        }
-//        else{
-//            QListWidgetItem *item = new QListWidgetItem;
-//            item->setText(info.fileName());
-//            item->setData(Qt::UserRole,QVariant("file"));//设置标签
-//            item->setIcon(QFileIconProvider().icon(info));
-//            if(!sync_all){
-//                if(incremental_sync_set.contains(QDir("files/").relativeFilePath(info.filePath()))){
-//                    item->setForeground(QBrush(QColor(0,249,26)));
-//                }
-//                else{
-//                    item->setForeground(QBrush(QColor(255,147,0)));
-//                }
-//            }
-//            ui->listWidget_file->addItem(item);
-//        }
-//    }
 //}
 
 
@@ -1730,30 +1684,20 @@
 //}
 
 
-//void MainWindow::restartDebug(){
-//    if(is_debug){
-//        ui->tabWidget->setTabEnabled(6,true);//启用调试页面   //发布设置
-//        ui->commandLinkButton_route_page6->setEnabled(true);
-//        ui->pushButton_switchProxy->setText("开始加速");
-//    }
-//    else{
-//        ui->tabWidget->setTabEnabled(6,false);//禁用调试页面   //发布设置
-//        ui->commandLinkButton_route_page6->setEnabled(false);
-//        ui->pushButton_switchProxy->setText("开始加速（大陆地区禁止使用）");
-//    }
-//}
-
-
 MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QString)> func_update, bool bShow):
-    ui(new Ui::MainWindow),
     QMainWindow(parent),
-    vm(vm)
+    vm(vm),
+    ui(new Ui::MainWindow)
 {
+    //对象创建
+    label_status = new QLabel(this);
+    logFile = new QFile(QString("logs/%1.log").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")).toStdString().c_str(),this);
+    trayIcon = new QSystemTrayIcon(this);
     //基本设置
     ui->setupUi(this);
     resize(QGuiApplication::primaryScreen()->geometry().width()*0.45,QGuiApplication::primaryScreen()->geometry().height()*0.55);
     setWindowTitle("SyncTunnel 同步隧道");
-    ui->tabWidget->setCurrentIndex(5);
+    ui->tabWidget->setCurrentIndex(0);
 //    timer_is_uploading.setSingleShot(true);
 //    timer_clear_currentFileMap.setSingleShot(true);
     ui->tableWidget_deviceList->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);//设置自动列宽
@@ -1794,7 +1738,7 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
 //    line_ackloop->attachAxis(axis_x);line_ackloop->attachAxis(axis_y);
 //    line_delay->attachAxis(axis_x);line_delay->attachAxis(axis_y);
     //隐藏不必要的标签页
-    restartDebug();
+//    vm->restartDebug();
     hideTab(ui->tabWidget,2);
     hideTab(ui->tabWidget,3);
     hideTab(ui->tabWidget,5);
@@ -1810,6 +1754,247 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
 #ifdef NNPYRO_COLORFULCON//使用控制台
     qInstallMessageHandler(static_cast<QtMessageHandler>(log));
 #endif
+    ui->statusBar->addPermanentWidget(label_status);
+//    vm->o_status.use(qApp,[=]{ndb<<vm->o_status;});
+    
+    //信号槽绑定
+    connect(ui->listWidget_file,&QListWidget::doubleClicked,this,&MainWindow::on_folder_change);
+    connect(ui->listWidget_file,&QListWidget::customContextMenuRequested,this,&MainWindow::on_rightclick);
+    connect(ui->actionOpen,&QAction::triggered,this,[vm,this]{
+        QDesktopServices::openUrl(QUrl::fromLocalFile(QDir(vm->o_current_dir.get().filePath(ui->listWidget_file->currentItem()->text())).absolutePath()));
+    });
+    connect(ui->actionFolder,&QAction::triggered,this,[vm,this]{/*QProcess::startDetached("explorer.exe",QStringList(QDir::toNativeSeparators((current_dir).absolutePath())));*/QDesktopServices::openUrl(QUrl::fromLocalFile(vm->o_current_dir.get().absolutePath()));});
+    connect(ui->pushButton_settings_save,&QPushButton::clicked,this,&MainWindow::on_settings_saved);
+    connect(ui->actionupload_file,&QAction::triggered,this,[this]{sendFile();});
+//    connect(ui->actionHangup,&QAction::triggered,this,&MainWindow::on_hangup);
+//    connect(ui->actionDownload,&QAction::triggered,this,&MainWindow::on_download);
+//    connect(ui->actionSync_PAT,&QAction::triggered,this,[this]{
+//        QJsonObject json;json.insert("pat",ui->lineEdit_settings_githubPAT->text());
+//        send(QJsonDocument(json).toJson());
+//    });
+    connect(ui->checkBox_settings_ipv6,&QCheckBox::clicked,this,[this](bool isCheck){
+        if(isCheck)QProcess::startDetached(QApplication::applicationFilePath(),QApplication::arguments()<<("-ipv6"));
+        else{
+            QStringList l=QApplication::arguments();l.removeAll("-ipv6");
+            QProcess::startDetached(QApplication::applicationFilePath(),l);
+        }close();
+    });
+    connect(ui->actionRefresh,&QAction::triggered,this,[this]{show_dir();});
+//    connect(process_proxy,&QProcess::readyRead,this,[this]{ui->textBrowser_proxy->append(QString::fromLocal8Bit(process_proxy->readAll()));});
+//    connect(&timer_savePower,&QTimer::timeout,this,[this]{
+//        label_status->setText(QString(tr("SyncTunnel正在等待文件传输请求……\n如果没有请求，计算机将会在%1秒后关闭\n您也可以用Alt+F4关闭此窗口后手动关机")).arg(/*QTime().addMSecs(timer_savePower_finish.remainingTime()).toString("HH时mm分ss秒"))*/timer_savePower_finish.remainingTime()/1000));
+//    });
+#ifdef Q_OS_WIN
+//    connect(&timer_savePower_finish,&QTimer::timeout,this,[this]{
+//        ShutdownBlockReasonDestroy((HWND)winId());
+//        QProcess::startDetached("shutdown",{"-s","-t","10"});(void)this;
+//    });
+    connect(ui->actionShutdown,&QAction::triggered,this,[this]{ShutdownBlockReasonDestroy((HWND)winId());QProcess::startDetached("shutdown",{"-s","-t","10"});});
+#endif
+    connect(ui->actionShutdown_current,&QAction::triggered,this,[vm,this]{int i=ui->tableWidget_deviceList->currentRow();if(i<0){QMessageBox::warning(this,"请先选中一个设备","请先选中一个设备");return;}vm->on_shutdown_current(i);});
+    connect(ui->tableWidget_deviceList,&QTableWidget::customContextMenuRequested,this,&MainWindow::on_rightclick_deviceList);  
+    connect(ui->actionTest_RTT,&QAction::triggered,this,&MainWindow::on_test_rtt);
+    connect(ui->pushButton_settings_requestUI,&QPushButton::clicked,this,[]{
+        QUrl url("mailto:nnpyro2@outlook.com");
+        QUrlQuery query;
+        query.addQueryItem("subject","SyncTunnel申请限定款UI");
+        query.addQueryItem("body",QString("您好！\n我是SyncTunnel的用户，我想要申请(填写您需要申请的界面样式 金色流光/银色星辰)UI样式。\n\n我对软件开发创作做出了如下突出贡献\n（请填写此处。或者您可以填写您是前50位下载本软件的用户）\n\n我的设备唯一ID：\n%1").arg(QString(QSysInfo::machineUniqueId())));
+        url.setQuery(query);QDesktopServices::openUrl(url);
+    });
+    connect(trayIcon,&QSystemTrayIcon::activated,this,[this](QSystemTrayIcon::ActivationReason reason){Q_UNUSED(reason);if(isMinimized())showNormal();if(isHidden())show();raise();});
+    connect(ui->pushButton_copyId,&QPushButton::clicked,this,[this]{QApplication::clipboard()->setText(QSysInfo::machineUniqueId());QMessageBox::information(this,"SyncTunnel","复制成功！");});
+    connect(ui->actionRequestFile,&QAction::triggered,this,[vm,this]{int i=ui->tableWidget_deviceList->currentRow();if(i==-1){QMessageBox::warning(this,"错误","请先选中一个设备");return;} vm->on_request_file(i);label_status->setText("正在等待发送方响应...");});
+//    connect(&timer_keepAlive,&QTimer::timeout,this,[this]{if(chunks.empty()&&currentFileMap.empty())send("KEEP_ALIVE");});
+//    connect(ui->actionRemoteCopyFile, &QAction::triggered, this, [this] {int currentRow = ui->tableWidget_deviceList->currentRow();if (currentRow == -1) {QMessageBox::warning(this, "错误","你需要先选中一个设备");return;}copy_remote_file(currentRow);});
+//    connect(ui->actionSend_message,&QAction::triggered,this,[this]{int index=ui->tableWidget_deviceList->currentRow();if(index==-1){QMessageBox::warning(this,"发送测试消息","请先选中一个设备");return;} QString msg=QInputDialog::getText(this,"发送测试消息","请输入测试消息：");QJsonObject json;json.insert("test_msg",QString(msg.toUtf8()));send(QJsonDocument(json).toJson(),1,index);});
+    connect(ui->actionOpen_DriveCrypto,&QAction::triggered,this,[]{QProcess::startDetached("DriveCrypto.exe");});
+    connect(ui->pushButton_settings_getDefaultPAT,&QPushButton::clicked,this,[this]{
+        QNetworkAccessManager *manager = new QNetworkAccessManager(this);
+        QNetworkRequest request;
+        request.setUrl(QUrl("https://nnpyro.netlify.app/synctunnel-interface/github_pat.txt"));
+        request.setHeader(QNetworkRequest::UserAgentHeader,"nnpyro SyncTunnel vbeta-x.x");
+        QNetworkReply *reply=manager->get(request);
+        QEventLoop loop;
+        connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
+        loop.exec();
+        if(reply->error() != QNetworkReply::NoError) QMessageBox::critical(this,"错误","错误"+reply->errorString());
+        else {ui->lineEdit_settings_githubPAT->setText(reply->readAll());ui->lineEdit_settings_gitubUser->setText("nnpyro1");}
+    });
+    connect(shortcut_debug,&QShortcut::activated,this,[this]{is_debug=is_debug?false:true;restartDebug();QMessageBox::information(this,"debug",QString("您已%1调试模式").arg(is_debug?"进入":"离开"));});
+    connect(ui->pushButton_settings_recordLog,&QPushButton::pressed,this,[this]{if(!QDir("logs").exists())QDir("logs").mkpath(".");logFile->open(QFile::WriteOnly);ninfo<<"类"<<this<<"将日志输出重定向到文件";output_to_file = true;qInstallMessageHandler(static_cast<QtMessageHandler>(log));ninfo<<"日志输出重定向成功！";});
+    connect(ui->actionAdd_file,&QAction::triggered,this,[vm,this]{QString dir=QFileDialog::getOpenFileName(this);QFile(dir).copy(vm->o_current_dir.get().absolutePath());});
+    connect(ui->actionIncremental_sync_enable,&QAction::triggered,this,[vm,this]{
+        vm->incremental_sync_set.insert(QDir("files").relativeFilePath(vm->o_current_dir.get().filePath(ui->listWidget_file->currentItem()->text())));ninfo<<"var:incremental_sync_set:"<<vm->incremental_sync_set;
+        ui->listWidget_incremental->clear();foreach(QString i,vm->incremental_sync_set){ui->listWidget_incremental->addItem(i);show_dir();}});
+    connect(ui->actionIncremental_sync_disable,&QAction::triggered,this,[vm,this]{
+        vm->incremental_sync_set.remove(QDir("files").relativeFilePath(vm->o_current_dir.get().filePath(ui->listWidget_file->currentItem()->text())));ninfo<<"var:incremental_sync_set:"<<vm->incremental_sync_set;
+        ui->listWidget_incremental->clear();foreach(QString i,vm->incremental_sync_set){ui->listWidget_incremental->addItem(i);}if(vm->incremental_sync_set.empty())ui->listWidget_incremental->addItem("空 （所有文件都将被同步）");show_dir();});  
+    connect(ui->pushButton_file_syncAll,&QPushButton::clicked,this,[vm,this]{vm->incremental_sync_set.clear();ui->listWidget_incremental->clear();ui->listWidget_incremental->addItem("空 （所有文件都将被同步）");show_dir();});
+    connect(ui->pushButton_file_addSchedule,&QPushButton::clicked,this,[this]{dialog_schedule=new Dialog_schedule(this);
+        connect(dialog_schedule,&Dialog_schedule::saved,this,[this](Schedule *s){schedule_list.append(s);s->setInterval(5000);s->setEnabled(true);s->setAutoTrigger(true);
+                                                                                 connect(s,&Schedule::triggered,this,[this]{ui->actionupload_file->trigger();});});
+        dialog_schedule->exec();dialog_schedule->deleteLater();
+        ui->listWidget_schedule->clear();foreach(auto i,schedule_list)ui->listWidget_schedule->addItem(i->toString());
+        QFile f("config/schedule.dat");f.open(QFile::WriteOnly);QDataStream d(&f);foreach(auto i,schedule_list)d<<(*i);f.close();
+    });
+    connect(ui->pushButton_file_deleteCurrentSchedule,&QPushButton::clicked,this,[this]{int i=ui->listWidget_schedule->currentRow();if(i==-1){QMessageBox::warning(this,tr("删除"),tr("请先选中一个日程"));return;}
+        schedule_list[i]->deleteLater();schedule_list.removeAt(i);ui->listWidget_schedule->clear();foreach(auto i,schedule_list)ui->listWidget_schedule->addItem(i->toString());
+        QFile f("config/schedule.dat");f.open(QFile::WriteOnly);QDataStream d(&f);foreach(auto i,schedule_list)d<<(*i);f.close();});
+    connect(qApp,&QApplication::applicationStateChanged,this,[vm,this](Qt::ApplicationState st){androidRun{
+            if(st == Qt::ApplicationSuspended){ninfo<<"应用程序退后台，自动关闭";vm->on_suspended();}
+            else if(st==Qt::ApplicationActive){Utils::restart();}}});
+    connect(ui->actionExit_Application,&QAction::triggered,this,&MainWindow::close);
+    connect(ui->pushButton_settings_console,&QPushButton::clicked,this,[this]{if(!QDir("tools/").exists())QDir().mkpath("tools/");QFile::copy(":/rc/bin/Alacritty.exe","tools/Alacritty.exe");QProcess::startDetached("tools/Alacritty.exe",QStringList()<<"-e"<<QApplication::applicationFilePath()<<QApplication::arguments()<<"CON_MODE");close();});
+    connect(ui->commandLinkButton_route_page2,&QCommandLinkButton::clicked,this,[this]{ui->tabWidget->setCurrentIndex(2);});
+    connect(ui->commandLinkButton_route_page3,&QCommandLinkButton::clicked,this,[this]{ui->tabWidget->setCurrentIndex(3);});
+    connect(ui->commandLinkButton_route_page5,&QCommandLinkButton::clicked,this,[this]{ui->tabWidget->setCurrentIndex(5);});
+    connect(ui->commandLinkButton_route_page6,&QCommandLinkButton::clicked,this,[this]{ui->tabWidget->setCurrentIndex(6);});
+    connect(ui->pushButton_settings_mode_normal,&QPushButton::clicked,this,[this]{if(QMessageBox::warning(this,"高级设置-普通模式","这是高级设置，如果您不理解其中的含义，请不要设置。\n\n设置成普通模式后，设备将不会作为DFHN节点，无法在设备列表里便捷标记，因此无法从DFHN节点取下挂起的文件\n\n你确定要修改吗？",QMessageBox::Ok|QMessageBox::Cancel)==QMessageBox::Ok){
+            QDir().rmdir("config/empty/label3");QProcess::startDetached(QApplication::applicationFilePath());close();
+        }});
+    connect(ui->pushButton_settings_mode_dfhn,&QPushButton::clicked,this,[this]{if(QMessageBox::warning(this,"高级设置-DFHN模式","这是高级设置，如果您不理解其中的含义，请不要设置。\n\n设置成DFHN模式后，设备将作为DFHN节点，在设备列表里特殊标记，用于将设备作为DFHN节点挂起文件。\n设置成DFHN模式后，可能会影响正常使用完整功能。\n\n你确定要修改吗？",QMessageBox::Ok|QMessageBox::Cancel)==QMessageBox::Ok){
+            QDir().mkpath("config/empty/label3");QProcess::startDetached(QApplication::applicationFilePath());close();
+        }});
+    connect(ui->actionHang_up_file_to_dfhn,&QAction::triggered,this,[vm,this]{vm->on_hangup_to_dfhn();});
+    connect(ui->actionDownload_file_from_dfhn,&QAction::triggered,this,[vm,this]{vm->on_download_from_dfhn();});
+    connect(ui->commandLinkButton_route_help,&QCommandLinkButton::clicked,this,[]{Dialog_help *h = new Dialog_help;h->exec();h->deleteLater();});
+    connect(&timer_refresh,&QTimer::timeout,this,[this]{show_dir();});
+//    connect(ui->checkBox_file_autoSync,&QCheckBox::stateChanged,this,[this](int state){is_autoSync = (state==Qt::Checked);   settings.setValue("ApplicationSettings/isAutoSync",is_autoSync);});
+//    connect(&timer_autoSync,&QTimer::timeout,this,[this]{
+//        if(!is_autoSync)return;
+//        auto newFileHashMap = generateFileHashMap(syncFolder);
+//        //比较
+//        bool flag=false;
+//        for(auto it = newFileHashMap.constBegin();it!=newFileHashMap.end();it++){
+//            if (!fileHashMap.contains(it.key()) || it.value() != fileHashMap.value(it.key())) {
+//                flag = true;
+//                break;
+//            }
+//        }
+//        if(flag==true){
+//            ninfo<<"检测到文件修改，自动同步";
+//            fileHashMap=newFileHashMap;
+//            sendFile(lastSyncDst);
+//        }
+//        else{
+            
+//        }
+//    });
+    connect(ui->actionRestart_all_applications,&QAction::triggered,this,[vm,this]{vm->on_restart_all();});
+    connect(vm,&ViewModel::sendInfoChanged,this,&MainWindow::on_sendInfo_updated);
+    
+    //其他
+    vm->o_current_dir=QDir("files");
+    
+    //obs区
+    vm->o_current_dir.use(this,[=]{show_dir();});
+    vm->o_status.use(label_status,[=]{label_status->setText(vm->o_status);});
+    vm->o_clients.use(this,[=]{//设备列表更新
+        ui->tableWidget_deviceList->clearContents();
+        ui->tableWidget_deviceList->setRowCount(0);
+        auto clients=vm->o_clients.get();
+        vm->o_status="设备列表更新成功";
+        foreach(auto client,clients){
+            int row_index=ui->tableWidget_deviceList->rowCount();
+            ui->tableWidget_deviceList->insertRow(row_index);
+            ui->tableWidget_deviceList->setItem(row_index,0,new QTableWidgetItem(QString("(Current)")+(client.flag==Communication::DFHNDevice?"(DFHN)":"")));
+            ui->tableWidget_deviceList->setItem(row_index,1,new QTableWidgetItem((client.flag==Communication::DFHNDevice?"**":"")+client.ip));
+            ui->tableWidget_deviceList->setItem(row_index,2,new QTableWidgetItem(QString::number(client.port)));
+            ui->tableWidget_deviceList->setItem(row_index,3,new QTableWidgetItem((client.flag==Communication::DFHNDevice?"**":"")+client.description+"("+QMetaEnum::fromType<Communication::DeviceFlag>().valueToKey(client.flag)+")"));
+        }
+    });
+    vm->o_user_name.use(this,[=]{ui->lineEdit_settings_username->setText(vm->o_user_name);});
+    vm->o_pwd.use(this,[=]{ui->lineEdit_settings_pwd->setText(vm->o_pwd);});
+    vm->o_description.use(this,[=]{ui->lineEdit_settings_description->setText(vm->o_description);});
+    vm->o_disableNoticeState.use(this,[=]{ui->checkBox_settings_disableNotice->setChecked(vm->o_disableNoticeState);});
+    vm->o_ipv6UsageState.use(this,[=]{ui->checkBox_settings_ipv6->setChecked(vm->o_ipv6UsageState);});
+}
+
+
+MainWindow::~MainWindow(){
+    
+}
+
+
+void MainWindow::show_dir(){        //显示目录
+    ui->listWidget_file->clear();
+//    vm->o_current_dir.refresh();
+//    ndb<<"var:current_dir"<<current_dir.absolutePath()<<"   exists"<<current_dir.exists();
+    QFileInfoList fil = vm->o_current_dir.get().entryInfoList(QDir::NoDotAndDotDot|QDir::AllEntries,QDir::Name|QDir::DirsFirst);
+//    ndb<<"list size:"<<fil.size();
+    
+    //添加上级目录
+    if(vm->o_current_dir.get() != QDir("files")){//不能更往前了
+//        ndb<<"PRE";
+        QListWidgetItem *item = new QListWidgetItem;
+        item->setText(tr("(上级目录)"));
+        item->setData(Qt::UserRole,QVariant("pre"));//设置标签
+        ui->listWidget_file->addItem(item);
+    }
+
+    
+    //遍历并输出
+    bool sync_all = vm->incremental_sync_set.empty();
+    foreach(auto info,fil){
+//        ndb<<"for";
+        if(info.isDir()){
+            QListWidgetItem *item = new QListWidgetItem;
+            item->setText(info.fileName());
+            item->setData(Qt::UserRole,QVariant("folder"));//设置标签
+//            item->setForeground(QBrush(QColor(100,0,0)));
+            item->setIcon(QFileIconProvider().icon(QFileIconProvider::Folder));
+            ui->listWidget_file->addItem(item);
+        }
+        else{
+            QListWidgetItem *item = new QListWidgetItem;
+            item->setText(info.fileName());
+            item->setData(Qt::UserRole,QVariant("file"));//设置标签
+            item->setIcon(QFileIconProvider().icon(info));
+            if(!sync_all){
+                if(vm->incremental_sync_set.contains(QDir("files/").relativeFilePath(info.filePath()))){
+                    item->setForeground(QBrush(QColor(0,249,26)));
+                }
+                else{
+                    item->setForeground(QBrush(QColor(255,147,0)));
+                }
+            }
+            ui->listWidget_file->addItem(item);
+        }
+    }
+}
+
+
+void MainWindow::sendFile(QList<device> dst){
+    if(dst.empty()){//让用户选择
+        Dialog_selectSyncDst *dialog = new Dialog_selectSyncDst(this);
+        auto tmp = vm->o_clients.get();tmp.removeAt(0);
+        dialog->setup(tmp);
+        connect(dialog,&Dialog_selectSyncDst::syncdstDecided,this,[&](QList<device> a){dst=a;});
+        dialog->exec();
+        dialog->deleteLater();
+        ninfo<<"SyncDst:"<<dst;
+    }
+    if(dst.empty()){
+        QMessageBox::warning(this,tr("同步文件"),tr("请选择目标！"));
+        return;
+    }
+//    dst.removeAll(public_ip);//文件不发给自己
+//    lastSyncDst=dst;
+    vm->sendFile(dst);
+}
+
+
+void MainWindow::restartDebug(){
+    if(is_debug){
+        ui->tabWidget->setTabEnabled(6,true);//启用调试页面   //发布设置
+        ui->commandLinkButton_route_page6->setEnabled(true);
+        ui->pushButton_switchProxy->setText("开始加速");
+    }
+    else{
+        ui->tabWidget->setTabEnabled(6,false);//禁用调试页面   //发布设置
+        ui->commandLinkButton_route_page6->setEnabled(false);
+        ui->pushButton_switchProxy->setText("开始加速（大陆地区禁止使用）");
+    }
 }
 
 
@@ -1829,7 +2014,201 @@ void MainWindow::hideTab(QTabWidget* tabWidget, int index){
         "    padding: 0px;"
         "    margin: 0px;"
         "}"
-                );
+                        );
+}
+
+
+void MainWindow::on_folder_change(){
+    QListWidgetItem currentItem = *ui->listWidget_file->currentItem();
+    
+    if(currentItem.data(Qt::UserRole) == "folder"){//如果是目录就进入
+        vm->o_current_dir = QDir(vm->o_current_dir.get().filePath(currentItem.text()));
+        vm->on_folder_change(vm->o_current_dir);
+        show_dir();//刷新列表
+    }
+    if(currentItem.data(Qt::UserRole) == "pre"){//上级目录
+        auto tmp=QDir(vm->o_current_dir);
+        tmp.cdUp();
+        vm->o_current_dir=tmp;
+        vm->on_folder_change(vm->o_current_dir);
+        show_dir();//刷新列表
+    }
+    if(currentItem.data(Qt::UserRole) == "file"){//是文件就打开
+        //        ndb<<QFile(QDir(current_dir.filePath(currentItem.text())).absolutePath()).exists()<<"    "<<QDir(current_dir.filePath(currentItem.text())).absolutePath();
+        //        QProcess::startDetached("explorer.exe",QStringList(QDir::toNativeSeparators(QDir(current_dir.filePath(currentItem.text())).absolutePath())));
+        QDesktopServices::openUrl(QUrl::fromLocalFile((vm->o_current_dir.get().filePath(currentItem.text()))));
+    }
+}
+
+
+void MainWindow::on_rightclick(){       //右键点击事件
+//    ndb<<"click";
+//    ndb<<mapFromGlobal(QCursor::pos());
+    QMenu *rightMenu = new QMenu(this);
+    if(ui->listWidget_file->currentItem() != nullptr){//有Item的时候再菜单"打开"
+//        ndb<<"ITEM";
+        rightMenu->addAction(ui->actionOpen);
+        
+        if(ui->listWidget_file->currentItem()->data(Qt::UserRole) != "folder"){//目录不需要
+            rightMenu->addAction(ui->actionFolder);
+            if(vm->incremental_sync_set.contains(QDir("files").relativeFilePath(vm->o_current_dir.get().filePath(ui->listWidget_file->currentItem()->text())))){
+                rightMenu->addAction(ui->actionIncremental_sync_disable);
+            }
+            else{
+                rightMenu->addAction(ui->actionIncremental_sync_enable);
+            }
+        }
+    }
+    else{
+        rightMenu->addAction(ui->actionFolder);
+    }
+    rightMenu->addAction(ui->actionRefresh);
+    
+    rightMenu->setAttribute(Qt::WA_DeleteOnClose);
+    rightMenu->exec(QCursor::pos());
+}
+
+
+void MainWindow::on_settings_saved(){
+    vm->on_settings_saved(
+                ui->lineEdit_settings_username->text(),
+                ui->lineEdit_settings_pwd->text(),
+                ui->lineEdit_settings_mqttServer->text(),
+                ui->spinBox_settings_mqttPort->value(),
+                ui->lineEdit_settings_gitubUser->text(),
+                ui->lineEdit_settings_githubPAT->text(),
+                ui->comboBox_settings_uiskin->currentIndex(),
+                ui->checkBox_settings_recordLog->isChecked(),
+                ui->checkBox_settings_disableNotice->isChecked(),
+                ui->lineEdit_settings_description->text()
+    );
+}
+
+
+void MainWindow::on_rightclick_deviceList(){
+    QMenu *rightMenu = new QMenu;
+    rightMenu->setAttribute(Qt::WA_DeleteOnClose);
+    rightMenu->addAction(ui->actionShutdown_current);
+    rightMenu->addAction(ui->actionTest_RTT);
+    rightMenu->addAction(ui->actionRequestFile);
+    rightMenu->addAction(ui->actionRemoteCopyFile);
+    rightMenu->addAction(ui->actionSend_message);
+    rightMenu->addAction(ui->actionStart_remote);
+    rightMenu->exec(QCursor::pos());
+}
+
+
+void MainWindow::on_test_rtt(){
+    vm->on_test_rtt();
+}
+
+
+void MainWindow::on_sendInfo_updated(TransmissionEngine::SendInfo info){
+    ui->tabWidget->setCurrentIndex(1);
+    vm->o_status="正在发送";
+    ui->label_sendInfo_currentPackage->setNum(info.i);
+    ui->label_sendInfo_totalPackege->setNum(info.total);
+    ui->label_sendInfo_currentDelay->setNum(info.delay);
+    ui->label_sendInfo_currentReqAckLoop->setNum(info.reqAckLoop);
+    ui->label_sendInfo_progress->setText(info.total!=0?(QString("%1%").arg(100.*info.i/info.total)):"--");
+}
+
+
+void MainWindow::on_pushButton_debug1_clicked(){
+//    ui->textBrowser_debug1->setText(mergeFile(QDir("files/")));
+//    send({"{\n    \"test\":0\n}"});
+//    sendFile();
+//    ndb<<mergeFile(QDir("files"));
+//    releaseFile(ui->textEdit_debug1->toPlainText());
+//    m_storage->upload(QString("123abc*#NEW?&===NEW12345NEW45678===============================================================================================================================================================1234567890-/QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1AQ2WS3ED4RF5TG6YH7UJ8IK9OL0QAZWSXEDCRFVTGBYHNUJMIK,OVTBNCMEX,O.BYCUNEX,1222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222 \nEND").toUtf8());
+//    m_storage->remove();
+//    ui->textBrowser_debug1->append(m_storage->get());
+    /*ndb << "模拟关机事件";
+    
+    // 模拟WM_QUERYENDSESSION消息
+    MSG msg;
+    msg.hwnd = (HWND)winId();
+    msg.message = WM_QUERYENDSESSION;
+    msg.wParam = 0;
+    msg.lParam = 0;
+    msg.time = GetTickCount();
+    msg.pt = {0, 0};
+    
+    long result = 0;
+    nativeEvent("windows_generic_MSG", &msg, &result);
+    ndb<<"var result ="<<result;*/
+//    ndb<<checkSkin(Golden);
+//    QApplication::clipboard()->setText(mergeFile(QDir("files/")));
+    /*/{
+        QFile f("logs/mergeFileData");
+        f.open(QIODevice::WriteOnly);
+        f.write(mergeFile(QDir("files/"),0));
+        f.close();
+        f.deleteLater();
+    }/*/
+    /*{
+        releaseFile("FILE\nAttack.dll\n5\n123123123");
+    }*/
+//    sendFileTo(1);
+    /*planAutoSend({{"127.0.0.1",8080},
+                  {"114.114.114.114",12345},
+                  {"8.8.8.8",12345},
+                  {"234.123.12.1",1234},
+                  {"203.174.65.18", 45123},
+                  {"142.93.178.205", 31567},
+                  {"64.227.123.89", 28945},
+                  {"192.168.0.214", 54321},
+                  {"172.217.168.142", 40256},
+                  {"104.248.150.37", 37890},
+                  {"139.59.211.248", 45678},
+                  {"167.99.135.32", 32109},
+                  {"68.183.222.111", 49876},
+                  {"138.197.192.100", 31234}});/*/
+    /*try {
+        Dialog_selectSyncDst  *dialog = new Dialog_selectSyncDst(this);
+        dialog->setup({{"127.0.0.1",8080},
+                       {"114.114.114.114",12345},
+                       {"8.8.8.8",12345},
+                       {"234.123.12.1",1234},
+                       {"203.174.65.18", 45123},
+                       {"142.93.178.205", 31567},
+                       {"64.227.123.89", 28945},
+                       {"192.168.0.214", 54321},
+                       {"172.217.168.142", 40256},
+                       {"104.248.150.37", 37890},
+                       {"139.59.211.248", 45678},
+                       {"167.99.135.32", 32109},
+                       {"68.183.222.111", 49876},
+                       {"138.197.192.100", 31234}});
+        dialog->exec();
+    } catch (...) {
+        ncritical<<"nullptr";
+    }*/
+    
+//    dialog->show();
+//    QEventLoop loop;
+    
+//    dialog->deleteLater();
+//    sendReliableMessage(1,"这是三二可靠消息1-------2-------3-------4-------5-------6-------7-------8-------");
+//    planAutoSend({
+//                     {"1",1},
+//                     {"2",1},
+//                     {"3",1},
+//                 });
+//    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,1));
+//    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,2));
+//    m_transmissionengine->send("啊啊啊啊啊啊啊啊啊");
+    /*{
+        label_status->setText("正在发送可靠消息");
+        bool a = m_transmissionengine->sendReliableMessage(1,"DING");
+        label_status->setText(QString("发送可靠消息完成。成功：%1").arg(a));
+    }*/
+//    QApplication::beep();
+//    QSound::play(":/rc/audio/file_send_successfully.wav");
+//    playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));
+//    ndb<<generateFileHashMap(syncFolder);
+//    m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);
+//    ninfo<<traverseFolder(QDir("files/"));
 }
 
 //bool MainWindow::sendReliableMessage(int dst, QString msg){
@@ -3167,7 +3546,8 @@ void MainWindow::closeEvent(QCloseEvent *event){
     ninfo<<"spontaneous "<<event->spontaneous();
     if(event->spontaneous()){//用户自主点击
         if((QGuiApplication::keyboardModifiers() & Qt::ControlModifier)!=0){//按下Ctrl
-            m_signalling->exit();//发布关闭消息
+//            m_signalling->exit();//发布关闭消息
+            vm->on_suspended();//发布关闭消息
             event->accept();
         }
         else{
@@ -3177,7 +3557,7 @@ void MainWindow::closeEvent(QCloseEvent *event){
         }
     }
     else{//程序中的close
-        m_signalling->exit();//发布关闭消息
+        vm->on_suspended();//发布关闭消息
         event->accept();
     }
 }
@@ -3198,7 +3578,7 @@ void MainWindow::dropEvent(QDropEvent *event){
     }
     foreach(auto i , list){
         QFileInfo fileInfo(i.toLocalFile());
-        QString destPath = current_dir.absoluteFilePath(fileInfo.fileName());
+        QString destPath = vm->o_current_dir.get().absoluteFilePath(fileInfo.fileName());
         QFile::copy(fileInfo.filePath(), destPath);
     }
     show_dir();
@@ -3253,12 +3633,12 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event){
         
 //        return true; // 事件已处理
 //    }
-    if(obj == ui->label_remote_screen && ui->label_remote_screen->isEnabled()){
-        if(event->type()==QEvent::MouseButtonPress){
-            send(QString("{\n    \"remote_event\":\"mouse_move\",\n    \"mx\":%1,\n    \"my\":%2\n}").arg(static_cast<QMouseEvent*>(event)->x()*1./ui->label_remote_screen->width()).arg(static_cast<QMouseEvent*>(event)->y()*1./ui->label_remote_screen->height()).toUtf8(),1,clients.indexOf(remote_device));
-            return true;
-        }
-    }
+//    if(obj == ui->label_remote_screen && ui->label_remote_screen->isEnabled()){
+//        if(event->type()==QEvent::MouseButtonPress){
+//            send(QString("{\n    \"remote_event\":\"mouse_move\",\n    \"mx\":%1,\n    \"my\":%2\n}").arg(static_cast<QMouseEvent*>(event)->x()*1./ui->label_remote_screen->width()).arg(static_cast<QMouseEvent*>(event)->y()*1./ui->label_remote_screen->height()).toUtf8(),1,clients.indexOf(remote_device));
+//            return true;
+//        }
+//    }
     if(event->type()==QEvent::Wheel && (obj->objectName().contains("comboBox")||obj->objectName().contains("spinBox"))){
         return true;
     }

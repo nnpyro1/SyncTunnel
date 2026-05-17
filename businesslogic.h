@@ -1,3 +1,4 @@
+#pragma once
 #ifndef BUSINESSLOGIC_H
 #define BUSINESSLOGIC_H
 
@@ -44,12 +45,11 @@ public:
         StyleSheetUpdated,
         CurrentSkinIndexUpdated,
         RecordLogStateUpdated,
-        DisableNoticeStateUpdated,
-        DescriptionUpdated,
+        SettingsUpdated,
         AutoSyncEnableStateUpdated,
         PageIndexUpdated,
-        Ipv6UsageStateUpdated,
         DestoryShutdownBlock,
+        CurrentDirUpdated,
         //状态更新/提示类（可选提供参数，详见调用处）
         PremiumUiUnauthorized,
         GettingPublicIp,
@@ -67,7 +67,9 @@ public:
         WaitingForResponse,
         DFHNDeviceNotFound,
         ConnectedSuccessfully,//需要QString ipport参数
+        SignallingFailed,//需要QString error
     };
+    Q_ENUM(BusinessEvent);
     
     struct Result{
         bool is_succeeded;
@@ -83,8 +85,8 @@ public://公有函数
     Q_INVOKABLE void destory();                                     //销毁对象
     
     Q_INVOKABLE void send(QByteArray msg,bool e=1,int d=-1);        //自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
-    Q_INVOKABLE Result sendFile(QList<device> dst = QList<device>());//发送文件给所有客户端
-    Q_INVOKABLE bool restartDebug();                                //切换当前调试状态，返回切换过后的状态
+    Q_INVOKABLE Result sendFile(QList<device> dst = QList<device>(),QSet<QString> incremental_sync_set=QSet<QString>());//发送文件给所有客户端
+//    Q_INVOKABLE bool restartDebug();                                //切换当前调试状态，返回切换过后的状态
     Q_INVOKABLE bool checkSkin(skinType skin);                      //检查skin是否可用
     
 signals:
@@ -92,16 +94,16 @@ signals:
 //    void tempMessageChanged(QString msg,int timeout=0);                             //当显示在左下角的信息改变
 //    void messageBoxRequested(QString title,QString content,MessageBoxType type);    //请求弹出messageBox
 //    void operateRequested(QString object,QString method,QVariant value=QVariant()); //请求
-    void businessEventOccurred(BusinessEvent event,QVariantMap args=QVariantMap()); //当事件触发
+    void businessEventOccurred(BusinessLogic::BusinessEvent event,QVariantMap args=QVariantMap()); //当事件触发
     void sendInfoChanged(TransmissionEngine::SendInfo info);                        //发送砖头
     
     void scheduleUpdated(QByteArray schedule);                                      //日程更新
     void remoteFileFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);    //远程目录改变
-    void deviceListUpdated(QList<device> deviceList);                               //设备列表改变
+    void deviceListUpdated(QList<Communication::device> deviceList);                //设备列表改变
     void rttTestResultUpdated(QList<QVariantMap> rttResult);                        //测试RTT结果更新，每个QVariantMap需要有id,ip,port,rtt,delay
     
 public slots://以下是公有槽，需在外部联接
-    void on_folder_change(QString textOnItem);
+    void on_folder_change(QDir current_dir);
     void on_settings_saved(QString username_, QString pwd_, QString mqttServer_, 
                            int mqttPort_, QString githubUser_, QString githubPat_, 
                            QVariant skin_, bool recordLog_, bool disableNotice_, 
@@ -206,16 +208,17 @@ private://私有变量
     QDir syncFolder = QDir("files");
     QSettings settings;
     QList<device> lastSyncDst;
-#ifdef QT_DEBUG
-    bool is_debug = true;
-#else
-    bool is_debug = false;
-#endif
+    bool use_ipv6 = false;
 };
 
-QFile *logFile;
+#ifndef BUSINESSLOGIC_H_2
+#define BUSINESSLOGIC_H_2
+static QFile *logFile;
 void log(QtMsgType t, const QMessageLogContext &context, const QString &logstr);
 static bool output_to_file = false;
-QMutex logFileMutex;
+Q_GLOBAL_STATIC(QMutex,logFileMutex);
+#endif
+
+Q_DECLARE_METATYPE(BusinessLogic::BusinessEvent)
 
 #endif // BUSINESSLOGIC_H

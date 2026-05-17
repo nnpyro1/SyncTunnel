@@ -691,6 +691,13 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
     ndb<<"流程B";
     sendReliableMessage(currentSendDst,"PLEASE_REQ_RESEND");
     ndb<<"流程C";
+    
+    //更新发送显示
+    {
+        SendInfo info;
+        info.i=0;info.delay=0;info.total=0;info.reqAckLoop=0;
+        emit sendInfoChanged(info);
+    }
 }
 
 void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){

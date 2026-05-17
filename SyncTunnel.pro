@@ -1,5 +1,5 @@
 QT       += core gui
-QT       += network mqtt charts multimedia
+QT       += network mqtt multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -81,7 +81,7 @@ win32{
 }
 win32: CONFIG -= console
 win32: CONFIG += windows
-win32: DEFINES += QT_NEEDS_QMAIN
+#win32: DEFINES += QT_NEEDS_QMAIN
 win32: QMAKE_LFLAGS += -Wl,-subsystem=windows
 win32: QMAKE_LFLAGS += -Wl,-entry=WinMainCRTStartup
 android{

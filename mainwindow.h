@@ -11,11 +11,11 @@
 //#include "modules/signalling/signalling.h"
 //#include "modules/transmissionengine/transmissionengine.h"
 #include "dialogs/dialog_remotefile.h"
-//#include <QCloseEvent>
-//#include <QLabel>
-//#include <QDragEnterEvent>
-//#include <QDropEvent>
-//#include <QMimeData>
+#include <QCloseEvent>
+#include <QLabel>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 //#include <QProcess>
 //#include <QElapsedTimer>
 #include <QSystemTrayIcon>
@@ -24,16 +24,17 @@
 //#include <qcachedbytearray.h>
 #include <dialogs/dialog_selectsyncdst.h>
 #include <dialogs/dialog_help.h>
-//#include <general.h>
+#include <general.h>
 #include <dialogs/wizard_startup.h>
 //#include <QResizeEvent>
 //#include <functional>
 //#include <businesslogic.h>
 #include <viewmodel.h>
+#include <QShortcut>
 
 
 QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; /*class Dialog;*/ }
+namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
 class MainWindow : public QMainWindow
@@ -87,13 +88,13 @@ public://公有函数
     MainWindow(ViewModel *vm,QWidget *parent = nullptr,std::function<void(QString)> func_update = nullptr,bool bShow=false);
     ~MainWindow();
     
-//    void show_dir();                            //显示目录到Widget上
+    void show_dir();                            //显示目录到Widget上
 //    void send(QByteArray msg,bool e=1,int d=-1);//自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
 //    QByteArray encode(QByteArray msg);          //加密msg并返回密文
 //    QByteArray decode(QByteArray msg);          //解密msg并返回解密后的值
 //    QByteArray mergeFile(QDir folder,bool c=1); //合并文件
 //    Q_INVOKABLE void sendFileTo(int n);         //自动分包并发送
-//    Q_INVOKABLE void sendFile(QList<device> dst = QList<device>());//发送文件给所有客户端
+    Q_INVOKABLE void sendFile(QList<device> dst = QList<device>());//发送文件给所有客户端
 //    void releaseFile(QByteArray msg);           //释放文件
 //    void savePower();                           //省电模式
 //    bool checkSkin(skinType skin);              //检查skin是否可用
@@ -105,7 +106,7 @@ public://公有函数
 //                          QString solution,     //攻击防护 解决办法的描述
 //                          fpvoid solution_fp,   //攻击防护 解决办法lambda
 //                          fpvoid rec=0);        //攻击防护 恢复办法
-//    void restartDebug();                        //重新启用/禁用调试
+    void restartDebug();                        //重新启用/禁用调试
     void hideTab(QTabWidget *tab,int index);    //隐藏tab中第index标签
 //    bool sendReliableMessage(int dst, QString msg);//向dst发送可靠消息，阻塞直到对方收到
 //    QVector<QVector<QPair<ipport,ipport>>> planAutoSend(QList<device> dsts);//自动规划向dsts发送的路径
@@ -128,6 +129,7 @@ private slots://槽函数
     void on_test_rtt();                         //当测试RTT
 //    void on_SPTP_ctrlMsg_received(TransmissionEngine::msg_ctrl);//当SPTP收到控制消息 新版协议，以后不用Json了，迁移至此处
 //    void restart();                             //跨平台重启
+    void on_sendInfo_updated(TransmissionEngine::SendInfo info);
     
     void on_pushButton_debug1_clicked();//当调试
     
@@ -165,7 +167,7 @@ private://私有变量
 //    bool is_uploading = false;
 //    QByteArrayList chunks;//文件区块
 //    QTimer timer_is_uploading;
-//    QLabel *label_status;
+    QLabel *label_status;
 //    QTimer timer_clear_currentFileMap;
 //    ipport mqtt_server;
 //    QString user_github_name;
@@ -209,15 +211,15 @@ private://私有变量
 //    QLineSeries *line_delay;
 //    QValueAxis *axis_x = new QValueAxis;
 //    QValueAxis *axis_y = new QValueAxis,*axis_y_r = new QValueAxis;
-//    QShortcut *shortcut_debug = new QShortcut(QKeySequence(Qt::SHIFT + Qt::ALT + Qt::Key_D),this);
+    QShortcut *shortcut_debug = new QShortcut(QKeySequence(Qt::SHIFT + Qt::ALT + Qt::Key_D),this);
 //    QUuid send_req_ack_uuid;
 //    QJsonObject json_settings;
 //    QString receive_last_uuid;
 //    QSet<QString> incremental_sync_set;//增量同步集合
 //    language current_language = language_chinese;
 //    QTranslator *translator = nullptr;
-//    Dialog_schedule *dialog_schedule;
-//    QList<Schedule*> schedule_list;
+    Dialog_schedule *dialog_schedule;
+    QList<Schedule*> schedule_list;
 //    int currentSendDst = -1;
 //    QByteArray lastMessage;
 //    QString currentReliableUuid;
@@ -227,18 +229,18 @@ private://私有变量
 //    int device_flag;
 //    bool is_DFHN = false;
 //    bool is_first_launch = false;
-//    QTimer timer_refresh;
+    QTimer timer_refresh;
 //    bool is_autoSync = false;
 //    QTimer timer_autoSync;
 //    QMap<QString,QByteArray> fileHashMap;
 //    QDir syncFolder = QDir("files");
 //    QSettings settings;
 //    QList<device> lastSyncDst;
-//#ifdef QT_DEBUG
-//    bool is_debug = true;
-//#else
-//    bool is_debug = false;
-//#endif
+#ifdef QT_DEBUG
+    bool is_debug = true;
+#else
+    bool is_debug = false;
+#endif
     
 private:
     QSystemTrayIcon *trayIcon;

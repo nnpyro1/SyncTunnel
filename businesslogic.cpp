@@ -15,6 +15,11 @@ BusinessLogic::BusinessLogic(QObject *parent) : QObject(parent) ,useless(QDir().
 }
 
 
+BusinessLogic::~BusinessLogic(){
+    
+}
+
+
 void BusinessLogic::init(){
     //对象创建
     m_communication = new Communication;
@@ -74,7 +79,7 @@ void BusinessLogic::init(){
 #endif
 //    ui->tableWidget_deviceList.
     //隐藏不必要的标签页
-    restartDebug();
+//    restartDebug();
 #ifdef NNPYRO_USE_CONSOLE//使用控制台
     if(!QApplication::arguments().contains("CON_MODE")){if(!QDir("tools/").exists())QDir().mkpath("tools/");QFile::copy(":/rc/bin/Alacritty.exe","tools/Alacritty.exe");QProcess::startDetached("tools/Alacritty.exe",QStringList()<<"-e"<<QApplication::applicationFilePath()<<QApplication::arguments()<<"CON_MODE");close();QApplication::quit();}
 #endif
@@ -193,7 +198,6 @@ void BusinessLogic::init(){
 //    device_flag=json_settings["device_flag"].toInt();
 //    ui->lineEdit_settings_description->setText(device_description);
 //    emit operateRequested("ui->lineEdit_settings_description","setText",device_description);
-    emit businessEventOccurred(BusinessEvent::DescriptionUpdated,{{"description",device_description}});
     if(settings.contains("ApplicationSettings/syncSourceDir")){
         syncFolder=QDir(settings.value("ApplicationSettings/syncSourceDir").toString());
     }
@@ -429,6 +433,7 @@ void BusinessLogic::init(){
     
     //目录显示
     current_dir = QDir("files/");
+    emit businessEventOccurred(BusinessEvent::CurrentDirUpdated,{{"value",current_dir.absolutePath()}});    
     
     
 //    initNetwork(func_update);
@@ -506,7 +511,7 @@ void BusinessLogic::init(){
         });
 //        emit messageChanged(tr("用户列表更新成功"));
 //        ui->tableWidget_deviceList->clearContents();ui->tableWidget_deviceList->setRowCount(0);ndb<<"IN";
-//        if(m_transmissionengine)m_transmissionengine->setClients(clients);
+        if(m_transmissionengine)m_transmissionengine->setClients(clients);
         
 //        foreach(auto i,clients){        //表格设置
 //            int r=ui->tableWidget_deviceList->rowCount();
@@ -519,6 +524,7 @@ void BusinessLogic::init(){
 //        if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i.toFullString());}
         emit deviceListUpdated(clients);
     });
+    connect(m_signalling,&Signalling::errorOccurred,this,[=](QString err){emit businessEventOccurred(BusinessEvent::SignallingFailed,{{"error",err}});});
     connect(m_transmissionengine,&TransmissionEngine::sendInfoChanged,this,&BusinessLogic::sendInfoChanged);
     
     //打洞
@@ -543,7 +549,8 @@ void BusinessLogic::init(){
     if(args.contains("-ipv6")){//强制使用ipv6
 //        ui->checkBox_settings_ipv6->setChecked(true);
 //        emit operateRequested("ui->checkBox_settings_ipv6","setChecked",true);
-        emit businessEventOccurred(BusinessEvent::Ipv6UsageStateUpdated,{{"state",true}});
+//        emit businessEventOccurred(BusinessEvent::Ipv6UsageStateUpdated,{{"state",true}});
+        use_ipv6=true;
     }
     if(args.contains("CON_MODE")){
         output_to_file=false;
@@ -554,7 +561,7 @@ void BusinessLogic::init(){
 //    trayIcon->show();
     timer_keepAlive.start(15000);
     timer_autoSync.start(10000);//每隔10秒刷新
-    RUN_IN_MAIN_THREAD(winRun if(!json_settings["disable_notice"].toBool())QProcess::startDetached("Noticer.exe");)
+    RUN_IN_MAIN_THREAD(winRun if(!json_settings["disable_notice"].toBool())QProcess::startDetached("Noticer.exe"););
     
 //    QTimer::singleShot(1000,this,[this]{raise();});
     /*if(is_first_launch){
@@ -598,20 +605,27 @@ void BusinessLogic::init(){
     }); )
     fileHashMap=Utils::generateFileHashMap(syncFolder);
     ndb<<syncFolder.absolutePath();
+    
+    //同步设置
+    emit businessEventOccurred(BusinessEvent::SettingsUpdated,{{"username",user_name},{"password",pwd},{"description",device_description},{"ipv6usage",use_ipv6},{"disablenotice",json_settings["disable_notice"].toBool()}});
+    
 }
 
 
 void BusinessLogic::destory(){
+    ndb<<"运行了销毁函数";
     //定时器
     timer_keepAlive.stop();
     timer_autoSync.stop();
     timer_refresh.stop();
     timer_is_uploading.stop();
     timer_clear_currentFileMap.stop();
-    //关闭句柄,etc
+    //关闭一些东西
     if (logFile->isOpen()) {
         logFile->close();
     }
+    if(m_signalling)
+        m_signalling->exit();
     //销毁对象
     delete m_communication;             m_communication = nullptr;
     delete m_signalling;                m_signalling = nullptr;
@@ -624,12 +638,12 @@ void BusinessLogic::send(QByteArray msg, bool e, int d){
 }
 
 
-BusinessLogic::Result BusinessLogic::sendFile(QList<device> dst){
+BusinessLogic::Result BusinessLogic::sendFile(QList<device> dst,QSet<QString> incremental_sync_set){
     if(dst.empty()){
         return Result("请指定传输目标");
     }
     lastSyncDst=dst;
-    m_transmissionengine->SPTP_send(Utils::mergeFile(QDir("files/")),dst);
+    m_transmissionengine->SPTP_send(Utils::mergeFile(QDir("files/"),incremental_sync_set),dst);
     return Result();
 }
 
@@ -690,8 +704,10 @@ bool BusinessLogic::checkSkin(BusinessLogic::skinType skin){
 //---------- 以下是公有槽函数 ----------
 
 
-void BusinessLogic::on_folder_change(QString textOnItem){
-    current_dir = QDir(current_dir.filePath(textOnItem));
+void BusinessLogic::on_folder_change(QDir current_dir){
+//    current_dir = QDir(current_dir.filePath(current_dir));
+    this->current_dir=current_dir;
+    emit businessEventOccurred(BusinessEvent::CurrentDirUpdated,{{"value",current_dir.absolutePath()}});
 }
 
 
@@ -1061,7 +1077,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
 //        ui->pushButton_settings_save->click();
         RUN_LATER(
             on_settings_saved(user_name,pwd,mqtt_server.ip,mqtt_server.port,user_github_name,json["pat"].toString(),currentSkin,json_settings["use_log"].toBool(),json_settings["disable_notice"].toBool(),device_description);
-        )
+        );
     }
     if(json.contains("cmd")){
 #ifdef Q_OS_WIN
@@ -1136,7 +1152,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
 
 void BusinessLogic::on_SPTP_readyRead(QByteArray msg){
     Utils::releaseFile(msg);
-    RUN_IN_MAIN_THREAD(playSound(QUrl("qrc:/rc/audio/file_release_successfully.wav"));)
+    RUN_IN_MAIN_THREAD(playSound(QUrl("qrc:/rc/audio/file_release_successfully.wav")););
 }
 
 
@@ -1199,7 +1215,7 @@ void BusinessLogic::unserSchedule(QByteArray dat){
 
 void /*MainWindow::*/log(QtMsgType t, const QMessageLogContext &context, const QString &logstr){
     if(output_to_file){
-        QMutexLocker locker(&logFileMutex);
+//        QMutexLocker locker(&logFileMutex);
         QString time = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss:zzz");
         QString opt;
         switch(t){
@@ -1210,8 +1226,10 @@ void /*MainWindow::*/log(QtMsgType t, const QMessageLogContext &context, const Q
         case QtFatalMsg:opt="FATAL";break;
         }
         
-        if(!logFile->isOpen())logFile->open(QFile::WriteOnly);
-        logFile->write(QString("[%1 %2]:%3\n\n").arg(time).arg(opt).arg(logstr).toLocal8Bit());
+        QMetaObject::invokeMethod(logFile,[=]{
+            if(!logFile->isOpen())logFile->open(QFile::WriteOnly);
+            logFile->write(QString("[%1 %2]:%3\n\n").arg(time).arg(opt).arg(logstr).toLocal8Bit());
+        });
         Q_UNUSED(context);
     }
     else{

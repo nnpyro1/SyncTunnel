@@ -67,7 +67,7 @@ public://公有函数
     
 signals:
     void messageChanged(QString message);                   //当需要在页面上显示消息的时候触发
-    void sendInfoChanged(SendInfo info);                    //发送状态
+    void sendInfoChanged(TransmissionEngine::SendInfo info);//发送状态
     void communicationReadyRead(QByteArray msg);            //对于readyRead，应该联接这个而非Communication::readyRead
     void SPTP_readyRead(QByteArray data);                   //SPTP发送数据可读
     void SPTP_sendFinished();                               //消息发送结束，不管是否成功
@@ -151,5 +151,7 @@ private://私有对象/变量
     QMap<QString,QString> reliableMessages;
     QQueue<std::shared_ptr<const file_sending_task>> queue_fileSendingTask;
 };
+
+Q_DECLARE_METATYPE(TransmissionEngine::SendInfo)
 
 #endif // TRANSMISSIONENGINE_H

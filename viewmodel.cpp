@@ -13,7 +13,7 @@ ViewModel::ViewModel(BusinessLogic *businesslogic, QObject *parent) : QObject(pa
     void deviceListUpdated(QList<device> deviceList);                               //设备列表改变
     void rttTestResultUpdated(QList<QVariantMap> rttResult);   
     */
-    connect(businesslogic,&BusinessLogic::messageChanged,this,[=](QString m){o_status=m;});
+    connect(bl,&BusinessLogic::messageChanged,this,[=](QString m){o_status=m;ndb<<m;});
     connect(bl,&BusinessLogic::businessEventOccurred,this,&ViewModel::on_businessEventOccur);
     connect(bl,&BusinessLogic::sendInfoChanged,this,&ViewModel::on_sendInfoChange);
     connect(bl,&BusinessLogic::scheduleUpdated,this,&ViewModel::on_schedule_update);
@@ -23,7 +23,74 @@ ViewModel::ViewModel(BusinessLogic *businesslogic, QObject *parent) : QObject(pa
 }
 
 
+void ViewModel::sendFile(QList<device> dsts){
+    RUN_IN_CUSTOM_THREAD(bl,bl->sendFile(dsts,incremental_sync_set););
+}
+
+void ViewModel::on_folder_change(QDir dir){
+    o_current_dir=dir;
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_folder_change(dir););
+}
+
+void ViewModel::on_settings_saved(QString username_, QString pwd_, QString mqttServer_, int mqttPort_, QString githubUser_, QString githubPat_, QVariant skin_, bool recordLog_, bool disableNotice_, QString description_){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_settings_saved(username_,pwd_,mqttServer_,mqttPort_,githubUser_,githubPat_,skin_,recordLog_,disableNotice_,description_););
+}
+
+void ViewModel::on_hangup(){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_hangup(););
+}
+
+void ViewModel::on_download(){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_download(););
+}
+
+void ViewModel::on_sync_pat(){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_sync_pat(););
+}
+
+void ViewModel::on_shutdown_current(int id){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_shutdown_current(id););
+}
+
+void ViewModel::on_test_rtt(){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_test_rtt(););
+}
+
+void ViewModel::on_request_file(int index){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_request_file(index););
+}
+
+void ViewModel::on_copy_remote_file_operation_requested(QString subdir, int i){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_copy_remote_file_operation_requested(subdir,i););
+}
+
+void ViewModel::on_add_schedule(Schedule *schedule){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_add_schedule(schedule););
+}
+
+void ViewModel::on_remove_schedule(int index){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_remove_schedule(index););
+}
+
+void ViewModel::on_suspended(){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_suspended(););
+}
+
+void ViewModel::on_hangup_to_dfhn(){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_hangup_to_dfhn(););
+}
+
+void ViewModel::on_download_from_dfhn(){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_download_from_dfhn(););
+}
+
+void ViewModel::on_restart_all(){
+    RUN_IN_CUSTOM_THREAD(bl,on_restart_all(););
+}
+
+
 void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVariantMap map){
+    ninfo<<"Business Event Occurred. Event:"<<QMetaEnum::fromType<BusinessLogic::BusinessEvent>().valueToKey((int)event)<<" map:"<<map;
     switch (event) {
     //操作类
     case BusinessLogic::BusinessEvent::StyleSheetUpdated:
@@ -35,11 +102,12 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
     case BusinessLogic::BusinessEvent::RecordLogStateUpdated:
         o_recordLogState=map["state"].toBool();
         break;
-    case BusinessLogic::BusinessEvent::DisableNoticeStateUpdated:
-        o_disableNoticeState=map["state"].toBool();
-        break;
-    case BusinessLogic::BusinessEvent::DescriptionUpdated:
+    case BusinessLogic::BusinessEvent::SettingsUpdated:
+        o_user_name=map["username"].toString();
+        o_pwd=map["password"].toString();
         o_description=map["description"].toString();
+        o_ipv6UsageState=map["ipv6usage"].toBool();
+        o_disableNoticeState=map["disablenotice"].toBool();
         break;
     case BusinessLogic::BusinessEvent::AutoSyncEnableStateUpdated:
         o_autoSyncState=map["state"].toBool();
@@ -47,11 +115,11 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
     case BusinessLogic::BusinessEvent::PageIndexUpdated:
         o_currentPageIndex=map["index"].toInt();
         break;
-    case BusinessLogic::BusinessEvent::Ipv6UsageStateUpdated:
-        o_ipv6UsageState=map["state"].toBool();
-        break;
     case BusinessLogic::BusinessEvent::DestoryShutdownBlock:
         emit destoryShutdownBlock();
+        break;
+    case BusinessLogic::BusinessEvent::CurrentDirUpdated:
+        o_current_dir=QDir(map["value"].toString());
         break;
     //状态更新/提示类（可选提供参数，详见调用处）
     case BusinessLogic::BusinessEvent::PremiumUiUnauthorized:
@@ -105,12 +173,14 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
     case BusinessLogic::BusinessEvent::ConnectedSuccessfully:
         emit tempMessageChanged("成功与"+map["ipport"].toString()+"建立连接");
         break;//需要QString ipport参数
+    case BusinessLogic::BusinessEvent::SignallingFailed:
+        emit messageBoxRequested("信令失败","信令遇到错误：\n"+map["error"].toString(),BusinessLogic::MessageBoxType::Critical);
     }
 }
 
 
 void ViewModel::on_sendInfoChange(TransmissionEngine::SendInfo info){
-    
+    emit sendInfoChanged(info);
 }
 
 

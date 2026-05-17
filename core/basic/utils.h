@@ -29,7 +29,7 @@ public://以下是纯静态函数
     static QByteArray getMachineUniqueId();                                 //获取设备唯一ID的哈希
     [[noreturn]] static void restart();                                     //软重启应用程序
     QByteArray serSchedule(QList<Schedule*> schedule_list);                 //序列号Schedule
-    QList<Schedule *> unserSchedule(QByteArray dat);                        //反序列化schedule
+//    QList<Schedule *> unserSchedule(QByteArray dat);                        //反序列化schedule
 };
 
 #endif // UTILS_H

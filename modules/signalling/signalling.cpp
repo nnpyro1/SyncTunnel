@@ -8,9 +8,10 @@
 #include "../../../libary/Qt-AES/qaesencryption.h"
 #include <QCryptographicHash>
 #include <QDataStream>
-#include <QMessageBox>
+//#include <QMessageBox>
 #include <QThread>
 #include <QNetworkProxy>
+#include <QMetaEnum>
 //#include <QSignalSpy>
 
 
@@ -40,7 +41,8 @@ void Signalling::connectToHost(Communication::ipport host){
     
     if(client->state() != QMqttClient::Connected){
         qCritical()<<"Signalling::connectToHost() Error:Cannot connect to host"<<client->error();
-        QMessageBox::critical(nullptr,"错误","连接到MQTT服务器失败");
+//        QMessageBox::critical(nullptr,"错误","连接到MQTT服务器失败");
+        emit errorOccurred(QString::number(client->error()));
     }
 }
 
@@ -110,7 +112,6 @@ QList<Communication::device> Signalling::getUserList(){
     loop.exec();
     disconnect(c);
     
-    
     return user_list;
 }
 
@@ -175,9 +176,9 @@ void Signalling::send_msg_to_get_user_list(int c){
 
 void Signalling::on_msg(QMqttMessage mqttMsg){
     if(0){
-        QMessageBox *b = new QMessageBox;
-        b->setText("收到消息");
-        b->open();
+//        QMessageBox *b = new QMessageBox;
+//        b->setText("收到消息");
+//        b->open();
     }
     
     
@@ -349,7 +350,7 @@ void Signalling::on_msg(QMqttMessage mqttMsg){
     }
     
     if(0){
-        QMessageBox::information(0,"长度",QString::number(user_list.size()));
+//        QMessageBox::information(0,"长度",QString::number(user_list.size()));
     }
     //去重
     decltype (user_list) unique_user_list;
