@@ -31,7 +31,6 @@
 #include <QUrlQuery>
 #include <QSystemTrayIcon>
 #include <QClipboard>
-#include <iostream>
 #include <QBuffer>
 #include <QPainter>
 #include <QUuid>
@@ -41,9 +40,9 @@
 #include <QFileDialog>
 #include <QShortcut>
 #ifdef Q_OS_ANDROID
-#include <QAndroidJniEnvironment>
-#include <QAndroidJniObject>
-#include <QtAndroid>
+// #include <QAndroidJniEnvironment>
+// #include <QAndroidJniObject>
+// #include <QtAndroid>
 #endif
 
 //#define process_events_without_useript QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents)
@@ -1692,7 +1691,6 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     //对象创建
     label_status = new QLabel(this);
     logFile = new QFile(QString("logs/%1.log").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")).toStdString().c_str(),this);
-    trayIcon = new QSystemTrayIcon(this);
     //基本设置
     ui->setupUi(this);
     resize(QGuiApplication::primaryScreen()->geometry().width()*0.45,QGuiApplication::primaryScreen()->geometry().height()*0.55);
@@ -1720,6 +1718,8 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     trayIcon->setIcon(QIcon(":/rc/img/favicon.ico")); 
     trayIcon->setContextMenu(new QMenu(this));
     trayIcon->contextMenu()->addAction(ui->actionExit_Application);
+    trayIcon->show();
+    trayIcon->setVisible(true);
     ui->label_remote_screen->installEventFilter(this);
 //    line_ackloop->setColor(QColor(Qt::green));
 //    line_speed->setColor(QColor(Qt::red));
@@ -1882,6 +1882,9 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
 //    });
     connect(ui->actionRestart_all_applications,&QAction::triggered,this,[vm,this]{vm->on_restart_all();});
     connect(vm,&ViewModel::sendInfoChanged,this,&MainWindow::on_sendInfo_updated);
+    connect(vm,&ViewModel::tempMessageChanged,this,[this](QString msg,int maxtime){ui->statusBar->showMessage(msg,maxtime);});
+    connect(ui->actionrestart,&QAction::triggered,this,[]{
+        Utils::restart();});
     
     //其他
     vm->o_current_dir=QDir("files");
@@ -1908,6 +1911,26 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     vm->o_description.use(this,[=]{ui->lineEdit_settings_description->setText(vm->o_description);});
     vm->o_disableNoticeState.use(this,[=]{ui->checkBox_settings_disableNotice->setChecked(vm->o_disableNoticeState);});
     vm->o_ipv6UsageState.use(this,[=]{ui->checkBox_settings_ipv6->setChecked(vm->o_ipv6UsageState);});
+    ninfo<<"当前工作目录："<<QDir::currentPath();
+    
+    //安卓全屏策略
+    androidComp( QTimer::singleShot(10,this,[this]{
+                    setMaximumSize(QApplication::primaryScreen()->availableGeometry().size());/*QString str;QDebug(&str)<<"maxsize"<<maximumSize()<<"DPI"<< QGuiApplication::primaryScreen()->physicalDotsPerInch();QMessageBox::information(this,"",str);*/
+                    ui->centralwidget->setMaximumSize(maximumSize());
+                    ui->tabWidget->setMaximumSize(maximumSize());
+                    ui->centralwidget->resize(maximumSize());
+                    ui->tabWidget->resize(maximumSize());
+                    int width = ui->tabWidget->size().width()/4;
+                    //            ndb<<"width"<<width;
+                    //            ninfo<<width;
+                    ui->tabWidget->tabBar()->setStyleSheet(/*ui->tabWidget->tabBar()->styleSheet()+*/QString("QTabBar::tab:enabled{ width: %1px; margin: 0px; padding: 0px; }").arg(width));
+                    ui->tabWidget->tabBar()->setExpanding(true);
+                    ui->tabWidget->setTabPosition(QTabWidget::South);
+                    hideTab(ui->tabWidget,2);
+                    hideTab(ui->tabWidget,3);
+                    hideTab(ui->tabWidget,5);
+                    hideTab(ui->tabWidget,6);
+                }); )
 }
 
 
@@ -2209,6 +2232,8 @@ void MainWindow::on_pushButton_debug1_clicked(){
 //    ndb<<generateFileHashMap(syncFolder);
 //    m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);
 //    ninfo<<traverseFolder(QDir("files/"));
+    vm->on_debug();
+    connect(vm,&ViewModel::debugSignal,this,[this](QVariantMap m){ui->label_remote_screen->setPixmap(m["data"].value<QPixmap>());});
 }
 
 //bool MainWindow::sendReliableMessage(int dst, QString msg){
@@ -3585,7 +3610,7 @@ void MainWindow::dropEvent(QDropEvent *event){
 }
 
 
-bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result){
+bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result){
 #ifdef Q_OS_WIN
     MSG *msg = (MSG*)message;
     

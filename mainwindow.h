@@ -137,7 +137,7 @@ protected://继承
     virtual void closeEvent(QCloseEvent *event) override;
     virtual void dragEnterEvent(QDragEnterEvent *event) override;
     virtual void dropEvent(QDropEvent *event) override;
-    virtual bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+    virtual bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
     virtual bool eventFilter(QObject *obj, QEvent *event) override;
     virtual void resizeEvent(QResizeEvent *e) override;
     
@@ -195,7 +195,7 @@ private://私有变量
 //    QMap<int,int> rtt_result;
 //    QElapsedTimer elapsed_rtt;
 //    skinType currentSkin = Dark;
-//    QSystemTrayIcon *trayIcon = new QSystemTrayIcon;
+   QSystemTrayIcon *trayIcon = new QSystemTrayIcon;
 //    QTimer timer_keepAlive;
 //    Dialog_remoteFile *dialog_remoteFile;
 //    int receive_last_ack_index = 0;
@@ -211,7 +211,7 @@ private://私有变量
 //    QLineSeries *line_delay;
 //    QValueAxis *axis_x = new QValueAxis;
 //    QValueAxis *axis_y = new QValueAxis,*axis_y_r = new QValueAxis;
-    QShortcut *shortcut_debug = new QShortcut(QKeySequence(Qt::SHIFT + Qt::ALT + Qt::Key_D),this);
+    QShortcut *shortcut_debug = new QShortcut(QKeySequence(Qt::SHIFT | Qt::ALT | Qt::Key_D),this);
 //    QUuid send_req_ack_uuid;
 //    QJsonObject json_settings;
 //    QString receive_last_uuid;
@@ -243,7 +243,7 @@ private://私有变量
 #endif
     
 private:
-    QSystemTrayIcon *trayIcon;
+    // QSystemTrayIcon *trayIcon;
 };
 
 

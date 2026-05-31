@@ -7,7 +7,7 @@
 #include <qcachedbytearray.h>
 #include <QUuid>
 #include <QTimer>
-#include <QSound>
+// #include <QSound>
 #include <QQueue>
 #include <memory>
 #include <QMediaPlayer>
@@ -78,14 +78,14 @@ signals:
 signals://私有
     void signal_test_if_connected_finished(QPrivateSignal);         //连通性测试完成
     void signal_reqAck_finished(QPrivateSignal);                    //请求ack操作完成
-    void signal_resend_finished(QPrivateSignal={});                 //对方重传完成
-    void signal_reliableMessage_received(QString msg,QPrivateSignal={});//私有：可靠消息收到了
+    void signal_resend_finished(QPrivateSignal=QPrivateSignal());                 //对方重传完成
+    void signal_reliableMessage_received(QString msg,QPrivateSignal=QPrivateSignal());//私有：可靠消息收到了
 //    void signal_file_send_completed(QPrivateSignal={});             //文件发送成功并且状态成功清除 ### 和signal_resend_finished重复
     
 private slots:
     void on_readyRead();
     void on_request_resend();
-    void on_reliableMessage_received(QString msg,QPrivateSignal={});
+    void on_reliableMessage_received(QString msg,QPrivateSignal=QPrivateSignal());
     void on_bh_received(QByteArray msg);
     
 private://私有定义
@@ -105,7 +105,6 @@ private://私有定义
     struct msg_ctrl_p{
         qint32 check_type;
         char ctrl[20];
-        char value[1400];
     };
 //    struct header_ctrl
 #pragma pack(pop)

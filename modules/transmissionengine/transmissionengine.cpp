@@ -16,6 +16,7 @@
 #endif
 #include <QJsonArray>
 #include <QQueue>
+#include <QMetaEnum>
 
 
 TransmissionEngine::TransmissionEngine(Communication *m_communication, QString username, QString pwd, device public_ip, QObject *parent): QObject(parent),m_communication(m_communication),user_name(username),pwd(pwd),public_ip(public_ip){
@@ -128,7 +129,7 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
     if(!is_test_success){
         QSet<ipport> missing = QSet<ipport>(clients.begin(),clients.end()) - test_if_connected_set;
         QStringList missingStr;
-        foreach(auto i , missing){missingStr<<i;}
+        foreach(auto i , missing){missingStr<<i.toString();}
         int button = QMessageBox::No;
         QString msgTxt=tr("以下客户端没有响应连通性测试:\n\n%1\n\n这可能是由于客户端掉线造成的，也可能是网络波动。\n如果您想继续发送，请点击“是”。如果您想取消发送，请点击“否”。如果您想重试，请点击“重试”。");
         QString titleTxt=tr("连通性警告");
@@ -345,13 +346,14 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
             bool congestion = false;
             int last_lost_pack_index = -1;
             int fat_cnt = 0;;
-            for(auto it=send_current_fastresend_map.rbegin();it!=send_current_fastresend_map.rend();it++,fat_cnt++){//检测是否因为缓冲区膨胀导致的丢包
-                if(last_lost_pack_index==-1)last_lost_pack_index=*it;
-                else if(abs(last_lost_pack_index-*it)>2){ 
-                    if(fat_cnt<3)retry_flag=false;
-                    break;
-                }
-            }
+            //######### 此处是为了兼容注释掉的，后续更新拥塞控制算法请立即解决！ ##########
+            // for(auto it=send_current_fastresend_map.rbegin();it!=send_current_fastresend_map.rend();it++,fat_cnt++){//检测是否因为缓冲区膨胀导致的丢包
+            //     if(last_lost_pack_index==-1)last_lost_pack_index=*it;
+            //     else if(abs(last_lost_pack_index-*it)>2){ 
+            //         if(fat_cnt<3)retry_flag=false;
+            //         break;
+            //     }
+            // }
             if(send_current_fastresend_map.size()<3)retry_flag=false;
             QSet<int> old_fastresend = send_current_fastresend_map;
             if(retry_flag && !send_current_fastresend_map.empty()){//重试
@@ -721,7 +723,7 @@ void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
         foreach(auto j , plan){
             foreach(auto k , j){
                 if(k.first==senders[i]){
-                    task.append(k.second);
+                    task.append(k.second.toString());
                 }
             }
         }
@@ -962,17 +964,16 @@ QByteArray TransmissionEngine::SPTP_sendCtrl(QByteArray ctrl, QVariant v, int d)
         nwarning<<"Ctrl尺寸过大";
         return "";
     }
-    QString value = v.toString();
-    if(value.size()>=1400){
-        nwarning<<"value尺寸过大";
-        return "";
-    }
     msg.check_type=qToBigEndian((quint32)mt_ctrl);
     strcpy(msg.ctrl,ctrl.toStdString().c_str());
-    strcpy(msg.value,value.toStdString().c_str());
     QByteArray data;
     data.resize(sizeof(msg));
     memcpy(data.data(),&msg,sizeof(msg));
+    
+    QByteArray buf;
+    QDataStream ds(buf);
+    v.save(ds);
+    data.append(buf);
     return SPTP_sendCommon(data,d);
 }
 
@@ -1232,7 +1233,7 @@ void TransmissionEngine::on_readyRead(){
 //            if(!test_if_connected_set.contains(public_ip)) test_if_connected_set.insert(public_ip);
 //            if(test_if_connected_set == QSet<ipport>(clients.begin(),clients.end())){
             if(sender_index==currentSendDst){
-                emit signal_test_if_connected_finished({});
+                emit signal_test_if_connected_finished(QPrivateSignal());
             }
         }
     }
@@ -1248,7 +1249,7 @@ void TransmissionEngine::on_readyRead(){
             QJsonArray ar = json["lost_list"].toArray();
             foreach(auto i , ar) send_current_fastresend_map.insert(i.toInt());
             if(send_lost_count.size() >= /*clients.size()-1*/1){
-                emit signal_reqAck_finished({});
+                emit signal_reqAck_finished(QPrivateSignal());
             }
         }
     }
@@ -1529,15 +1530,18 @@ void TransmissionEngine::on_bh_received(QByteArray msg){
     
         // 读取指令和参数
         QByteArray cmd = QByteArray(ctrl.ctrl);
-        QString value = QByteArray(ctrl.value);
+        // QString value = QByteArray(ctrl.value);
+        QDataStream ds(payload1.mid(sizeof(msg_ctrl_p)));
+        QVariant var;var.load(ds);
+        
     
         // QVariant 转回原始类型
-        QVariant var = value;;
+        // QVariant var = value;
         
         msg_ctrl msgCtrl;
         msgCtrl.src=msgCommon.src;
         msgCtrl.ctrl=cmd;
-        msgCtrl.value=value;
+        msgCtrl.value=var;
         
         emit SPTP_ctrlMsgReceived(msgCtrl);
     }

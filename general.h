@@ -64,10 +64,12 @@ typedef Communication::device device;
 #include <QUrl>
 #include <QMediaPlayer>
 #include <QDir>
+#include <QAudioOutput>
 inline void playSound(QUrl url){
     QMediaPlayer* player = new QMediaPlayer();
-    player->setMedia(QMediaContent(url));
-    QObject::connect(player, &QMediaPlayer::stateChanged, player, [=](QMediaPlayer::State state){if(state==QMediaPlayer::StoppedState)player->deleteLater();});
+    QAudioOutput *output = new QAudioOutput;
+    player->setSource((url));
+    QObject::connect(player, &QMediaPlayer::playbackStateChanged, player, [=](QMediaPlayer::PlaybackState state){if(state==QMediaPlayer::StoppedState){player->deleteLater();output->deleteLater();}});
     player->play();
 }
 inline bool operator<(QDir left,QDir right){

@@ -7,6 +7,7 @@
 #include "modules/storage/storage.h"
 #include "modules/signalling/signalling.h"
 #include "modules/transmissionengine/transmissionengine.h"
+#include "modules/remotecontrol/remotecontrolengine.h"
 #include "core/services/schedule.h"
 #include <QSettings>
 #include <QProcess>
@@ -68,6 +69,8 @@ public:
         DFHNDeviceNotFound,
         ConnectedSuccessfully,//需要QString ipport参数
         SignallingFailed,//需要QString error
+        CurrentPathSetFailed,
+        Debug,//调试用，可能需参数
     };
     Q_ENUM(BusinessEvent);
     
@@ -123,6 +126,8 @@ public slots://以下是公有槽，需在外部联接
     void on_download_from_dfhn();                                   //从DFHN上面下
     void on_restart_all();                                          //重启全部
     
+    void on_debug([[maybe_unused]]QVariant dbgArgs={});             //调试
+    
 private slots://私有槽
     void on_readyRead(QByteArray msg);                              //原始消息接收
     void on_SPTP_readyRead(QByteArray msg);                         //SPTP协议收到大包
@@ -140,6 +145,7 @@ private:
     Signalling *m_signalling;
     Storage *m_storage;
     TransmissionEngine *m_transmissionengine;
+    RemoteControlEngine *m_remotecontrolengine;
     
 private://私有变量
     device public_ip;

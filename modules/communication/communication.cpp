@@ -6,13 +6,14 @@
 #include <QHostInfo>
 #include <QNetworkInterface>
 #include <iostream>
+#include <QVariant>
 
 
 Communication::Communication(){
     socket_stun = new QUdpSocket;
     socket_ipv6 = new QUdpSocket;
     socket = socket_stun;
-    socket->setSocketOption(QUdpSocket::ReceiveBufferSizeSocketOption,INT_MAX);//设置大缓冲区
+    socket->setSocketOption(QUdpSocket::ReceiveBufferSizeSocketOption,QVariant(INT_MAX));//设置大缓冲区
 //    buf.open(QIODevice::ReadWrite);
     connect(&timer_read,&QTimer::timeout,this,&Communication::on_read);
     timer_read.start(50);

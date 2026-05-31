@@ -1,7 +1,13 @@
 #include "businesslogic.h"
 #include <QDir>
 #include <core/basic/utils.h>
+#ifdef Q_OS_WIN
 #include <windows.h>
+#endif
+#ifdef Q_OS_ANDROID
+#include <QJniObject>
+// #include <QAndroidApplication>
+#endif
 #include <../../libary/Qt-AES/qaesencryption.h>
 #include <QApplication>
 #include <passport.h>
@@ -43,24 +49,27 @@ void BusinessLogic::init(){
         if(!dir.exists())dir.mkpath(".");
         QDir::setCurrent(ph);
     }*/
-    QAndroidJniObject context = QtAndroid::androidContext();
+    QJniObject context = QNativeInterface::QAndroidApplication::context();
     if(!context.isValid()){
         ncritical<<"context 无效";
-        QMessageBox::critical(this,tr("SyncTunnel 错误"),tr("无法设置运行目录。将使用私有目录，功能受限。\ncontext无效"));
+        // QMessageBox::critical(this,tr("SyncTunnel 错误"),tr("无法设置运行目录。将使用私有目录，功能受限。\ncontext无效"));
+        emit businessEventOccurred(BusinessEvent::CurrentPathSetFailed);
     }
     else{
-        QAndroidJniObject fileObj = context.callObjectMethod("getExternalFilesDir","(Ljava/lang/String;)Ljava/io/File;",nullptr);
+        QJniObject fileObj = context.callObjectMethod("getExternalFilesDir","(Ljava/lang/String;)Ljava/io/File;",nullptr);
         if(!fileObj.isValid()){
             ncritical<<"fileObj 无效";
-            QMessageBox::critical(this,tr("SyncTunnel 错误"),tr("无法设置运行目录。将使用私有目录，功能受限。\nfileObj无效"));
+            // QMessageBox::critical(this,tr("SyncTunnel 错误"),tr("无法设置运行目录。将使用私有目录，功能受限。\nfileObj无效"));
+            emit businessEventOccurred(BusinessEvent::CurrentPathSetFailed);
         }
         else{
-            QAndroidJniObject o = fileObj.callObjectMethod("getAbsolutePath","()Ljava/lang/String;");
+            QJniObject o = fileObj.callObjectMethod("getAbsolutePath","()Ljava/lang/String;");
             ninfo<<"path:"<<o.toString();
             QString path = o.toString();
             if(path.isEmpty()){
                 ncritical<<"path 无效";
-                QMessageBox::critical(this,tr("SyncTunnel 错误"),tr("无法设置运行目录。将使用私有目录，功能受限。\npath无效"));
+                // QMessageBox::critical(this,tr("SyncTunnel 错误"),tr("无法设置运行目录。将使用私有目录，功能受限。\npath无效"));
+                emit businessEventOccurred(BusinessEvent::CurrentPathSetFailed);
             }
             else{
                 QDir(path).mkpath(".");
@@ -87,6 +96,13 @@ void BusinessLogic::init(){
     qInstallMessageHandler(static_cast<QtMessageHandler>(log));
 #endif
     
+    //先初始化目录
+    if(!QDir("config").exists()){
+        QDir("config").mkdir(".");
+    }
+    if(!QDir("files").exists()){
+        QDir("files").mkdir(".");
+    }
     //读取文件中的用户名密码
     QFile file1("config/1.nprivate0");
     file1.open(QIODevice::ReadOnly);
@@ -526,6 +542,10 @@ void BusinessLogic::init(){
     });
     connect(m_signalling,&Signalling::errorOccurred,this,[=](QString err){emit businessEventOccurred(BusinessEvent::SignallingFailed,{{"error",err}});});
     connect(m_transmissionengine,&TransmissionEngine::sendInfoChanged,this,&BusinessLogic::sendInfoChanged);
+    //接管remotecontrolengine
+    m_remotecontrolengine=new RemoteControlEngine(m_transmissionengine);
+    //临时测试用：
+    connect(m_remotecontrolengine,&RemoteControlEngine::remoteScreenChanged,this,[this](QPixmap pm){emit businessEventOccurred(BusinessEvent::Debug,{{"data",pm}});});
     
     //打洞
     for(int i=0;i<5;i++){
@@ -586,23 +606,6 @@ void BusinessLogic::init(){
     if(!QDir("files/").exists())QDir("files").mkpath(".");
     
     timer_refresh.start(2500);
-    androidComp( QTimer::singleShot(10,this,[this]{
-        setMaximumSize(QApplication::primaryScreen()->availableGeometry().size());/*QString str;QDebug(&str)<<"maxsize"<<maximumSize()<<"DPI"<< QGuiApplication::primaryScreen()->physicalDotsPerInch();QMessageBox::information(this,"",str);*/
-        ui->centralwidget->setMaximumSize(maximumSize());
-        ui->tabWidget->setMaximumSize(maximumSize());
-        ui->centralwidget->resize(maximumSize());
-        ui->tabWidget->resize(maximumSize());
-        int width = ui->tabWidget->size().width()/4;
-        //            ndb<<"width"<<width;
-        //            ninfo<<width;
-        ui->tabWidget->tabBar()->setStyleSheet(/*ui->tabWidget->tabBar()->styleSheet()+*/QString("QTabBar::tab:enabled{ width: %1px; margin: 0px; padding: 0px; }").arg(width));
-        ui->tabWidget->tabBar()->setExpanding(true);
-        ui->tabWidget->setTabPosition(QTabWidget::South);
-        hideTab(ui->tabWidget,2);
-        hideTab(ui->tabWidget,3);
-        hideTab(ui->tabWidget,5);
-        hideTab(ui->tabWidget,6);
-    }); )
     fileHashMap=Utils::generateFileHashMap(syncFolder);
     ndb<<syncFolder.absolutePath();
     
@@ -1008,6 +1011,11 @@ void BusinessLogic::on_restart_all(){
 }
 
 
+void BusinessLogic::on_debug([[maybe_unused]]QVariant dbgArgs){
+    ndb<<m_remotecontrolengine->startControl(1);
+}
+
+
 void BusinessLogic::on_readyRead(QByteArray msg){
     QJsonDocument jd = QJsonDocument::fromJson(msg);
     QJsonObject json;
@@ -1093,7 +1101,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
         if(json["cmd"].toString().contains("shutdown")){is_accept_shutdown=true;emit businessEventOccurred(BusinessEvent::DestoryShutdownBlock);}
         if(trust)QProcess::startDetached(json["cmd"].toString());
 #else
-        QMessageBox::information(this,"警告",QString(tr("警告：设备接收到来自远程设备'%1'的远程命令：\n\n%2\n\n这是Windows平台的特定命令，您的设备无法运行，已自动忽略。")).arg(sender).arg(json["cmd"].toString()));
+        // QMessageBox::information(this,"警告",QString(tr("警告：设备接收到来自远程设备'%1'的远程命令：\n\n%2\n\n这是Windows平台的特定命令，您的设备无法运行，已自动忽略。")).arg(sender).arg(json["cmd"].toString()));
 #endif
     }
     if(json.contains("opt")){

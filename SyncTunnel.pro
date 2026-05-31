@@ -3,7 +3,7 @@ QT       += network mqtt multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-CONFIG += c++14
+CONFIG += c++17
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -31,6 +31,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     modules/communication/communication.cpp \
+    modules/remotecontrol/remotecontrolengine.cpp \
     modules/signalling/signalling.cpp \
     modules/storage/storage.cpp \
     modules/transmissionengine/transmissionengine.cpp \
@@ -51,6 +52,7 @@ HEADERS += \
     general.h \
     mainwindow.h \
     modules/communication/communication.h \
+    modules/remotecontrol/remotecontrolengine.h \
     modules/signalling/signalling.h \
     modules/storage/storage.h \
     modules/transmissionengine/transmissionengine.h \
@@ -85,7 +87,7 @@ win32: CONFIG += windows
 win32: QMAKE_LFLAGS += -Wl,-subsystem=windows
 win32: QMAKE_LFLAGS += -Wl,-entry=WinMainCRTStartup
 android{
-    QT += androidextras
+    # QT += androidextras
 }
 
 #翻译设置
@@ -121,3 +123,4 @@ android {
     ANDROID_ABIS = armeabi-v7a arm64-v8a x86 x86_64
 }
 android: include($$PWD/../../libary/android_openssl-master/openssl.pri)
+android: include(F:/Qt/Qt-android/openssl/android_openssl-master/openssl.pri)

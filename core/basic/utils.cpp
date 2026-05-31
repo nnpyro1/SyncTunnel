@@ -2,7 +2,9 @@
 #include <general.h>
 #include <../../libary/Qt-AES/qaesencryption.h>
 #include <QCryptographicHash>
+#ifdef Q_OS_WIN
 #include <windows.h>
+#endif
 #include <QRandomGenerator>
 #include <QApplication>
 #include <QBuffer>
@@ -54,12 +56,12 @@ QByteArray Utils::mergeFile(QDir folder, QSet<QString> incremental_sync_set, boo
     //            f += filepath.mid(dirpath.size()+1) + "\n";
                 QString absPath = fi.canonicalFilePath();
                 QString relativePath = QDir("files/../").relativeFilePath(fim.second.absolutePath());
-                f += relativePath + "\n";
+                f += relativePath.toUtf8() + "\n";
                 QFile file(absPath);
                 file.open(QIODevice::ReadOnly);
     //            f += qCompress(file.readAll(),9).toBase64() + "\n";
                 QByteArray data = qCompress(file.readAll(),9);
-                f += QString::number(data.size()) + "\n";
+                f += QString::number(data.size()).toUtf8() + "\n";
                 if(c)f += data;else f += "[FILE_CONTENTS_HERE]\n";
             }
             else{
@@ -71,7 +73,7 @@ QByteArray Utils::mergeFile(QDir folder, QSet<QString> incremental_sync_set, boo
             f += "DIR\n";
             QString absPath = fi.canonicalFilePath();
             QString relativePath = QDir("files/../").relativeFilePath(fi.absoluteFilePath());
-            f += relativePath + "\n";
+            f += relativePath.toUtf8() + "\n";
 //            f += mergeFile(absPath);
 //            f += mergeFile(QDir(relativePath),c);
         }
@@ -206,7 +208,7 @@ QMap<QString, QByteArray> Utils::generateFileHashMap(QDir baseDir){
                 result.insert(info.absoluteFilePath(),hash.result());
             }
             else{
-                ncritical<<"文件打开失败！File:"<<f<<" Info:"<<f.errorString();
+                ncritical<<"文件打开失败！File:"<<f.fileName()<<" Info:"<<f.errorString();
             }
         }
         if(info.isDir()){
@@ -260,7 +262,7 @@ QByteArray Utils::getMachineUniqueId(){
 
 
 void Utils::restart(){
-    qApp->exit(EXIT_CODE_RESTART);
+    QMetaObject::invokeMethod(qApp,[]{qApp->exit(EXIT_CODE_RESTART);});
 }
 
 

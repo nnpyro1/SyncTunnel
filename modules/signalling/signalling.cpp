@@ -6,12 +6,15 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include "../../../libary/Qt-AES/qaesencryption.h"
+#include "general.h"
 #include <QCryptographicHash>
 #include <QDataStream>
 //#include <QMessageBox>
 #include <QThread>
 #include <QNetworkProxy>
 #include <QMetaEnum>
+
+#include <modules/communication/communication.h>
 //#include <QSignalSpy>
 
 
@@ -309,8 +312,10 @@ void Signalling::on_msg(QMqttMessage mqttMsg){
                 QJsonDocument jd = QJsonDocument::fromJson(QByteArray::fromBase64(json["body"].toString().toUtf8()));
                 if(jd.isArray()){
                     QJsonArray ary = jd.array();
-                    foreach(auto item,ary){
-                        pendingList.append({item["ip"].toString(),(quint16)item["port"].toInt(),item["description"].toString(),item["userflag"].toInt()});
+                    foreach(auto i,ary){
+                        auto item=i.toObject();
+                        pendingList.append(device(item["ip"].toString(),(quint16)item["port"].toInt(),item["description"].toString(),item["userflag"].toInt()));
+                        // Communication::device dev = ();
                     }
                 }
             }

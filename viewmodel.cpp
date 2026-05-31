@@ -1,5 +1,8 @@
 #include "viewmodel.h"
+#ifdef Q_OS_WIN
 #include <windows.h>
+#endif
+#include <QMetaEnum>
 
 ViewModel::ViewModel(BusinessLogic *businesslogic, QObject *parent) : QObject(parent),bl(businesslogic){
     //联接信号槽
@@ -86,6 +89,10 @@ void ViewModel::on_download_from_dfhn(){
 
 void ViewModel::on_restart_all(){
     RUN_IN_CUSTOM_THREAD(bl,on_restart_all(););
+}
+
+void ViewModel::on_debug(QVariantMap args){
+    RUN_IN_CUSTOM_THREAD(bl,on_debug(args););
 }
 
 
@@ -175,6 +182,13 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
         break;//需要QString ipport参数
     case BusinessLogic::BusinessEvent::SignallingFailed:
         emit messageBoxRequested("信令失败","信令遇到错误：\n"+map["error"].toString(),BusinessLogic::MessageBoxType::Critical);
+        break;
+    case BusinessLogic::BusinessEvent::CurrentPathSetFailed:
+        emit messageBoxRequested("设置工作目录失败","无法设置工作目录，软件功能将受限",BusinessLogic::MessageBoxType::Critical);
+        break;
+    case BusinessLogic::BusinessEvent::Debug:
+        emit debugSignal(map);
+        break;
     }
 }
 
