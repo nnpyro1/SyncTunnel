@@ -116,15 +116,18 @@ public slots://以下是公有槽，需在外部联接
     void on_sync_pat();                                             //同步Github PAT
     void on_shutdown_current(int id);                               //关闭选中
     void on_test_rtt();                                             //测试RTT
-    RSLT on_request_file(int index);                                //请求文件
+    BusinessLogic::RSLT on_request_file(int index);                 //请求文件
     /** @brief subdir输入|开头代表确定*/
     void on_copy_remote_file_operation_requested(QString subdir,int);//远程复制文件
     void on_add_schedule(Schedule *schedule);                       //增加日程
-    RSLT on_remove_schedule(int index);                             //删除日程
+    BusinessLogic::RSLT on_remove_schedule(int index);              //删除日程
     void on_suspended();                                            //退后台
     void on_hangup_to_dfhn();                                       //挂起到DFHN
     void on_download_from_dfhn();                                   //从DFHN上面下
     void on_restart_all();                                          //重启全部
+    RemoteControlEngine *getRemoteControlEngine();                  //获取远程控制引擎指针用于初始化RemoteControlWidget
+    void on_start_remote(int index);                                //开始远控
+    void on_stop_remote();                                          //停止远控
     
     void on_debug([[maybe_unused]]QVariant dbgArgs={});             //调试
     

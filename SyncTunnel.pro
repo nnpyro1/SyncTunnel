@@ -32,6 +32,7 @@ SOURCES += \
     mainwindow.cpp \
     modules/communication/communication.cpp \
     modules/remotecontrol/remotecontrolengine.cpp \
+    modules/remotecontrol/remotecontrolwidget.cpp \
     modules/signalling/signalling.cpp \
     modules/storage/storage.cpp \
     modules/transmissionengine/transmissionengine.cpp \
@@ -53,6 +54,7 @@ HEADERS += \
     mainwindow.h \
     modules/communication/communication.h \
     modules/remotecontrol/remotecontrolengine.h \
+    modules/remotecontrol/remotecontrolwidget.h \
     modules/signalling/signalling.h \
     modules/storage/storage.h \
     modules/transmissionengine/transmissionengine.h \

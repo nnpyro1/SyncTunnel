@@ -37,6 +37,8 @@ public slots://以下是直接从BusinessLogic迁移的槽
     void on_hangup_to_dfhn();                                       //挂起到DFHN
     void on_download_from_dfhn();                                   //从DFHN上面下
     void on_restart_all();                                          //重启全部
+    void on_start_remote(int index);                                //开始远程控制
+    void on_stop_remote();
     
     void on_debug(QVariantMap args={});                             //调试
     
@@ -47,6 +49,7 @@ signals:
     void remoteFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);
     void sendInfoChanged(TransmissionEngine::SendInfo info);
     void debugSignal(QVariantMap args);
+    void remoteControlEngineUpdated(RemoteControlEngine *eng);
     
 public://公有Observable
     // ### 注意，这些OBS都没有在VM里面调用use。请编译前加上代码并删除此行。 ###

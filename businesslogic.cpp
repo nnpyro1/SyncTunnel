@@ -14,6 +14,7 @@
 #include <iostream>
 #include <QRandomGenerator>
 #include <QBuffer>
+#include <modules/remotecontrol/remotecontrolwidget.h>
 
 
 BusinessLogic::BusinessLogic(QObject *parent) : QObject(parent) ,useless(QDir().mkpath("config")) ,settings("config/settings.ini",QSettings::IniFormat){
@@ -489,7 +490,6 @@ void BusinessLogic::init(){
     clients = m_signalling->getUserList();//获取用户列表
     if(1)foreach(auto i,clients)qDebug()<<i;
 //    emit messageChanged(tr("加载成功"));
-    emit businessEventOccurred(BusinessEvent::LoadedSuccessfully);
     emit deviceListUpdated(clients);
     
     //等待直到用户列表获取完成
@@ -543,9 +543,9 @@ void BusinessLogic::init(){
     connect(m_signalling,&Signalling::errorOccurred,this,[=](QString err){emit businessEventOccurred(BusinessEvent::SignallingFailed,{{"error",err}});});
     connect(m_transmissionengine,&TransmissionEngine::sendInfoChanged,this,&BusinessLogic::sendInfoChanged);
     //接管remotecontrolengine
-    m_remotecontrolengine=new RemoteControlEngine(m_transmissionengine);
+    m_remotecontrolengine=new RemoteControlEngine(m_transmissionengine,this);
     //临时测试用：
-    connect(m_remotecontrolengine,&RemoteControlEngine::remoteScreenChanged,this,[this](QPixmap pm){emit businessEventOccurred(BusinessEvent::Debug,{{"data",pm}});});
+    // connect(m_remotecontrolengine,&RemoteControlEngine::remoteScreenChanged,this,[this](QImage pm){emit businessEventOccurred(BusinessEvent::Debug,{{"data",pm}});});
     
     //打洞
     for(int i=0;i<5;i++){
@@ -1011,8 +1011,24 @@ void BusinessLogic::on_restart_all(){
 }
 
 
+RemoteControlEngine *BusinessLogic::getRemoteControlEngine(){
+    return m_remotecontrolengine;
+}
+
+
+void BusinessLogic::on_start_remote(int index){
+    ndb<<"开始远控";
+    m_remotecontrolengine->startControl(index);
+}
+
+
+void BusinessLogic::on_stop_remote(){
+    m_remotecontrolengine->stopControl();
+}
+
+
 void BusinessLogic::on_debug([[maybe_unused]]QVariant dbgArgs){
-    ndb<<m_remotecontrolengine->startControl(1);
+    
 }
 
 

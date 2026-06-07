@@ -88,11 +88,19 @@ void ViewModel::on_download_from_dfhn(){
 }
 
 void ViewModel::on_restart_all(){
-    RUN_IN_CUSTOM_THREAD(bl,on_restart_all(););
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_restart_all(););
+}
+
+void ViewModel::on_start_remote(int index){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_start_remote(index););
+}
+
+void ViewModel::on_stop_remote(){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_stop_remote(););
 }
 
 void ViewModel::on_debug(QVariantMap args){
-    RUN_IN_CUSTOM_THREAD(bl,on_debug(args););
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_debug(args););
 }
 
 
@@ -143,6 +151,11 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
         break;
     case BusinessLogic::BusinessEvent::LoadedSuccessfully:
         o_status="加载成功";
+        QTimer::singleShot(100,[=]{
+            RemoteControlEngine *eng;
+            QMetaObject::invokeMethod(bl,[=,&eng]{eng=bl->getRemoteControlEngine();},Qt::BlockingQueuedConnection);
+            emit remoteControlEngineUpdated(eng);
+        });
         break;
     case BusinessLogic::BusinessEvent::SendedSuccessfully:
         o_status="发送成功";

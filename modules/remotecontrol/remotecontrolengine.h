@@ -108,8 +108,8 @@ public slots:
     RemoteControlEngine::State state(){return currentState;}
 signals:
     void eventReceived(RemoteControlEngine::RemoteEvent event);//无需处理，已经内部做过了
-    void stateChanged();
-    void remoteScreenChanged(QPixmap screen);
+    void stateChanged(RemoteControlEngine::State state);
+    void remoteScreenChanged(QImage screen);
 private:
     struct RemoteScreen{
         QSize screenSize;
@@ -137,10 +137,10 @@ private:
     State currentState = State::Idle;
     QMap<int,char> keyMap;//键盘映射表
     QSize chunkSize;
-    int maxChunkArea = 1100;
+    int maxChunkArea = 18000;
     int currentScreenChunkIndex = 0;
-    int imageQuality = 60;
-    QPixmap remoteScreen;
+    int imageQuality = 30;
+    QImage remoteScreen;
 };
 
 // Q_DECLARE_METATYPE(RemoteControlEngine::State);

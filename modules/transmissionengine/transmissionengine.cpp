@@ -1313,7 +1313,7 @@ void TransmissionEngine::on_readyRead(){
                 reliableMsg_available = true;
                 auto crmsg = reliableMessages[currentUuid];
                 reliableMessages.remove(currentUuid);
-                emit signal_reliableMessage_received(crmsg.toUtf8());
+                emit signal_reliableMessage_received(crmsg.toUtf8(),sender_index);
             }
             send((QString("R_COMP")+currentUuid).toUtf8(),1,sender_index);
             ndb<<"发送了R_COMP";
@@ -1441,7 +1441,7 @@ void TransmissionEngine::on_request_resend(){
     }
 }
 
-void TransmissionEngine::on_reliableMessage_received(QString msg, TransmissionEngine::QPrivateSignal){
+void TransmissionEngine::on_reliableMessage_received(QString msg, int index, TransmissionEngine::QPrivateSignal){
     bool is_handled = false;
     
     if(msg == "FILE_RELEASE_SUCCESSFULLY" && !chunks.empty()){
@@ -1472,7 +1472,7 @@ void TransmissionEngine::on_reliableMessage_received(QString msg, TransmissionEn
     }
     
     if(!is_handled){
-        emit reliableMessageReceived(msg);
+        emit reliableMessageReceived(msg,index);
     }
 }
 

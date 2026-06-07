@@ -71,21 +71,21 @@ signals:
     void communicationReadyRead(QByteArray msg);            //对于readyRead，应该联接这个而非Communication::readyRead
     void SPTP_readyRead(QByteArray data);                   //SPTP发送数据可读
     void SPTP_sendFinished();                               //消息发送结束，不管是否成功
-    void reliableMessageReceived(QString msg);              //可靠消息收到。
-    void SPTP_commonMsgReceived(msg_common msg);            //收到common消息（少见）
-    void SPTP_ctrlMsgReceived(msg_ctrl msg);                //控制消息收到
+    void reliableMessageReceived(QString msg,int index);    //可靠消息收到。
+    void SPTP_commonMsgReceived(TransmissionEngine::msg_common msg);//收到common消息（少见）
+    void SPTP_ctrlMsgReceived(TransmissionEngine::msg_ctrl msg);//控制消息收到
     
 signals://私有
     void signal_test_if_connected_finished(QPrivateSignal);         //连通性测试完成
     void signal_reqAck_finished(QPrivateSignal);                    //请求ack操作完成
     void signal_resend_finished(QPrivateSignal=QPrivateSignal());                 //对方重传完成
-    void signal_reliableMessage_received(QString msg,QPrivateSignal=QPrivateSignal());//私有：可靠消息收到了
+    void signal_reliableMessage_received(QString msg,int sender,QPrivateSignal=QPrivateSignal());//私有：可靠消息收到了
 //    void signal_file_send_completed(QPrivateSignal={});             //文件发送成功并且状态成功清除 ### 和signal_resend_finished重复
     
 private slots:
     void on_readyRead();
     void on_request_resend();
-    void on_reliableMessage_received(QString msg,QPrivateSignal=QPrivateSignal());
+    void on_reliableMessage_received(QString msg,int index,QPrivateSignal=QPrivateSignal());
     void on_bh_received(QByteArray msg);
     
 private://私有定义

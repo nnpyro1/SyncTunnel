@@ -9,9 +9,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include "../../libary/Qt-AES/qaesencryption.h"
 #include <QCryptographicHash>
-#include <sstream>
 #include <QStack>
 #include <QThread>
 #include <QElapsedTimer>
@@ -1720,7 +1718,7 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     trayIcon->contextMenu()->addAction(ui->actionExit_Application);
     trayIcon->show();
     trayIcon->setVisible(true);
-    ui->label_remote_screen->installEventFilter(this);
+    // ui->label_remote_screen->installEventFilter(this);
 //    line_ackloop->setColor(QColor(Qt::green));
 //    line_speed->setColor(QColor(Qt::red));
 //    line_delay->setColor(QColor(Qt::yellow));
@@ -1756,6 +1754,7 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
 #endif
     ui->statusBar->addPermanentWidget(label_status);
 //    vm->o_status.use(qApp,[=]{ndb<<vm->o_status;});
+    ui->widget_remoteControl->setEnabled(false);
     
     //信号槽绑定
     connect(ui->listWidget_file,&QListWidget::doubleClicked,this,&MainWindow::on_folder_change);
@@ -1885,6 +1884,14 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     connect(vm,&ViewModel::tempMessageChanged,this,[this](QString msg,int maxtime){ui->statusBar->showMessage(msg,maxtime);});
     connect(ui->actionrestart,&QAction::triggered,this,[]{
         Utils::restart();});
+    // connect(ui->pushButton_debug1,&QPushButton::clicked,this,&MainWindow::on_pushButton_debug1_clicked);
+    connect(vm,&ViewModel::remoteControlEngineUpdated,this,[this](RemoteControlEngine *eng){
+        ui->widget_remoteControl->deleteLater();
+        QGridLayout *layout = (QGridLayout*)(ui->tab_remoteControl->layout());
+        layout->addWidget(new RemoteControlWidget(this,eng),1,0);
+    });
+    connect(ui->actionStart_remote,&QAction::triggered,this,[this]{int index=ui->tableWidget_deviceList->currentRow();if(index==-1){QMessageBox::warning(this,"远程控制","请先选中一个设备");return;} ui->tabWidget->setCurrentIndex(2); this->vm->on_start_remote(index);});
+    connect(ui->pushButton_remote_stop,&QPushButton::clicked,this,[this]{this->vm->on_stop_remote();});
     
     //其他
     vm->o_current_dir=QDir("files");
@@ -1930,7 +1937,10 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
                     hideTab(ui->tabWidget,3);
                     hideTab(ui->tabWidget,5);
                     hideTab(ui->tabWidget,6);
-                }); )
+    }); )
+    winComp({
+        timeBeginPeriod(1);
+    });
 }
 
 
@@ -2138,102 +2148,9 @@ void MainWindow::on_sendInfo_updated(TransmissionEngine::SendInfo info){
 
 
 void MainWindow::on_pushButton_debug1_clicked(){
-//    ui->textBrowser_debug1->setText(mergeFile(QDir("files/")));
-//    send({"{\n    \"test\":0\n}"});
-//    sendFile();
-//    ndb<<mergeFile(QDir("files"));
-//    releaseFile(ui->textEdit_debug1->toPlainText());
-//    m_storage->upload(QString("123abc*#NEW?&===NEW12345NEW45678===============================================================================================================================================================1234567890-/QWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnm1AQ2WS3ED4RF5TG6YH7UJ8IK9OL0QAZWSXEDCRFVTGBYHNUJMIK,OVTBNCMEX,O.BYCUNEX,1222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222 \nEND").toUtf8());
-//    m_storage->remove();
-//    ui->textBrowser_debug1->append(m_storage->get());
-    /*ndb << "模拟关机事件";
-    
-    // 模拟WM_QUERYENDSESSION消息
-    MSG msg;
-    msg.hwnd = (HWND)winId();
-    msg.message = WM_QUERYENDSESSION;
-    msg.wParam = 0;
-    msg.lParam = 0;
-    msg.time = GetTickCount();
-    msg.pt = {0, 0};
-    
-    long result = 0;
-    nativeEvent("windows_generic_MSG", &msg, &result);
-    ndb<<"var result ="<<result;*/
-//    ndb<<checkSkin(Golden);
-//    QApplication::clipboard()->setText(mergeFile(QDir("files/")));
-    /*/{
-        QFile f("logs/mergeFileData");
-        f.open(QIODevice::WriteOnly);
-        f.write(mergeFile(QDir("files/"),0));
-        f.close();
-        f.deleteLater();
-    }/*/
-    /*{
-        releaseFile("FILE\nAttack.dll\n5\n123123123");
-    }*/
-//    sendFileTo(1);
-    /*planAutoSend({{"127.0.0.1",8080},
-                  {"114.114.114.114",12345},
-                  {"8.8.8.8",12345},
-                  {"234.123.12.1",1234},
-                  {"203.174.65.18", 45123},
-                  {"142.93.178.205", 31567},
-                  {"64.227.123.89", 28945},
-                  {"192.168.0.214", 54321},
-                  {"172.217.168.142", 40256},
-                  {"104.248.150.37", 37890},
-                  {"139.59.211.248", 45678},
-                  {"167.99.135.32", 32109},
-                  {"68.183.222.111", 49876},
-                  {"138.197.192.100", 31234}});/*/
-    /*try {
-        Dialog_selectSyncDst  *dialog = new Dialog_selectSyncDst(this);
-        dialog->setup({{"127.0.0.1",8080},
-                       {"114.114.114.114",12345},
-                       {"8.8.8.8",12345},
-                       {"234.123.12.1",1234},
-                       {"203.174.65.18", 45123},
-                       {"142.93.178.205", 31567},
-                       {"64.227.123.89", 28945},
-                       {"192.168.0.214", 54321},
-                       {"172.217.168.142", 40256},
-                       {"104.248.150.37", 37890},
-                       {"139.59.211.248", 45678},
-                       {"167.99.135.32", 32109},
-                       {"68.183.222.111", 49876},
-                       {"138.197.192.100", 31234}});
-        dialog->exec();
-    } catch (...) {
-        ncritical<<"nullptr";
-    }*/
-    
-//    dialog->show();
-//    QEventLoop loop;
-    
-//    dialog->deleteLater();
-//    sendReliableMessage(1,"这是三二可靠消息1-------2-------3-------4-------5-------6-------7-------8-------");
-//    planAutoSend({
-//                     {"1",1},
-//                     {"2",1},
-//                     {"3",1},
-//                 });
-//    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,1));
-//    QMetaObject::invokeMethod(this,"sendFileTo",Qt::QueuedConnection,Q_ARG(int,2));
-//    m_transmissionengine->send("啊啊啊啊啊啊啊啊啊");
-    /*{
-        label_status->setText("正在发送可靠消息");
-        bool a = m_transmissionengine->sendReliableMessage(1,"DING");
-        label_status->setText(QString("发送可靠消息完成。成功：%1").arg(a));
-    }*/
-//    QApplication::beep();
-//    QSound::play(":/rc/audio/file_send_successfully.wav");
-//    playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));
-//    ndb<<generateFileHashMap(syncFolder);
-//    m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);
-//    ninfo<<traverseFolder(QDir("files/"));
+    ndb<<"开始调试";    
     vm->on_debug();
-    connect(vm,&ViewModel::debugSignal,this,[this](QVariantMap m){ui->label_remote_screen->setPixmap(m["data"].value<QPixmap>());});
+    // connect(vm,&ViewModel::debugSignal,this,[this](QVariantMap m){ui->label_remote_screen->setPixmap(QPixmap::fromImage(m["data"].value<QImage>()).scaled(ui->label_remote_screen->size()));});
 }
 
 //bool MainWindow::sendReliableMessage(int dst, QString msg){

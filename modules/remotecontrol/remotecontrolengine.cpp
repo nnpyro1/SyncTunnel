@@ -25,25 +25,29 @@ RemoteControlEngine::RemoteControlEngine(TransmissionEngine *te, QObject *parent
         }
     });
     connect(this,&RemoteControlEngine::eventReceived,this,[this](RemoteEvent e){RUN_IN_MAIN_THREAD(this->handleReceivedEvent(e););});
-    connect(this->te,&TransmissionEngine::reliableMessageReceived,this,[this](QString msg){
+    connect(this->te,&TransmissionEngine::reliableMessageReceived,this,[this](QString msg,int sender){
         if(!msg.startsWith("__RMCT_R__")) return;
         msg=msg.mid(10);
         if(msg=="START_CONTROL"){
             currentState=State::Controlled;//被控
             refreshTimer.start();
-            emit stateChanged();
+            currentId = sender;
+            emit stateChanged(currentState);
             //计算分割
             QSize screenSize;
             QMetaObject::invokeMethod(qApp,[&screenSize]{screenSize=qApp->primaryScreen()->size();},Qt::BlockingQueuedConnection);
             chunkSize=calculateChunkSize(screenSize,maxChunkArea);
             currentScreenChunkIndex=0;
+            ninfo<<"开始被"<<currentId<<"远控 屏幕分块大小"<<chunkSize;
         }
         else if(msg=="FINISH_CONTROL"){
             currentState=State::Idle;
+            currentId = -1;
             refreshTimer.stop();
-            emit stateChanged();
+            emit stateChanged(currentState);
         }
     });
+    connect(&refreshTimer,&QTimer::timeout,this,&RemoteControlEngine::sendScreen);
     
     refreshTimer.setSingleShot(false);
     refreshTimer.setInterval(5);
@@ -202,7 +206,7 @@ bool RemoteControlEngine::startControl(int id){
     //开始控制
     currentId=id;
     currentState=State::Controlling;
-    emit stateChanged();
+    emit stateChanged(currentState);
     return true;
 }
 
@@ -226,17 +230,18 @@ bool RemoteControlEngine::stopControl(){
     }
     currentId=-1;
     currentState=State::Idle;
-    emit stateChanged();
+    emit stateChanged(currentState);
     return true;
 }
 
 bool RemoteControlEngine::sendEvent(RemoteEvent event){
-    if(currentState!=State::Controlling || currentId<0){
-        nwarning<<"RemoteControlEngine: Unable to send event: currentState!=State::Controlling || currentId<0";
+    if(currentState==State::Idle || currentId<0){
+        nwarning<<"RemoteControlEngine: Unable to send event: currentState==State::Idle || currentId<0";
+        ninfo<<"state:"<<QMetaEnum::fromType<State>().valueToKey((int)currentState)<<"currentId"<<currentId;
         return false;
     }
     QByteArray a;
-    QDataStream s(a);s<<event;
+    QDataStream s(&a,QDataStream::ReadWrite);s<<event;
     te->SPTP_sendCommon("__RMCT__"+a,currentId);
     return true;
 }
@@ -331,15 +336,14 @@ void RemoteControlEngine::sendScreen(){
     int startX = (currentScreenChunkIndex%maxHChunks)*chunkSize.width();
     int startY = (currentScreenChunkIndex/maxHChunks)*chunkSize.height();
     //截屏
-    QPixmap screen;
-    QMetaObject::invokeMethod(qApp,[&screen]{screen=qApp->primaryScreen()->grabWindow();},Qt::BlockingQueuedConnection);
+    QImage screen;
+    QMetaObject::invokeMethod(qApp,[&screen]{screen=qApp->primaryScreen()->grabWindow().toImage();},Qt::BlockingQueuedConnection);
     //截取
     QImage img;
-    img=screen.copy(startX,startY,chunkSize.width(),chunkSize.height()).toImage().convertToFormat(QImage::Format_RGB16);
+    img=screen.copy(startX,startY,chunkSize.width(),chunkSize.height()).convertToFormat(QImage::Format_RGB16);
     //压缩
     QByteArray imageData;
     QBuffer buf(&imageData);
-    buf.open(QBuffer::ReadWrite);
     img.save(&buf,"WEBP",imageQuality);
     buf.close();
     
@@ -350,7 +354,7 @@ void RemoteControlEngine::sendScreen(){
     datagram.img=imageData;
     //构造事件
     QByteArray screenData;
-    QDataStream stm(screenData);
+    QDataStream stm(&screenData,QDataStream::ReadWrite);
     stm<<datagram;
     RemoteEvent event;
     event.eventType=RemoteEventType::ScreenEvent;
@@ -369,10 +373,10 @@ void RemoteControlEngine::handleScreen(QByteArray data){
     RemoteScreen datagram;
     QDataStream stm(data); stm>>datagram;
     //强制缩放原来的图片
-    QPixmap tempImg(datagram.screenSize);
+    QImage tempImg(datagram.screenSize.width(),datagram.screenSize.height(),QImage::Format_RGB16);
     tempImg.fill(Qt::black);
     QPainter pt(&tempImg);
-    pt.drawPixmap(0,0,remoteScreen);
+    pt.drawImage(0,0,remoteScreen);
     //修改数据块
     QBuffer buf(&datagram.img);
     buf.open(QBuffer::ReadWrite);
@@ -388,7 +392,7 @@ void RemoteControlEngine::handleScreen(QByteArray data){
 
 QList<int> RemoteControlEngine::getDivisors(int num){
     QList<int> ret;
-    for(int i=1;i<num;i++){
+    for(int i=1;i<=num;i++){
         if(num%i==0){
             ret.append(i);
         }
@@ -399,18 +403,19 @@ QList<int> RemoteControlEngine::getDivisors(int num){
 
 QSize RemoteControlEngine::calculateChunkSize(QSize screenSize, int maxArea){
     QList<int> divX=getDivisors(screenSize.width()),
-        divY=getDivisors(screenSize.height());
+        divY=getDivisors(screenSize.height());//获取所有因数
     //查找所有可能解
     QList<QPair<int,int>> solutions;//分的块数
     for(auto x=divX.rbegin();x!=divX.rend();x++){
         for(auto y=divY.rbegin();y!=divY.rend();y++){
             int w=screenSize.width() / *x;
             int h=screenSize.height() / *y;
-            if(w*h <= maxArea){
+            if((qint64)w*h <= maxArea){
                 solutions.append(qMakePair(*x,*y));
             }
         }
     }
+
     //查找最优解
     int minChunks=INT_MAX;
     QSize bestSolution;

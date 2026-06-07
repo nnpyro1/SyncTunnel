@@ -146,7 +146,7 @@ QMenu::item:selected{
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>7</number>
+       <number>2</number>
       </property>
       <property name="documentMode">
        <bool>false</bool>
@@ -394,65 +394,27 @@ QMenu::item:selected{
         <string>远程控制</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_9">
-        <item row="0" column="0" colspan="5">
-         <widget class="QWidget" name="widget_remote" native="true">
+        <item row="2" column="0">
+         <widget class="QPushButton" name="pushButton_remote_stop">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
-          <layout class="QGridLayout" name="gridLayout_11">
-           <item row="0" column="5">
-            <widget class="QPushButton" name="pushButton_remote_right">
-             <property name="text">
-              <string>发送右键</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="3">
-            <widget class="QPushButton" name="pushButton_remote_mid">
-             <property name="text">
-              <string>发送中键</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="2">
-            <widget class="QPushButton" name="pushButton_remote_up">
-             <property name="text">
-              <string>滚轮上</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="4">
-            <widget class="QPushButton" name="pushButton_remote_down">
-             <property name="text">
-              <string>滚轮下</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0">
-            <widget class="QPushButton" name="pushButton_remote_stop">
-             <property name="text">
-              <string>停止远程控制</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QPushButton" name="pushButton_remote_left">
-             <property name="text">
-              <string>发送左键</string>
-             </property>
-             <property name="shortcut">
-              <string>Ctrl+Alt+Shift+L</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="0" colspan="6">
-            <widget class="QLabel" name="label_remote_screen">
-             <property name="text">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;远程屏幕会显示在这里&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
+          <property name="text">
+           <string>停止远程控制</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="RemoteControlWidget" name="widget_remoteControl" native="true">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
          </widget>
         </item>
        </layout>
@@ -1656,6 +1618,14 @@ li.checked::marker { content: &quot;\2612&quot;; }
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>RemoteControlWidget</class>
+   <extends>QWidget</extends>
+   <header>modules/remotecontrol/remotecontrolwidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
