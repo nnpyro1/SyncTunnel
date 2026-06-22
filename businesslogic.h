@@ -88,7 +88,7 @@ public://公有函数
     Q_INVOKABLE void destory();                                     //销毁对象
     
     Q_INVOKABLE void send(QByteArray msg,bool e=1,int d=-1);        //自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
-    Q_INVOKABLE Result sendFile(QList<device> dst = QList<device>(),QSet<QString> incremental_sync_set=QSet<QString>());//发送文件给所有客户端
+    Q_INVOKABLE Result sendFile(Devices dst = Devices(),QSet<QString> incremental_sync_set=QSet<QString>());//发送文件给所有客户端
 //    Q_INVOKABLE bool restartDebug();                                //切换当前调试状态，返回切换过后的状态
     Q_INVOKABLE bool checkSkin(skinType skin);                      //检查skin是否可用
     
@@ -102,7 +102,7 @@ signals:
     
     void scheduleUpdated(QByteArray schedule);                                      //日程更新
     void remoteFileFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);    //远程目录改变
-    void deviceListUpdated(QList<Communication::device> deviceList);                //设备列表改变
+    void deviceListUpdated(Devices deviceList);                                     //设备列表改变
     void rttTestResultUpdated(QList<QVariantMap> rttResult);                        //测试RTT结果更新，每个QVariantMap需要有id,ip,port,rtt,delay
     
 public slots://以下是公有槽，需在外部联接
@@ -142,6 +142,7 @@ private://私有函数
     QStringList generateScheduleText();                             //生成schedule的文本
     QByteArray serSchedule();                                       //序列号Schedule
     void unserSchedule(QByteArray dat);                             //反序列化schedule
+    bool stat();                                                    //统计用户
     
 private:
     Communication *m_communication;
@@ -153,7 +154,7 @@ private:
 private://私有变量
     device public_ip;
     QDir current_dir;
-    QList<Communication::device> clients;
+    Devices clients;
     QString user_name,pwd;
     QMap<int,QByteArray> currentFileMap;//当前正在传输的文件列表
     int currentFileTotal;//文件传输总数
@@ -216,7 +217,7 @@ private://私有变量
     QMap<QString,QByteArray> fileHashMap;
     QDir syncFolder = QDir("files");
     QSettings settings;
-    QList<device> lastSyncDst;
+    Devices lastSyncDst;
     bool use_ipv6 = false;
 };
 

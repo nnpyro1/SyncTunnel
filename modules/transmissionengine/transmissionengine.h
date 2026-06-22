@@ -54,14 +54,14 @@ public://公有函数
     QByteArray decode(const QByteArray &msg);               //解密msg并返回解密后的值
     //SPTP协议
     void SPTP_sendTo(int n,QByteArray data);          //自动分包并发送
-    void SPTP_send(QByteArray msg,QList<device> dst);       //自动规划路径并发送给dst
+    void SPTP_send(QByteArray msg,Devices dst);         //自动规划路径并发送给dst
     bool sendReliableMessage(int dst, QString msg);         //向dst发送可靠消息，阻塞直到对方收到
     QByteArray SPTP_sendCommon(QByteArray msg,int d=-1);    //发送普通二进制消息，返回消息。d输入-3代表不发
     QByteArray SPTP_sendCtrl(QByteArray ctrl,QVariant v=QVariant(),int d=-1);//发送控制消息。返回消息。d输入-3代表不发
     
     //其他函数
-    void setClients(QList<device> clients);                 //设置设备列表
-    QList<device> Clients();                                //获取设备列表
+    void setClients(Devices clients);                       //设置设备列表
+    Devices Clients();                                      //获取设备列表
 //    Communication *communicationObject();                   //线程安全地获取接管的communication对象       #####未实现。TransmissionEngine不线程安全
     void multiDelay(float ms);                              //高精度定时
     
@@ -109,17 +109,17 @@ private://私有定义
 //    struct header_ctrl
 #pragma pack(pop)
     struct file_sending_task{
-        device dst;
+        devid_t dst;
         const QByteArray msg;
-        file_sending_task(device dst_, QByteArray msg_) 
+        file_sending_task(devid_t dst_, QByteArray msg_) 
                 : dst(dst_), msg(std::move(msg_)) {}
     };
-    QVector<QVector<QPair<ipport,ipport>>> planAutoSend(QList<device> dsts);//自动规划向dsts发送的路径
+    QVector<QVector<QPair<ipport,ipport>>> planAutoSend(Devices dsts);//自动规划向dsts发送的路径
     
 private://私有对象/变量
     Communication *m_communication;//接管的Communication模块
     QString user_name,pwd;//用户凭证
-    QList<device> clients;//用户列表
+    Devices clients;//用户列表
     device public_ip;
     int currentSendDst = -1;
     QSet<ipport> test_if_connected_set;

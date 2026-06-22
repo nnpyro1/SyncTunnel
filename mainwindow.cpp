@@ -2000,7 +2000,7 @@ void MainWindow::show_dir(){        //显示目录
 void MainWindow::sendFile(QList<device> dst){
     if(dst.empty()){//让用户选择
         Dialog_selectSyncDst *dialog = new Dialog_selectSyncDst(this);
-        auto tmp = vm->o_clients.get();tmp.removeAt(0);
+        auto tmp = vm->o_clients.get();
         dialog->setup(tmp);
         connect(dialog,&Dialog_selectSyncDst::syncdstDecided,this,[&](QList<device> a){dst=a;});
         dialog->exec();

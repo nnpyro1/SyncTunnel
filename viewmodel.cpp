@@ -26,7 +26,7 @@ ViewModel::ViewModel(BusinessLogic *businesslogic, QObject *parent) : QObject(pa
 }
 
 
-void ViewModel::sendFile(QList<device> dsts){
+void ViewModel::sendFile(Devices dsts){
     RUN_IN_CUSTOM_THREAD(bl,bl->sendFile(dsts,incremental_sync_set););
 }
 
@@ -221,7 +221,7 @@ void ViewModel::on_remoteFileFolderUpdate(QString folder, QSet<QPair<bool, QStri
 }
 
 
-void ViewModel::on_deviceListUpdate(QList<device> deviceList){
+void ViewModel::on_deviceListUpdate(Devices deviceList){
     o_clients=deviceList;
 }
 

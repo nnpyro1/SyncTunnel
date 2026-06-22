@@ -1,4 +1,5 @@
 #pragma once
+#include "qobject.h"
 #include <QObject>
 #include <QUdpSocket>
 #include <QNetworkDatagram>
@@ -107,5 +108,10 @@ inline uint qHash(const Communication::ipport &key, uint seed) noexcept{
 }
 
 inline QDebug operator<<(QDebug d,const Communication::ipport &i){return d<< i.operator const QString();}
+using devid_t = qint32;
+typedef QMap<devid_t,Communication::device> Devices;
 Q_DECLARE_METATYPE(Communication::device)
-Q_DECLARE_METATYPE(QList<Communication::device>)
+Q_DECLARE_METATYPE(Devices)
+inline devid_t getIdByDevice(Communication::device dev){
+    return (qHash(dev.toString())&0x7FFFFFFF);
+}

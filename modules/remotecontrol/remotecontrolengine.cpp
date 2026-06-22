@@ -260,61 +260,70 @@ void RemoteControlEngine::handleReceivedEvent(RemoteEvent event){
     }
         
     case RemoteEventType::MousePressEvent:{
+        ndb<<"鼠标按下";
         MousePressEvent e;
         stm>>e;
-        winComp(
-            INPUT ipt={};
-            ipt.type=INPUT_MOUSE;
-            
-            int flg=0;
-            switch(e.btn){  
-            case Qt::LeftButton:
-                if(e.pressed){
-                    flg=MOUSEEVENTF_LEFTDOWN;
-                }
-                else{
-                    flg=MOUSEEVENTF_LEFTUP;
-                }
-                break;
-            
-            case Qt::MiddleButton:
-                if(e.pressed){
-                    flg=MOUSEEVENTF_MIDDLEDOWN;
-                }
-                else{
-                    flg=MOUSEEVENTF_MIDDLEUP;
-                }
-                break;
-            
-            case Qt::RightButton:
-                if(e.pressed){
-                    flg=MOUSEEVENTF_RIGHTDOWN;
-                }
-                else{
-                    flg=MOUSEEVENTF_RIGHTUP;                    
-                }
-                break;
-            default:
-                break;
+#ifdef Q_OS_WIN
+        INPUT ipt={};
+        ZeroMemory(&ipt,sizeof(ipt));
+        ipt.type=INPUT_MOUSE;
+        
+        int flg=0;
+        switch(e.btn){  
+        case Qt::LeftButton:
+            if(e.pressed){
+                flg=MOUSEEVENTF_LEFTDOWN;
             }
-            if(flg!=0){
-                ipt.mi.dwFlags=flg;
-                SendInput(1,&ipt,sizeof(ipt));
+            else{
+                flg=MOUSEEVENTF_LEFTUP;
             }
-        )
+            break;
+        
+        case Qt::MiddleButton:
+            if(e.pressed){
+                flg=MOUSEEVENTF_MIDDLEDOWN;
+            }
+            else{
+                flg=MOUSEEVENTF_MIDDLEUP;
+            }
+            break;
+        
+        case Qt::RightButton:
+            if(e.pressed){
+                flg=MOUSEEVENTF_RIGHTDOWN;
+            }
+            else{
+                flg=MOUSEEVENTF_RIGHTUP;                    
+            }
+            break;
+        default:
+            ncritical<<"不支持的按键类型"<<e.btn;
+            break;
+        }
+        if(flg!=0){
+            ipt.mi.dwFlags=flg;
+            SendInput(1,&ipt,sizeof(ipt));
+            int lastError = GetLastError();
+            if(lastError !=0){
+                ncritical<<"Remote Control ERROR"<<lastError;
+            }
+        }
+#endif
         break;
     }
         
     case RemoteEventType::KeyEvent:{
+        ndb<<"键盘按下";
         KeyEvent e;
         stm>>e;
-        winComp({
-            INPUT ipt={};
-            ipt.type=INPUT_KEYBOARD;
-            ipt.ki.wVk=keyMap[e.key];//转换到VK
-            ipt.ki.dwFlags=e.pressed?0:KEYEVENTF_KEYUP;
-            SendInput(1,&ipt,sizeof(ipt));
-        })
+#ifdef Q_OS_WIN
+        INPUT ipt={};
+        ZeroMemory(&ipt,sizeof(ipt));
+        ipt.type=INPUT_KEYBOARD;
+        ipt.ki.wVk=keyMap[e.key];//转换到VK
+        ipt.ki.dwFlags=e.pressed?0:KEYEVENTF_KEYUP;
+        SendInput(1,&ipt,sizeof(ipt));
+#endif
         break;
     }
     case RemoteEventType::ControlEvent:

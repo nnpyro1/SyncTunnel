@@ -17,7 +17,7 @@ class Dialog_selectSyncDst : public QDialog
 public:
     explicit Dialog_selectSyncDst(QWidget *parent);
     ~Dialog_selectSyncDst();
-    void setup(QList<Communication::device> devices);
+    void setup(Devices devices);
     
 private slots:
     void on_pushButton_unselectAll_clicked();
@@ -29,12 +29,12 @@ private slots:
     void on_finished();
     
 signals:
-    void syncdstDecided(QList<Communication::device> result);
+    void syncdstDecided(Devices result);
     
 private:
     Ui::Dialog_selectSyncDst *ui;
     QList<QCheckBox *> checkBoxList;
-    QList<Communication::device> devices;
+    Devices devices;
 };
 
 #endif // DIALOG_SELECTSYNCDST_H

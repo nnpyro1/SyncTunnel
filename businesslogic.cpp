@@ -215,6 +215,8 @@ void BusinessLogic::init(){
 //    device_flag=json_settings["device_flag"].toInt();
 //    ui->lineEdit_settings_description->setText(device_description);
 //    emit operateRequested("ui->lineEdit_settings_description","setText",device_description);
+    //读取QSettings中ini配置
+    //ini配置中包含几个节:ApplicationSettings(应用程序需要的本地设置,网络无关),NetworkSettings(网络相关)和UserSettings(用户凭证)
     if(settings.contains("ApplicationSettings/syncSourceDir")){
         syncFolder=QDir(settings.value("ApplicationSettings/syncSourceDir").toString());
     }
@@ -222,6 +224,7 @@ void BusinessLogic::init(){
         syncFolder=QDir("files/");
     }
     is_autoSync=settings.value("ApplicationSettings/isAutoSync").toBool();
+    
 //    ui->checkBox_file_autoSync->setCheckState(is_autoSync?Qt::Checked:Qt::Unchecked);
 //    emit operateRequested("ui->ui->checkBox_file_autoSync","setCheckState",is_autoSync?Qt::Checked:Qt::Unchecked);
     emit businessEventOccurred(BusinessEvent::AutoSyncEnableStateUpdated,{{"state",false}});
@@ -440,7 +443,7 @@ void BusinessLogic::init(){
         if(flag==true){
             ninfo<<"检测到文件修改，自动同步";
             fileHashMap=newFileHashMap;
-            sendFile(lastSyncDst);
+            sendFile((lastSyncDst));
         }
         else{
             
@@ -515,7 +518,7 @@ void BusinessLogic::init(){
     connect(m_transmissionengine,&TransmissionEngine::messageChanged,this,[this](QString msg){emit messageChanged(msg);});
     connect(m_transmissionengine,&TransmissionEngine::SPTP_sendFinished,this,[this]{emit businessEventOccurred(BusinessEvent::SendedSuccessfully);playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));});
     connect(m_transmissionengine,&TransmissionEngine::SPTP_ctrlMsgReceived,this,&BusinessLogic::on_SPTP_ctrlMsg_received);
-    connect(m_signalling,&Signalling::on_userlist_updata,this,[this](QList<Communication::device> userl){
+    connect(m_signalling,&Signalling::on_userlist_updata,this,[this](Devices userl){
         clients = userl;if(1)foreach(auto i,clients)qDebug()<<i;
         QTimer::singleShot(3000,[this]{
             for(int i=0;i<5;i++){
@@ -612,6 +615,8 @@ void BusinessLogic::init(){
     //同步设置
     emit businessEventOccurred(BusinessEvent::SettingsUpdated,{{"username",user_name},{"password",pwd},{"description",device_description},{"ipv6usage",use_ipv6},{"disablenotice",json_settings["disable_notice"].toBool()}});
     
+    //发送统计信息
+    stat();
 }
 
 
@@ -641,7 +646,7 @@ void BusinessLogic::send(QByteArray msg, bool e, int d){
 }
 
 
-BusinessLogic::Result BusinessLogic::sendFile(QList<device> dst,QSet<QString> incremental_sync_set){
+BusinessLogic::Result BusinessLogic::sendFile(Devices dst,QSet<QString> incremental_sync_set){
     if(dst.empty()){
         return Result("请指定传输目标");
     }
@@ -891,7 +896,7 @@ void BusinessLogic::on_shutdown_current(int id){
 //        emit messageBoxRequested(tr("关闭选中的设备"),tr("请先选中一个设备！"),MessageBoxType::Warning);return;
         return;
     }
-    m_communication->send(clients[index],encode("{\n    \"cmd\":\"shutdown -s -t 10\"\n}"));
+    m_communication->send(clients.value(index),encode("{\n    \"cmd\":\"shutdown -s -t 10\"\n}"));
 }
 
 
@@ -915,7 +920,7 @@ void BusinessLogic::on_test_rtt(){
 //    QString result_str;
     QList<QVariantMap> rttResult;
     for(auto it=rtt_result.begin();it!=rtt_result.end();it++){
-        auto c=clients[it.key()];
+        auto c=clients.value(it.key());
 //        result_str.append(QString("device%4:%1\tdelay:%2\tRTT:%3\n").arg(clients[it.key()]).arg(it.value()).arg(it.value()/2).arg(it.key()));
         rttResult.append({
                              {"id",it.key()},
@@ -931,8 +936,8 @@ void BusinessLogic::on_test_rtt(){
 
 
 BusinessLogic::Result BusinessLogic::on_request_file(int index){
-    if(index<0||index>=clients.size()){
-        return Result(QString("Index %1 out of range(0-%2)").arg(index).arg(clients.size()));
+    if(!clients.contains(index)){
+        return Result(QString("Index %1 out of range").arg(index));
     }
     send("REQ_FILE",1,index);
 //    emit messageChanged("正在等待发送方响应...");
@@ -979,10 +984,10 @@ void BusinessLogic::on_suspended(){
 
 
 void BusinessLogic::on_hangup_to_dfhn(){
-    QList<device> l;
+    Devices l;
     for(auto i : clients){
         if(i.flag==Communication::DFHNDevice)
-            l.append(i);
+            l.insert(getIdByDevice(i),i);
     }
     if(l.empty())
 //        emit messageBoxRequested("挂起","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN",MessageBoxType::Warning);
@@ -1002,7 +1007,7 @@ void BusinessLogic::on_download_from_dfhn(){
     if(l.empty())
 //        emit messageBoxRequested("下载","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN",MessageBoxType::Warning);
         emit businessEventOccurred(BusinessEvent::DFHNDeviceNotFound);
-    else send("REQ_FILE",1,clients.indexOf(l[0]));
+    else send("REQ_FILE",1,getIdByDevice(l[0]));
 }
 
 
@@ -1072,7 +1077,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
         json["ip"].toString(),
         static_cast<quint16>(json["port"].toInt())
     };
-    int sender_index = clients.indexOf(sender);
+    int sender_index = getIdByDevice(sender);
     
     
     //消息解析
@@ -1232,8 +1237,34 @@ void BusinessLogic::unserSchedule(QByteArray dat){
         Schedule *s = new Schedule(); 
         d>>(*s);
         schedule_list.append(s);
-        connect(s,&Schedule::triggered,this,[this]{auto c=clients;c.removeAll(public_ip);sendFile(c);});
+        connect(s,&Schedule::triggered,this,[this]{auto c=clients;c.remove(getIdByDevice(public_ip));sendFile(c);});
     }
+}
+
+
+bool BusinessLogic::stat(){
+    auto manager = new QNetworkAccessManager;
+    auto func = [manager](QString url){
+        QNetworkRequest request((QUrl(url)));
+        auto reply = manager->get(request);
+        QEventLoop loop;
+        connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
+        loop.exec();
+        if(reply->error()!=QNetworkReply::NoError){
+            ncritical<<"stat error:"<<reply->errorString();
+        }
+        return reply->error() == QNetworkReply::NoError;
+    };
+    
+    bool succeeded1 = func("https://countapi.mileshilliard.com/api/v1/hit/nnpyro-synctunnel-stat-launchcnt");
+    bool succeeded2 = true;
+    if(is_first_launch){
+        succeeded2 = func("https://countapi.mileshilliard.com/api/v1/hit/nnpyro-synctunnel-stat-downloadcnt");
+    }
+    
+    manager->deleteLater();
+    
+    return succeeded1&&succeeded2;
 }
 
 

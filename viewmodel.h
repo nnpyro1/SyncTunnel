@@ -17,7 +17,7 @@ public:
     explicit ViewModel(BusinessLogic *businesslogic,QObject *parent = nullptr);
     
 public slots://以下是直接从BusinessLogic迁移的槽
-    void sendFile(QList<device> dsts);
+    void sendFile(Devices dsts);
     void on_folder_change(QDir dir);
     void on_settings_saved(QString username_, QString pwd_, QString mqttServer_, 
                            int mqttPort_, QString githubUser_, QString githubPat_, 
@@ -63,7 +63,7 @@ public://公有Observable
     OBS(int,currentPageIndex);
     OBS(bool,ipv6UsageState);
     OBS(QByteArray,scheduleBytes);
-    OBS(QList<Communication::device>,clients);
+    OBS(Devices,clients);
     OBS(QDir,current_dir);
     OBS(QString,user_name);
     OBS(QString,pwd);
@@ -76,7 +76,7 @@ private slots://私有槽
     void on_sendInfoChange(TransmissionEngine::SendInfo info);
     void on_schedule_update(QByteArray schedule);
     void on_remoteFileFolderUpdate(QString folder,QSet<QPair<bool,QString>> list);
-    void on_deviceListUpdate(QList<device> deviceList);
+    void on_deviceListUpdate(Devices deviceList);
     void on_rttTestResultUpdate(QList<QVariantMap> rttResult);
     
 private:

@@ -62,7 +62,7 @@ void Signalling::setUser(const Communication::device user, QString name){
     this->user = user;
     this->user_name = name;
     user_list.clear();
-    user_list.append(user);
+    user_list.insert(getIdByDevice(user),user);
 //    foreach(auto i,user_list)qDebug()<<"Userlist"<<i;
 }
 
@@ -74,7 +74,7 @@ void Signalling::setPwd(const QByteArray p){
 }
 
 
-QList<Communication::device> Signalling::getUserList(){
+Devices Signalling::getUserList(){
     //发送消息准备
 //    if(subscription)disconnect(subscription,&QMqttSubscription::messageReceived,this,&Signalling::on_msg);//防止意外触发
     /*QJsonObject json;
@@ -177,6 +177,11 @@ void Signalling::send_msg_to_get_user_list(int c){
 }
 
 
+qint32 Signalling::getIdByDevice(Communication::device dev){
+    return (qHash(dev.toString())&0x7FFFFFFF);
+}
+
+
 void Signalling::on_msg(QMqttMessage mqttMsg){
     if(0){
 //        QMessageBox *b = new QMessageBox;
@@ -228,12 +233,12 @@ void Signalling::on_msg(QMqttMessage mqttMsg){
         int c = json["c"].toInt();
         if(c > 2){//次数足够就退出
             is_waiting_userList = false;
-            decltype (user_list) unique_user_list;
-            for(auto i : user_list){
-                if(!unique_user_list.contains(i))unique_user_list.append(i);
-            }
+            // decltype (user_list) unique_user_list;
+            // for(auto i : user_list){
+            //     if(!unique_user_list.contains(i))unique_user_list.append(i);
+            // }
             //触发信号
-            emit on_userlist_updata(unique_user_list);
+            emit on_userlist_updata(/*unique_*/user_list);
             return;
         }
         
@@ -245,7 +250,7 @@ void Signalling::on_msg(QMqttMessage mqttMsg){
                 if(0){
                     foreach(auto item,user_list)qDebug()<<item;
                 }
-                user_list.append(usr);
+                user_list.insert(getIdByDevice(usr),usr);
                 //调试
                 if(0){
                     foreach(auto item,user_list)qDebug()<<item;
@@ -307,14 +312,15 @@ void Signalling::on_msg(QMqttMessage mqttMsg){
         else if(json["request"].toString() == "user_list"){
             qDebug()<<"进入user_list";
 //            qDebug()<<"12345";
-            QList<Communication::device> pendingList;
+            Devices pendingList;
             {//解析pendingList
                 QJsonDocument jd = QJsonDocument::fromJson(QByteArray::fromBase64(json["body"].toString().toUtf8()));
                 if(jd.isArray()){
                     QJsonArray ary = jd.array();
                     foreach(auto i,ary){
                         auto item=i.toObject();
-                        pendingList.append(device(item["ip"].toString(),(quint16)item["port"].toInt(),item["description"].toString(),item["userflag"].toInt()));
+                        auto dev=device(item["ip"].toString(),(quint16)item["port"].toInt(),item["description"].toString(),item["userflag"].toInt());
+                        pendingList.insert(getIdByDevice(dev),dev);
                         // Communication::device dev = ();
                     }
                 }
@@ -323,14 +329,15 @@ void Signalling::on_msg(QMqttMessage mqttMsg){
                 qDebug()<<item;
             }
             
-            foreach(auto item,pendingList){//遍历并合并
-                if(!user_list.contains(item)){
-                    user_list.append(item);
-                }
-                else{
-                    user_list[user_list.indexOf(item)]=item;
-                }
-            }
+            // foreach(auto item,pendingList){//遍历并合并
+                // if(!user_list.contains(item)){
+                //     user_list.append(item);
+                // }
+                // else{
+                //     user_list[user_list.indexOf(item)]=item;
+                // }
+            // }
+            user_list=pendingList;
             if(0)foreach(auto item,user_list){//调试
                 qDebug()<<item;
             }
@@ -346,7 +353,7 @@ void Signalling::on_msg(QMqttMessage mqttMsg){
             
         }
         else if(json["request"]=="disconnect"){
-            user_list.removeAll({json["ip"].toString(),(quint16)json["port"].toInt()});
+            user_list.remove(getIdByDevice({json["ip"].toString(),(quint16)json["port"].toInt()}));
         }
         
 //        else{
@@ -357,11 +364,11 @@ void Signalling::on_msg(QMqttMessage mqttMsg){
     if(0){
 //        QMessageBox::information(0,"长度",QString::number(user_list.size()));
     }
-    //去重
-    decltype (user_list) unique_user_list;
-    for(auto i : user_list){
-        if(!unique_user_list.contains(i))unique_user_list.append(i);
-    }
+    // //去重
+    // decltype (user_list) unique_user_list;
+    // for(auto i : user_list){
+    //     if(!unique_user_list.contains(i))unique_user_list.append(i);
+    // }
     //触发信号
-    emit on_userlist_updata(unique_user_list);
+    emit on_userlist_updata(/*unique_*/user_list);
 }

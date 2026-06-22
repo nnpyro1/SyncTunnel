@@ -31,7 +31,7 @@ TransmissionEngine::TransmissionEngine(Communication *m_communication, QString u
         if(!queue_fileSendingTask.isEmpty()){
             auto task_ptr = queue_fileSendingTask.front();
             queue_fileSendingTask.pop_front();
-            QMetaObject::invokeMethod(this,[this,task_ptr=std::move(task_ptr)]{SPTP_sendTo(clients.indexOf(task_ptr->dst),task_ptr->msg);},Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this,[this,task_ptr=std::move(task_ptr)]{SPTP_sendTo(task_ptr->dst,task_ptr->msg);},Qt::QueuedConnection);
         }
         else{emit SPTP_sendFinished();}
     },Qt::QueuedConnection);
@@ -44,6 +44,10 @@ TransmissionEngine::~TransmissionEngine(){
 }
 
 void TransmissionEngine::send(QByteArray msg, bool e, int d){
+    if(d>=0 && !clients.contains(d)){
+        ncritical<<"Invalid dst:"<<d;
+        return;
+    }
     //自动补全信息
     QJsonDocument jd = QJsonDocument::fromJson(msg);
     if(jd.isObject()){
@@ -65,7 +69,7 @@ void TransmissionEngine::send(QByteArray msg, bool e, int d){
     int ret;
     auto cli = clients;
     auto encodedMsg= e?encode(msg):msg;
-    if(d==-1)cli.removeAll(public_ip);//不给自己发送
+    if(d==-1)cli.remove(getIdByDevice(public_ip));//不给自己发送
     if(d==-1||d==-2)foreach(auto i,cli)ret=m_communication->send(i,encodedMsg);
     else ret=m_communication->send(clients[d],encodedMsg);
     if(ret!=encodedMsg.size()){
@@ -702,7 +706,7 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
     }
 }
 
-void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
+void TransmissionEngine::SPTP_send(QByteArray msg, Devices dst){
     if(!chunks.isEmpty() || !currentFileMap.isEmpty()){
         nwarning<<"非空闲，已有的同步任务取消";
         return;
@@ -711,11 +715,11 @@ void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
         QMetaObject::invokeMethod(qApp,[]{QMessageBox::warning(qApp->activeWindow(),tr("同步文件"),tr("请选择目标！"));});
         return;
     }
-    dst.removeAll(public_ip);//文件不发给自己
+    dst.remove(getIdByDevice(public_ip));//文件不发给自己
     //开始规划
     auto plan = planAutoSend(dst);
     auto senders = dst;
-    senders.append(public_ip);
+    senders.insert(getIdByDevice(public_ip),public_ip);
     //提取每个人任务
     QList<QString> tasks;//索引和senders一一对应
     for(int i=0;i<senders.size();i++){
@@ -734,7 +738,7 @@ void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
     for(int i=0;i<senders.size();i++){
         if(!(senders[i]==public_ip)){
             if(!tasks[i].isEmpty()){
-                sendReliableMessage(clients.indexOf(senders[i]),"SEND_TASK"+tasks[i]);
+                sendReliableMessage(getIdByDevice(senders[i]),"SEND_TASK"+tasks[i]);
             }
         }
         else self_tasks = tasks[i].split(';');
@@ -744,9 +748,9 @@ void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
     for(auto t : self_tasks){
         //查找
         int index = -1;
-        for(int i=0;i<clients.size();i++){
-            if(clients[i].operator QString const() == t){
-                index=i;
+        for(auto i = clients.begin();i!=clients.end();i++){
+            if(i->operator QString const() == t){
+                index=getIdByDevice(*i);
                 break;
             }
         }
@@ -758,9 +762,12 @@ void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
         connect(this,&TransmissionEngine::signal_resend_finished,&loop,&QEventLoop::quit);
         loop.exec();*/
 //        ui->textEdit_debug1->append(QString("发送文件到%1").arg(index));
-        
-        file_sending_task task = {clients[index],msg};
-        auto task_ptr = std::make_shared<const file_sending_task>(clients[index], msg);
+        if(index==-1){
+            ncritical<<"Invalid index,from self_tasks:"<<self_tasks;
+            continue;
+        }
+        file_sending_task task = {index,msg};
+        auto task_ptr = std::make_shared<const file_sending_task>(index, msg);
         queue_fileSendingTask.append((task_ptr));
     }
     
@@ -768,7 +775,7 @@ void TransmissionEngine::SPTP_send(QByteArray msg, QList<device> dst){
 }
 
 bool TransmissionEngine::sendReliableMessage(int dst, QString msg){
-    if(dst<0||dst>=clients.size()){
+    if(!clients.contains(dst)){
         ncritical<<"Invaild dst:"<<dst;
         return false;
     }
@@ -977,12 +984,12 @@ QByteArray TransmissionEngine::SPTP_sendCtrl(QByteArray ctrl, QVariant v, int d)
     return SPTP_sendCommon(data,d);
 }
 
-void TransmissionEngine::setClients(QList<device> clients){
+void TransmissionEngine::setClients(Devices clients){
     ninfo<<"TransmissionEngine的clients"<<clients;
     this->clients=clients;
 }
 
-QList<device> TransmissionEngine::Clients(){
+Devices TransmissionEngine::Clients(){
     return clients;
 }
 
@@ -1135,7 +1142,7 @@ void TransmissionEngine::on_readyRead(){
         json["ip"].toString(),
         static_cast<quint16>(json["port"].toInt())
     };
-    int sender_index = clients.indexOf(sender);
+    int sender_index = getIdByDevice(sender);
     
     
     //消息解析
@@ -1370,7 +1377,7 @@ void TransmissionEngine::on_request_resend(){
 //    MessageBoxW(0,QString(tr("正在请求重传%1个包")).arg(resendList.size()).toStdWString().c_str(),L"Resend",0);
     foreach(auto i , resendList){
         json["request_resend"] = i;
-        send(QJsonDocument(json).toJson(),1,clients.indexOf(receive_sender));
+        send(QJsonDocument(json).toJson(),1,getIdByDevice(receive_sender));
         emit messageChanged(QString(tr("正在请求重传%1个包")).arg(resendList.size()));
         QThread::msleep(100);
         QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents,100);
@@ -1407,7 +1414,7 @@ void TransmissionEngine::on_request_resend(){
     QEventLoop loop2;        //定义一个新的事件循环
     QTimer::singleShot(3500, &loop2,&QEventLoop::quit);//创建单次定时器，槽函数为事件循环的退出函数
     loop2.exec(); 
-    sendReliableMessage(clients.indexOf(receive_sender),"FILE_RELEASE_SUCCESSFULLY");
+    sendReliableMessage(getIdByDevice(receive_sender),"FILE_RELEASE_SUCCESSFULLY");
     
     //清除状态
     currentFileMap.clear();currentFileTotal = -1;/*;receive_lost_count=0;*/receive_last_pack_index=-1;receive_last_ack_total=-1;timer_fileResend.stop();/*receive_last_ack_index=-1*//*;foreach(auto i,schedule_list)i->setEnabled(true);*/receive_sender={"",0};
@@ -1419,9 +1426,9 @@ void TransmissionEngine::on_request_resend(){
         for(auto t : sendTask){
             //查找
             int index = -1;
-            for(int i=0;i<clients.size();i++){
-                if(clients[i].operator QString const() == t){
-                    index=i;
+            for(auto it = clients.begin();it!=clients.end();it++){
+                if(it->operator QString const() == t){
+                    index=it.key();
                     break;
                 }
             }
@@ -1433,7 +1440,10 @@ void TransmissionEngine::on_request_resend(){
             connect(this,&TransmissionEngine::signal_resend_finished,&loop,&QEventLoop::quit);
             loop.exec();*/
 //            ui->textEdit_debug1->append(QString("发送文件到%1").arg(index));
-            auto task_ptr = std::make_shared<const file_sending_task>(clients[index], n);
+            if(!clients.contains(index)){
+                ncritical<<"Invalid index"<<index<<"from "<<clients;
+            }
+            auto task_ptr = std::make_shared<const file_sending_task>(index, n);
             queue_fileSendingTask.append((task_ptr));
         }
         sendTask.clear();//清空以便下次
@@ -1551,7 +1561,7 @@ void TransmissionEngine::on_bh_received(QByteArray msg){
 }
 
 
-QVector<QVector<QPair<ipport, ipport>>> TransmissionEngine::planAutoSend(QList<device> dsts){
+QVector<QVector<QPair<ipport, ipport>>> TransmissionEngine::planAutoSend(Devices dsts){
     QQueue<ipport> senders;
     QQueue<ipport> receivers;
     QVector<QVector<QPair<ipport,ipport>>> result;

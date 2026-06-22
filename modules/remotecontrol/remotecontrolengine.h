@@ -46,7 +46,7 @@ public:
         bool pressed;
         
         friend QDataStream &operator<<(QDataStream &s, const MousePressEvent &d) {
-            return s << (int)d.btn << (int)d.pressed;
+            return s << (int)d.btn << d.pressed;
         }
         friend QDataStream &operator>>(QDataStream &s, MousePressEvent &d) {
             int b;s >> b >> d.pressed;

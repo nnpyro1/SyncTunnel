@@ -14,7 +14,7 @@ Dialog_selectSyncDst::~Dialog_selectSyncDst()
     delete ui;
 }
 
-void Dialog_selectSyncDst::setup(QList<Communication::device> devices)
+void Dialog_selectSyncDst::setup(Devices devices)
 {
     this->devices = devices;
     //添加设备
@@ -33,7 +33,7 @@ void Dialog_selectSyncDst::setup(QList<Communication::device> devices)
     
     //设置
     connect(this,&Dialog_selectSyncDst::accepted,this,[devices,this]{
-        QList<Communication::device> result;
+        Devices result;
 //        int index=0;
 //        foreach(auto i , checkBoxList){
 //            if(i->checkState() == Qt::Checked)
