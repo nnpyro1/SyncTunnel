@@ -94,7 +94,7 @@ public://公有函数
 //    QByteArray decode(QByteArray msg);          //解密msg并返回解密后的值
 //    QByteArray mergeFile(QDir folder,bool c=1); //合并文件
 //    Q_INVOKABLE void sendFileTo(int n);         //自动分包并发送
-    Q_INVOKABLE void sendFile(QList<device> dst = QList<device>());//发送文件给所有客户端
+    Q_INVOKABLE void sendFile(QSet<devid_t> dst = QSet<devid_t>());//发送文件给所有客户端
 //    void releaseFile(QByteArray msg);           //释放文件
 //    void savePower();                           //省电模式
 //    bool checkSkin(skinType skin);              //检查skin是否可用

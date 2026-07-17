@@ -646,7 +646,7 @@ void BusinessLogic::send(QByteArray msg, bool e, int d){
 }
 
 
-BusinessLogic::Result BusinessLogic::sendFile(Devices dst,QSet<QString> incremental_sync_set){
+BusinessLogic::Result BusinessLogic::sendFile(QSet<devid_t> dst,QSet<QString> incremental_sync_set){
     if(dst.empty()){
         return Result("请指定传输目标");
     }
@@ -729,56 +729,56 @@ void BusinessLogic::on_settings_saved(QString username_,QString pwd_,QString mqt
             emit businessEventOccurred(BusinessEvent::UsernamePasswordTooShort);
             return;
         }
-        if(user_name!=username_ && !QDir("config/empty/label1/ext-label-private/label-SyncTunnel-Username-uploaded/").exists()){
-//            int btn = QMessageBox::information(this,"首次设置用户名防抢注验证","为同一用户防止恶意抢注、占用多个用户名、保障所有用户公平使用P2P功能，我们需要完成一次匿名验证：\n"" 仅上传您用户名的匿名加密串（攻击者不可能还原用户名明文，无任何个人信息）；\n"" 仅首次设置用户名时操作一次，后续不再上传任何数据；\n"" 数据存储于国内服务器，在验证用户名不是恶意抢注或占有后会尽快自动删除，数据最长留存一年（可联系nnpyro2@outlook.com删除）\n重要：若拒绝验证，您只能使用默认用户名+自定义密码使用软件，默认用户名为多用户共享，安全性低，若密码发生碰撞，您的个人数据可能会泄露，强烈不推荐使用。若使用，请设置强密码，并对自己的数据安全负全责\n\n""是否确认完成验证并保存用户名？",QMessageBox::Yes|QMessageBox::No,QMessageBox::No);
-//            if(btn==QMessageBox::No){
-//                QMessageBox::information(this,"用户名未验证","用户名未经过防抢注验证，未保存，自动使用默认用户名");
-//                ui->lineEdit_settings_username->setText("DefaultUser");
-//                if(p.size()<15){
-//                    QMessageBox::warning(this,"强烈建议","您正在使用默认用户名，默认用户名安全性极低，我们强烈建议您的密码长度大于15字符！！！！！\n\n\n或者您可以直接设置一个专属用户名！使用默认用户名的安全性极低，极易发生密码碰撞/数据泄露的重大安全事故，如果您使用默认用户名，请对自己的数据安全负全责！");
-////                    return;
-//                }
-//            }
-            if(0){}
-            else{
-//                emit messageChanged("正在进行验证……");
-                emit businessEventOccurred(BusinessEvent::UploadingFirstLaunchInformation);
-                auto manager = new QNetworkAccessManager(this);
-                QNetworkRequest request;
-                //构造请求
-                //            request.setRawHeader("Authorization","Bearer github_pa""t_11BF");
-                request.setHeader(QNetworkRequest::UserAgentHeader,"NNPYRO SyncTunnel Service");
-                //            request.setRawHeader("Accept", "application/vnd.github.v3+json");
-                request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-                QJsonObject json;
+//         if(user_name!=username_ && !QDir("config/empty/label1/ext-label-private/label-SyncTunnel-Username-uploaded/").exists()){
+// //            int btn = QMessageBox::information(this,"首次设置用户名防抢注验证","为同一用户防止恶意抢注、占用多个用户名、保障所有用户公平使用P2P功能，我们需要完成一次匿名验证：\n"" 仅上传您用户名的匿名加密串（攻击者不可能还原用户名明文，无任何个人信息）；\n"" 仅首次设置用户名时操作一次，后续不再上传任何数据；\n"" 数据存储于国内服务器，在验证用户名不是恶意抢注或占有后会尽快自动删除，数据最长留存一年（可联系nnpyro2@outlook.com删除）\n重要：若拒绝验证，您只能使用默认用户名+自定义密码使用软件，默认用户名为多用户共享，安全性低，若密码发生碰撞，您的个人数据可能会泄露，强烈不推荐使用。若使用，请设置强密码，并对自己的数据安全负全责\n\n""是否确认完成验证并保存用户名？",QMessageBox::Yes|QMessageBox::No,QMessageBox::No);
+// //            if(btn==QMessageBox::No){
+// //                QMessageBox::information(this,"用户名未验证","用户名未经过防抢注验证，未保存，自动使用默认用户名");
+// //                ui->lineEdit_settings_username->setText("DefaultUser");
+// //                if(p.size()<15){
+// //                    QMessageBox::warning(this,"强烈建议","您正在使用默认用户名，默认用户名安全性极低，我们强烈建议您的密码长度大于15字符！！！！！\n\n\n或者您可以直接设置一个专属用户名！使用默认用户名的安全性极低，极易发生密码碰撞/数据泄露的重大安全事故，如果您使用默认用户名，请对自己的数据安全负全责！");
+// ////                    return;
+// //                }
+// //            }
+//             if(0){}
+//             else{
+// //                emit messageChanged("正在进行验证……");
+//                 emit businessEventOccurred(BusinessEvent::UploadingFirstLaunchInformation);
+//                 auto manager = new QNetworkAccessManager(this);
+//                 QNetworkRequest request;
+//                 //构造请求
+//                 //            request.setRawHeader("Authorization","Bearer github_pa""t_11BF");
+//                 request.setHeader(QNetworkRequest::UserAgentHeader,"NNPYRO SyncTunnel Service");
+//                 //            request.setRawHeader("Accept", "application/vnd.github.v3+json");
+//                 request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+//                 QJsonObject json;
                 
-                json["message"]="SyncTunnel Upload.";
-//                json["access_token"]=SYNCTUNNEL_INTERFACE_W_ACCESS_TOKEN;
-                request.setRawHeader("PRIVATE-TOKEN",SYNCTUNNEL_INTERFACE_W_ACCESS_TOKEN);
-                json["branch"]="username";
-                //设置统计文件
-                request.setUrl(QUrl(QString("https://api.gitcode.com/api/v5/repos/2501_93498940/synctunnel-interface-w/contents/users/%1").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss"))));
-                json["content"]=QString(QString("Time:%1\nUser-Name:None\n").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss")));
-                QNetworkReply *reply = manager->post(request,QJsonDocument(json).toJson());
-                //等待响应
-                QEventLoop loop;
-                connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-                QTimer::singleShot(15000,&loop,&QEventLoop::quit);
-                loop.exec();
-                if(reply->error() != QNetworkReply::NoError || !reply->isFinished()){
-//                    emit messageBoxRequested("错误","错误：无法请求数据到服务器。详细信息："+reply->errorString()+"\n但是这不影响您继续正常使用软件。单击“确定”继续保存",MessageBoxType::Critical);
-                    emit businessEventOccurred(BusinessEvent::UploadingFirstLaunchInformationFailed,{{"error",reply->errorString()}});
-                    //允许用户暂时使用
-//                    return;
-                }
-                else{
-//                    QMessageBox::information(this,"成功","验证成功！您的用户名设置成功，应用程序自动重启。");
-                    QDir("config/empty/label1/ext-label-private/label-SyncTunnel-Username-uploaded/").mkpath(".");//下次不上传
-                }
-                reply->deleteLater();
-                manager->deleteLater();
-            }
-        }
+//                 json["message"]="SyncTunnel Upload.";
+// //                json["access_token"]=SYNCTUNNEL_INTERFACE_W_ACCESS_TOKEN;
+//                 request.setRawHeader("PRIVATE-TOKEN",SYNCTUNNEL_INTERFACE_W_ACCESS_TOKEN);
+//                 json["branch"]="username";
+//                 //设置统计文件
+//                 request.setUrl(QUrl(QString("https://api.gitcode.com/api/v5/repos/2501_93498940/synctunnel-interface-w/contents/users/%1").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss"))));
+//                 json["content"]=QString(QString("Time:%1\nUser-Name:None\n").arg(QDateTime::currentDateTime().toString("yyyyMMddhhmmss")));
+//                 QNetworkReply *reply = manager->post(request,QJsonDocument(json).toJson());
+//                 //等待响应
+//                 QEventLoop loop;
+//                 connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
+//                 QTimer::singleShot(15000,&loop,&QEventLoop::quit);
+//                 loop.exec();
+//                 if(reply->error() != QNetworkReply::NoError || !reply->isFinished()){
+// //                    emit messageBoxRequested("错误","错误：无法请求数据到服务器。详细信息："+reply->errorString()+"\n但是这不影响您继续正常使用软件。单击“确定”继续保存",MessageBoxType::Critical);
+//                     emit businessEventOccurred(BusinessEvent::UploadingFirstLaunchInformationFailed,{{"error",reply->errorString()}});
+//                     //允许用户暂时使用
+// //                    return;
+//                 }
+//                 else{
+// //                    QMessageBox::information(this,"成功","验证成功！您的用户名设置成功，应用程序自动重启。");
+//                     QDir("config/empty/label1/ext-label-private/label-SyncTunnel-Username-uploaded/").mkpath(".");//下次不上传
+//                 }
+//                 reply->deleteLater();
+//                 manager->deleteLater();
+//             }
+//         }
         user_name = username_;
         pwd = pwd_;
         QDir dir("config");
@@ -854,9 +854,10 @@ void BusinessLogic::on_settings_saved(QString username_,QString pwd_,QString mqt
     
     
     if(restart_flag){//重启
-        m_signalling->exit();//发布关闭消息
-        QProcess::startDetached(QCoreApplication::applicationFilePath(),QCoreApplication::arguments());//重启
-        QCoreApplication::quit();
+        // m_signalling->exit();//发布关闭消息
+        // QProcess::startDetached(QCoreApplication::applicationFilePath(),QCoreApplication::arguments());//重启
+        // QCoreApplication::quit();
+        Utils::restart();//软重启
     }
 }
 
@@ -984,10 +985,10 @@ void BusinessLogic::on_suspended(){
 
 
 void BusinessLogic::on_hangup_to_dfhn(){
-    Devices l;
+    QSet<devid_t> l;
     for(auto i : clients){
         if(i.flag==Communication::DFHNDevice)
-            l.insert(getIdByDevice(i),i);
+            l.insert(getIdByDevice(i));
     }
     if(l.empty())
 //        emit messageBoxRequested("挂起","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN",MessageBoxType::Warning);
@@ -999,15 +1000,15 @@ void BusinessLogic::on_hangup_to_dfhn(){
 
 
 void BusinessLogic::on_download_from_dfhn(){
-    QList<device> l;
+    QSet<devid_t> l;
     for(auto i : clients){
-        if(i.flag==Communication::DFHNDevice)
-            l.append(i);
+        if(i.flag==Communication::DFHNDevice){
+            send("REQ_FILE",1,getIdByDevice(i));
+            return;
+        }
     }
-    if(l.empty())
 //        emit messageBoxRequested("下载","当前设备列表中找不到DFHN设备。有关DFHN的更多信息，请参阅更多->帮助->DFHN",MessageBoxType::Warning);
         emit businessEventOccurred(BusinessEvent::DFHNDeviceNotFound);
-    else send("REQ_FILE",1,getIdByDevice(l[0]));
 }
 
 
@@ -1053,7 +1054,8 @@ void BusinessLogic::on_readyRead(QByteArray msg){
                 loop.exec();
             }
             else QThread::msleep(500);
-            QMetaObject::invokeMethod(this,[=]{sendFile(clients);},Qt::QueuedConnection);
+            auto keys = clients.keys();
+            QMetaObject::invokeMethod(this,[=]{sendFile(QSet<devid_t>(keys.constBegin(),keys.constEnd()));},Qt::QueuedConnection);
         }
         else if(msg == "KEEP_ALIVE"){
             
@@ -1237,7 +1239,11 @@ void BusinessLogic::unserSchedule(QByteArray dat){
         Schedule *s = new Schedule(); 
         d>>(*s);
         schedule_list.append(s);
-        connect(s,&Schedule::triggered,this,[this]{auto c=clients;c.remove(getIdByDevice(public_ip));sendFile(c);});
+        connect(s,&Schedule::triggered,this,[this]{
+            auto c=clients;c.remove(getIdByDevice(public_ip));
+            auto m=c.keys();
+            sendFile(QSet<devid_t>(m.constBegin(),m.constEnd()));
+        });
     }
 }
 

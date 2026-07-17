@@ -113,5 +113,8 @@ typedef QMap<devid_t,Communication::device> Devices;
 Q_DECLARE_METATYPE(Communication::device)
 Q_DECLARE_METATYPE(Devices)
 inline devid_t getIdByDevice(Communication::device dev){
-    return (qHash(dev.toString())&0x7FFFFFFF);
+    return (qHash(dev.ip+"@"+QString::number(dev.port))&0x7FFFFFFF);
+}
+inline QString getStringByDeviceId(devid_t devId){
+    return QString(QByteArray((char*)(&devId),sizeof(devId)).toBase64(QByteArray::OmitTrailingEquals));
 }

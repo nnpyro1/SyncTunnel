@@ -29,7 +29,7 @@ private slots:
     void on_finished();
     
 signals:
-    void syncdstDecided(Devices result);
+    void syncdstDecided(QSet<devid_t> result);
     
 private:
     Ui::Dialog_selectSyncDst *ui;

@@ -706,7 +706,7 @@ void TransmissionEngine::SPTP_sendTo(int n, QByteArray data){
     }
 }
 
-void TransmissionEngine::SPTP_send(QByteArray msg, Devices dst){
+void TransmissionEngine::SPTP_send(QByteArray msg, QSet<devid_t> dst){
     if(!chunks.isEmpty() || !currentFileMap.isEmpty()){
         nwarning<<"非空闲，已有的同步任务取消";
         return;
@@ -717,8 +717,12 @@ void TransmissionEngine::SPTP_send(QByteArray msg, Devices dst){
     }
     dst.remove(getIdByDevice(public_ip));//文件不发给自己
     //开始规划
-    auto plan = planAutoSend(dst);
-    auto senders = dst;
+    Devices dsts;
+    foreach(auto i,dst){
+        dsts.insert(i,clients[i]);
+    }
+    auto plan = planAutoSend(dsts);
+    auto senders = dsts;
     senders.insert(getIdByDevice(public_ip),public_ip);
     //提取每个人任务
     QList<QString> tasks;//索引和senders一一对应

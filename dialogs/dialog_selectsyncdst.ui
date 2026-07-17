@@ -51,7 +51,12 @@
      </column>
      <column>
       <property name="text">
-       <string>设备</string>
+       <string>临时设备ID</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>设备详细信息</string>
       </property>
      </column>
     </widget>
@@ -59,10 +64,10 @@
    <item row="3" column="0" colspan="3">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+      <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
      </property>
     </widget>
    </item>

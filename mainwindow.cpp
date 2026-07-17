@@ -1997,12 +1997,12 @@ void MainWindow::show_dir(){        //显示目录
 }
 
 
-void MainWindow::sendFile(QList<device> dst){
+void MainWindow::sendFile(QSet<devid_t> dst){
     if(dst.empty()){//让用户选择
         Dialog_selectSyncDst *dialog = new Dialog_selectSyncDst(this);
         auto tmp = vm->o_clients.get();
         dialog->setup(tmp);
-        connect(dialog,&Dialog_selectSyncDst::syncdstDecided,this,[&](QList<device> a){dst=a;});
+        connect(dialog,&Dialog_selectSyncDst::syncdstDecided,this,[&](QSet<devid_t> a){dst=a;});
         dialog->exec();
         dialog->deleteLater();
         ninfo<<"SyncDst:"<<dst;

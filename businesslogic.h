@@ -88,7 +88,7 @@ public://公有函数
     Q_INVOKABLE void destory();                                     //销毁对象
     
     Q_INVOKABLE void send(QByteArray msg,bool e=1,int d=-1);        //自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
-    Q_INVOKABLE Result sendFile(Devices dst = Devices(),QSet<QString> incremental_sync_set=QSet<QString>());//发送文件给所有客户端
+    Q_INVOKABLE Result sendFile(QSet<devid_t> dst,QSet<QString> incremental_sync_set=QSet<QString>());//发送文件给所有客户端
 //    Q_INVOKABLE bool restartDebug();                                //切换当前调试状态，返回切换过后的状态
     Q_INVOKABLE bool checkSkin(skinType skin);                      //检查skin是否可用
     
@@ -217,7 +217,7 @@ private://私有变量
     QMap<QString,QByteArray> fileHashMap;
     QDir syncFolder = QDir("files");
     QSettings settings;
-    Devices lastSyncDst;
+    QSet<devid_t> lastSyncDst;
     bool use_ipv6 = false;
 };
 

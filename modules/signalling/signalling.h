@@ -1,44 +1,70 @@
-#pragma once
-#include <QObject> 
-#include <qmqttclient.h>
-#include "../communication/communication.h"
+#ifndef SIGNALLING_H
+#define SIGNALLING_H
 
+#include "qendian.h"
+#include <QObject>
+#include <general.h>
+#include <QMqttClient>
 
 class Signalling : public QObject
 {
     Q_OBJECT
 public:
-    Signalling();
-    virtual ~Signalling();
+    explicit Signalling(QObject *parent = nullptr);
+    ~Signalling();
+    void setPassport(QString username,QString pwd);
+    void setPublicIp(device public_ip);
+    void setMqttBroker(QString host,quint16 port);
     
-public://公有函数
-    void connectToHost(Communication::ipport host);                     //联接到host指定的主机并等待到联接成功，不会订阅Topic
-    QMqttSubscription *subscribe(QString topic);                        //订阅topic
+    bool start();
+    void stop();
     
-    void setUser(const Communication::device user,QString name);        //设置用户的device。来源应该是Communication的stun
-    void setPwd(const QByteArray p);                                    //设置密码
-    Devices getUserList();                                              //发送消息获取用户列表
-    void exit();                                                        //退出    这个函数会销毁联接状态，需要在对象销毁的时候再用
+    void registerOnline();
+    Devices getAllDevices();
+    void registerOffline();
     
-private slots://私有槽
-    void on_msg(QMqttMessage mqttMsg);                                  //收到消息
+signals:
+    void deviceOnline(devid_t d);
+    void deviceOffline(devid_t d);
+    void deviceUpdated();
     
-signals://信号
-//    void private_on_user_list_finished(QPrivateSignal);
-    void on_userlist_updata(Devices list);                              //用户列表
-    void errorOccurred(QString errorString);    
+private slots:
+    void mqttReadyRead(QByteArray msg);
     
-private://私有函数
-    void send_msg_to_get_user_list(int c);
-    qint32 getIdByDevice(Communication::device dev);
+private:
+    enum PackageType{
+        RegisterOnline,
+        DeviceInfo,
+        RegisterOffline,
+    };
+#pragma pack(push,1)
+    // struct BasicPackage{
+    //     qint32 type;
+    //     char ip[46];
+    //     quint16 port;
+    // };
+    struct BasicPackage{
+        qint32 type;
+        char ip[46];
+        quint16 port;
+        qint32 flag;
+        //剩下载荷为description
+    };
+#pragma pack(pop)
     
-private://私有对象&变量
+    QByteArray encode(QByteArray data);
+    QByteArray decode(QByteArray data);
+    
+private:
+    QString username;
+    QString password;
+    device public_ip;
+    Devices clients;
+    QString mqttHost;
+    quint16 mqttPort;
     QMqttClient *client;
     QMqttSubscription *subscription;
-    Communication::device user;//用户
-    Devices user_list;//在线用户列表
-    QByteArray pwd;
-    QString topicName;
-    bool is_waiting_userList = false;
-    QString user_name;
+    QTimer finishTimer;
 };
+
+#endif // SIGNALLING_H

@@ -1,374 +1,194 @@
-#include "signalling.h" 
-#include <QEventLoop>
-#include <QTimer>
-#include <QDebug>
-#include <QJsonObject>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include "../../../libary/Qt-AES/qaesencryption.h"
-#include "general.h"
+#include "signalling.h"
+#include "qeventloop.h"
 #include <QCryptographicHash>
-#include <QDataStream>
-//#include <QMessageBox>
-#include <QThread>
-#include <QNetworkProxy>
-#include <QMetaEnum>
-
-#include <modules/communication/communication.h>
-//#include <QSignalSpy>
+#include <utils.h>
 
 
-Signalling::Signalling(){
-    client = new QMqttClient;
-    subscription = nullptr;
+Signalling::Signalling(QObject *parent)
+    : QObject{parent}
+{
+    
 }
 
 Signalling::~Signalling(){
-    exit();
-    client->deleteLater();
+    
 }
 
 
-void Signalling::connectToHost(Communication::ipport host){
-    QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
-    client->setHostname(host.ip);
-    client->setPort(host.port);
+void Signalling::setPassport(QString username, QString pwd){
+    this->username=username;
+    this->password=pwd;
+}
+
+
+void Signalling::setPublicIp(device public_ip){
+    this->public_ip=public_ip;
+}
+
+
+void Signalling::setMqttBroker(QString host, quint16 port){
+    this->mqttHost=host;
+    this->mqttPort=port;
+}
+
+
+bool Signalling::start(){
+    client = new QMqttClient(this);
+    client->setHostname(mqttHost);
+    client->setPort(mqttPort);
+    
     client->connectToHost();
-    
-    QEventLoop loop;
-    QTimer timer;
+    QEventLoop loop;//等待到链接完成
     connect(client,&QMqttClient::connected,&loop,&QEventLoop::quit);
-    connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
-    timer.start(20000);//超时20s
+    connect(client,&QMqttClient::errorChanged,&loop,&QEventLoop::quit);
     loop.exec();
-    
-    if(client->state() != QMqttClient::Connected){
-        qCritical()<<"Signalling::connectToHost() Error:Cannot connect to host"<<client->error();
-//        QMessageBox::critical(nullptr,"错误","连接到MQTT服务器失败");
-        emit errorOccurred(QString::number(client->error()));
+    if(client->error()!=QMqttClient::NoError){
+        ncritical<<"Failed to connect."<<client->error();
+        return false;
     }
+    connect(client,&QMqttClient::messageReceived,this,&Signalling::mqttReadyRead);
+    
+    subscription = client->subscribe(QString("synctunnel-signalling/v2/%1").arg(QCryptographicHash::hash((username+"@"+password).toUtf8(),QCryptographicHash::Sha256).toHex()),2);
+    return subscription!=0;
 }
 
 
-QMqttSubscription *Signalling::subscribe(QString topic){
-    topicName = topic;
-    subscription = client->subscribe(topic,2);
-    connect(subscription,&QMqttSubscription::messageReceived,this,&Signalling::on_msg);
-    return subscription;
+void Signalling::stop(){
+    registerOffline();
+    subscription->deleteLater();subscription=0;
+    client->deleteLater();client=0;
 }
 
 
-void Signalling::setUser(const Communication::device user, QString name){
-    this->user = user;
-    this->user_name = name;
-    user_list.clear();
-    user_list.insert(getIdByDevice(user),user);
-//    foreach(auto i,user_list)qDebug()<<"Userlist"<<i;
-}
+/*
+协议流程
+A               其他人
+RegisterOnline ->
+    <- DeviceInfo
+
+RegisterOffline ->
+*/
 
 
-void Signalling::setPwd(const QByteArray p){
-//    qDebug()<<p;
-//    QByteArray temp = p;
-    this->pwd = p;
-}
-
-
-Devices Signalling::getUserList(){
-    //发送消息准备
-//    if(subscription)disconnect(subscription,&QMqttSubscription::messageReceived,this,&Signalling::on_msg);//防止意外触发
-    /*QJsonObject json;
-    json.insert("request","get_user_list");
-    json.insert("ip",user.ip);
-    json.insert("port",user.port);
-    json.insert("user",QString(user_name.toUtf8().toBase64()));
-    QByteArray msg = QJsonDocument(json).toJson();
-//    qDebug()<<msg;
+void Signalling::registerOnline(){
+    if(!subscription){
+        ncritical<<"Invalid subscription";
+        return;
+    }
+    //发送registerOnline
+    BasicPackage pk;
+    memset(&pk,0,sizeof(pk));
+    strcpy(pk.ip,public_ip.ip.toStdString().c_str());
+    pk.port=qToBigEndian(public_ip.port);
+    pk.type=qToBigEndian((int)RegisterOnline);
+    pk.flag=qToBigEndian(public_ip.flag);
+    QByteArray msg;
+    msg.resize(sizeof(pk));
+    memcpy(msg.data(),&pk,sizeof(pk));
     
-    //加密消息
-    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray key = QCryptographicHash::hash(pwd,QCryptographicHash::Sha256);
-    QByteArray iv = QCryptographicHash::hash(pwd,QCryptographicHash::Md5);
-    QByteArray encode = encription.encode(msg,key,iv).toBase64();
-//    qDebug()<<"Signalling::getUserList var:encode ="<<encode;
-//    qDebug()<<"Signalling::getUserList msg="<<encription.removePadding(encription.decode(QByteArray::fromBase64(encode),key,iv));
-    
-    //发送消息
-    client->publish(QMqttTopicName(topicName),encode);*/
-    
-    //发送消息
-    send_msg_to_get_user_list(1);
-    
-    //阻塞等待回复
-    is_waiting_userList = true;//设置让on_msg收集用户
+    //发送并阻塞直到结果超时
+    client->publish(subscription->topic().filter(),encode(msg),2);
     QEventLoop loop;
-    QTimer timer;
-//    QSignalSpy spy(this,&Signalling::on_userlist_updata);
-    int cnt1=0,cnt2=0;
-    auto c = connect(this,&Signalling::on_userlist_updata,this,[&]{
-        cnt2++;
-        loop.quit();
-        cnt1++;
-    });
-    connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
-    timer.start(3000);
+    connect(&finishTimer,&QTimer::timeout,&loop,&QEventLoop::quit);
+    finishTimer.start(5000);
     loop.exec();
-    disconnect(c);
-    
-    return user_list;
 }
 
 
-void Signalling::exit(){
-    if(client->state() != QMqttClient::Connected){
+void Signalling::registerOffline(){
+    if(!subscription){
+        ncritical<<"Invalid subscription";
         return;
     }
-    QJsonObject json;
-    json.insert("request","disconnect");
-    json.insert("ip",user.ip);
-    json.insert("port",user.port);
-    json.insert("user",QString(user_name.toUtf8().toBase64()));
-    json.insert("description", user.description);
-    json.insert("userflag", user.flag);           
-    json.insert("c",0);
-    QByteArray msg = QJsonDocument(json).toJson();
-//    qDebug()<<msg;
+    //发送registerOffline
+    BasicPackage pk;
+    memset(&pk,0,sizeof(pk));
+    strcpy(pk.ip,public_ip.ip.toStdString().c_str());
+    pk.port=qToBigEndian(public_ip.port);
+    pk.type=qToBigEndian((int)RegisterOffline);
+    QByteArray msg;
+    msg.resize(sizeof(pk));
+    memcpy(msg.data(),&pk,sizeof(pk));
     
-    //加密消息
-    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray key = QCryptographicHash::hash(pwd,QCryptographicHash::Sha256);
-    QByteArray iv = QCryptographicHash::hash(pwd,QCryptographicHash::Md5);
-    QByteArray encode = encription.encode(msg,key,iv).toBase64();
-//    qDebug()<<"Signalling::getUserList var:encode ="<<encode;
-//    qDebug()<<"Signalling::getUserList msg="<<encription.removePadding(encription.decode(QByteArray::fromBase64(encode),key,iv));
-    
-    //发送消息
-    client->publish(QMqttTopicName(topicName),encode);
-    
-    //销毁
-    QThread::msleep(200);
-    subscription->unsubscribe();
-    client->disconnectFromHost();
+    //发送
+    client->publish(subscription->topic().filter(),encode(msg),2);
+    QThread::msleep(500);
 }
 
 
-void Signalling::send_msg_to_get_user_list(int c){
-    QJsonObject json;
-    json.insert("request","get_user_list");
-    json.insert("ip",user.ip);
-    json.insert("port",user.port);
-    json.insert("description",user.description);
-    json.insert("userflag",user.flag);
-    json.insert("user",QString(user_name.toUtf8().toBase64()));
-    json.insert("c",c);
-    QByteArray msg = QJsonDocument(json).toJson();
-//    qDebug()<<msg;
-    
-    //加密消息
-    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray key = QCryptographicHash::hash(pwd,QCryptographicHash::Sha256);
-    QByteArray iv = QCryptographicHash::hash(pwd,QCryptographicHash::Md5);
-    QByteArray encode = encription.encode(msg,key,iv).toBase64();
-//    qDebug()<<"Signalling::getUserList var:encode ="<<encode;
-//    qDebug()<<"Signalling::getUserList msg="<<encription.removePadding(encription.decode(QByteArray::fromBase64(encode),key,iv));
-    
-    //发送消息
-    client->publish(QMqttTopicName(topicName),encode);
-}
-
-
-qint32 Signalling::getIdByDevice(Communication::device dev){
-    return (qHash(dev.toString())&0x7FFFFFFF);
-}
-
-
-void Signalling::on_msg(QMqttMessage mqttMsg){
-    if(0){
-//        QMessageBox *b = new QMessageBox;
-//        b->setText("收到消息");
-//        b->open();
-    }
-    
-    
-    QByteArray encodedMsg = mqttMsg.payload();
-//    qDebug()<<"Signalling::on_msg var:encodedMsg ="<<encodedMsg<<QString("(Bytes:%1)").arg(QString(QByteArray::fromBase64(encodedMsg)));
-    //解密消息
-    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray key = QCryptographicHash::hash(pwd,QCryptographicHash::Sha256);
-    QByteArray iv = QCryptographicHash::hash(pwd,QCryptographicHash::Md5);
-//    QByteArray decode = QByteArray::fromBase64(encription.removePadding(encription.decode(QByteArray::fromBase64(encodedMsg),key,iv)));
-    QByteArray decode = encription.removePadding(encription.decode(QByteArray::fromBase64(encodedMsg),key,iv));
-    
-//    qDebug()<<"Signalling::on_msg var:decode ="<<decode;
-    if(0){
-        qDebug()<<"Signalling::on_msg 收到消息"<<(QString)decode;
-    }
-    
-    //解析JSON
-    QJsonObject json;
-    QJsonDocument jd = QJsonDocument::fromJson(decode);
-    if(!jd.isObject()){
-        qCritical()<<"Error:Signalling::on_msg : It's not an object";
+void Signalling::mqttReadyRead(QByteArray msg){
+    msg=decode(msg);
+    if(msg.size()<(qsizetype)sizeof(BasicPackage)){//包括解密失败的情况
+        ncritical<<"Invalid MQTT Payload:"<<msg;
         return;
     }
-    json = jd.object();
+    BasicPackage bp;
+    memcpy(&bp,msg.constData(),sizeof(bp));
+    bp.port=qFromBigEndian(bp.port);
+    bp.type=qFromBigEndian(bp.type);
+    bp.flag=qFromBigEndian(bp.flag);
+    QString description = msg.mid(sizeof(bp));;
     
-    //验证用户
-    if(QByteArray::fromBase64(json["user"].toString().toUtf8()) != user_name.toUtf8()){
-        qCritical()<<QString("Error:Signalling::on_msg : User '%1' is not allowed").arg(QString(QByteArray::fromBase64(json["user"].toString().toUtf8())));
+    //忽略自己
+    if(bp.ip==public_ip.ip&&bp.port==public_ip.port){
+        ninfo<<"Ignore self";
         return;
     }
-    else if(json["ip"].toString() == user.ip && (quint16)json["port"].toInt() == user.port){
-        qDebug()<<"Good Signalling::on_msg : ignore self";
-        return;
-    }
-    else{
-        qDebug()<<"Good Signalling::on_msg : User is allowed";
-    }
     
-    
-     //解析消息
-    if(1){//处理用户列表      
-        //解析C
-        int c = json["c"].toInt();
-        if(c > 2){//次数足够就退出
-            is_waiting_userList = false;
-            // decltype (user_list) unique_user_list;
-            // for(auto i : user_list){
-            //     if(!unique_user_list.contains(i))unique_user_list.append(i);
-            // }
-            //触发信号
-            emit on_userlist_updata(/*unique_*/user_list);
+    //解析消息
+    if(bp.type == RegisterOnline){//注册上线，回复DeviceInfo
+        BasicPackage response;
+        memset(&response,0,sizeof(response));
+        response.type=qToBigEndian((int)DeviceInfo);
+        response.flag=qToBigEndian(public_ip.flag);
+        strcpy(response.ip,public_ip.ip.toStdString().c_str());
+        response.port=qToBigEndian(public_ip.port);
+        QByteArray buf;
+        buf.resize(sizeof(response));
+        memcpy(buf.data(),&response,sizeof(response));
+        buf.append(public_ip.description.toUtf8());
+        client->publish(subscription->topic().filter(),encode(buf),2);
+        //添加设备
+        
+    }
+    if(bp.type == DeviceInfo){//收到DeviceInfo，任何情况都添加或更新设备
+        device dev;
+        dev.ip=bp.ip;
+        dev.port=bp.port;
+        dev.flag=bp.flag;
+        dev.description=description;
+        //添加、触发信号
+        devid_t devid = getIdByDevice(dev);
+        if(!clients.contains(devid)){//没有这个设备
+            clients.insert(devid,dev);
+            emit deviceUpdated();//必需先触发
+            emit deviceOnline(devid);
+        }
+        else if(clients[devid].toFullString() != dev.toFullString()){//不使用重载的==，因为需要比较附加信息
+            clients[devid]=dev;//更新设备
+            emit deviceUpdated();//只触发这个
+        }
+    }
+    if(bp.type == RegisterOffline){
+        device dev;
+        dev.ip=bp.ip;
+        dev.port=bp.port;
+        if(!clients.contains(getIdByDevice(dev))){//允许使用，因为deviceId只和ip、port有关
+            ncritical<<"啊哦，真遗憾，居然等设备下线的时候才知道这个设备存在";
             return;
         }
-        
-        if(json["request"] == "get_user_list" && json.contains("ip") && json.contains("port")){//请求用户列表
-//            qDebug()<<"进入get_user_list";
-            Communication::device usr = {json["ip"].toString(),(quint16)json["port"].toInt(),json["description"].toString(),json["userflag"].toInt()};
-            if(true/*!user_list.contains(usr)*/ /*&& !(usr == this->user)*/){//不重复
-                //调试
-                if(0){
-                    foreach(auto item,user_list)qDebug()<<item;
-                }
-                user_list.insert(getIdByDevice(usr),usr);
-                //调试
-                if(0){
-                    foreach(auto item,user_list)qDebug()<<item;
-                }
-                
-                //发送消息准备
-                QJsonObject j;
-                QByteArray msg_body;
-//                QDataStream stream(&msg_body,QIODevice::WriteOnly);
-//                stream<<user_list;
-                {//遍历并初始化msg_body
-                    QJsonArray ary;
-                    for(int i=0;i<user_list.size();i++){
-                        QJsonObject object;
-                        object.insert("ip",user_list[i].ip);
-                        object.insert("port",user_list[i].port);
-                        object.insert("description", user_list[i].description);
-                        object.insert("userflag", user_list[i].flag);
-                        ary.append(object);
-                    }
-                    msg_body = QJsonDocument((ary)).toJson();
-                }
-//                qDebug()<<"msg_body"<<msg_body;
-                j.insert("request","user_list");
-                j.insert("body",QString(msg_body.toBase64()));
-                j.insert("user",QString(user_name.toUtf8().toBase64()));
-                j.insert("ip",user.ip);
-                j.insert("port",user.port);
-                j.insert("description",user.description);
-                j.insert("userflag",user.flag);
-                j.insert("c",c+1);
-                QByteArray msg_to_send = QJsonDocument(j).toJson();
-                
-                //加密消息
-                QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
-                QByteArray key = QCryptographicHash::hash(pwd,QCryptographicHash::Sha256);
-                QByteArray iv = QCryptographicHash::hash(pwd,QCryptographicHash::Md5);
-                QByteArray encode = encription.encode(msg_to_send,key,iv).toBase64();
-//                qDebug()<<"Signalling::on_msg var:encode ="<<encode;
-                
-                //发送消息
-                client->publish(QMqttTopicName(topicName),encode);
-                
-                //调试
-                if(0){
-                    foreach(auto item,user_list)qDebug()<<item;
-                }
-                
-                if(c == 1 && 0){
-                    QEventLoop l;
-                    QTimer t;
-                    connect(&t,&QTimer::timeout,&l,&QEventLoop::quit);
-                    t.start(1000);
-                    l.exec();
-                    send_msg_to_get_user_list(c+1);
-                }
-            }
-        }
-        else if(json["request"].toString() == "user_list"){
-            qDebug()<<"进入user_list";
-//            qDebug()<<"12345";
-            Devices pendingList;
-            {//解析pendingList
-                QJsonDocument jd = QJsonDocument::fromJson(QByteArray::fromBase64(json["body"].toString().toUtf8()));
-                if(jd.isArray()){
-                    QJsonArray ary = jd.array();
-                    foreach(auto i,ary){
-                        auto item=i.toObject();
-                        auto dev=device(item["ip"].toString(),(quint16)item["port"].toInt(),item["description"].toString(),item["userflag"].toInt());
-                        pendingList.insert(getIdByDevice(dev),dev);
-                        // Communication::device dev = ();
-                    }
-                }
-            }
-            if(0)foreach(auto item,pendingList){//调试
-                qDebug()<<item;
-            }
-            
-            // foreach(auto item,pendingList){//遍历并合并
-                // if(!user_list.contains(item)){
-                //     user_list.append(item);
-                // }
-                // else{
-                //     user_list[user_list.indexOf(item)]=item;
-                // }
-            // }
-            user_list=pendingList;
-            if(0)foreach(auto item,user_list){//调试
-                qDebug()<<item;
-            }
-            
-            if(0){
-//                QMessageBox *b = new QMessageBox;
-//                b->setText("aaa");
-//                b->open();
-                foreach(auto item , user_list){
-                    qDebug()<<item;
-                }
-            }
-            
-        }
-        else if(json["request"]=="disconnect"){
-            user_list.remove(getIdByDevice({json["ip"].toString(),(quint16)json["port"].toInt()}));
-        }
-        
-//        else{
-//            qWarning()<<"Warning Signalling::on_msg:Unsupport msg:"<<encode;
-//        }
+        clients.remove(getIdByDevice(dev));
+        emit deviceUpdated();
+        emit deviceOffline(getIdByDevice(dev));
     }
-    
-    if(0){
-//        QMessageBox::information(0,"长度",QString::number(user_list.size()));
-    }
-    // //去重
-    // decltype (user_list) unique_user_list;
-    // for(auto i : user_list){
-    //     if(!unique_user_list.contains(i))unique_user_list.append(i);
-    // }
-    //触发信号
-    emit on_userlist_updata(/*unique_*/user_list);
+}
+
+
+QByteArray Signalling::encode(QByteArray data){
+    return Utils::encode(data,password);
+}
+
+
+QByteArray Signalling::decode(QByteArray data){
+    return Utils::decode(data,password);
 }

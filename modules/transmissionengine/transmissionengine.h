@@ -54,7 +54,7 @@ public://公有函数
     QByteArray decode(const QByteArray &msg);               //解密msg并返回解密后的值
     //SPTP协议
     void SPTP_sendTo(int n,QByteArray data);          //自动分包并发送
-    void SPTP_send(QByteArray msg,Devices dst);         //自动规划路径并发送给dst
+    void SPTP_send(QByteArray msg,QSet<devid_t> dst);         //自动规划路径并发送给dst
     bool sendReliableMessage(int dst, QString msg);         //向dst发送可靠消息，阻塞直到对方收到
     QByteArray SPTP_sendCommon(QByteArray msg,int d=-1);    //发送普通二进制消息，返回消息。d输入-3代表不发
     QByteArray SPTP_sendCtrl(QByteArray ctrl,QVariant v=QVariant(),int d=-1);//发送控制消息。返回消息。d输入-3代表不发

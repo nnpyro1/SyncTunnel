@@ -17,7 +17,7 @@ public:
     explicit ViewModel(BusinessLogic *businesslogic,QObject *parent = nullptr);
     
 public slots://以下是直接从BusinessLogic迁移的槽
-    void sendFile(Devices dsts);
+    void sendFile(QSet<devid_t> dsts);
     void on_folder_change(QDir dir);
     void on_settings_saved(QString username_, QString pwd_, QString mqttServer_, 
                            int mqttPort_, QString githubUser_, QString githubPat_, 

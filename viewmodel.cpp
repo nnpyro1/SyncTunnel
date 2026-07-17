@@ -26,7 +26,7 @@ ViewModel::ViewModel(BusinessLogic *businesslogic, QObject *parent) : QObject(pa
 }
 
 
-void ViewModel::sendFile(Devices dsts){
+void ViewModel::sendFile(QSet<devid_t> dsts){
     RUN_IN_CUSTOM_THREAD(bl,bl->sendFile(dsts,incremental_sync_set););
 }
 
