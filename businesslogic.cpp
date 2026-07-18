@@ -486,18 +486,24 @@ void BusinessLogic::init(){
     emit businessEventOccurred(BusinessEvent::GettingDeviceList);
     ninfo<<"var:public ip="<<public_ip;
     //MQTT
-    m_signalling->connectToHost(/*{"broker.emqx.io",1883}*/mqtt_server);
-    m_signalling->subscribe("nnpyro_syncTunnel/user_topics/" + user_name.toUtf8().toBase64());
-    m_signalling->setPwd(pwd.toUtf8());
-    m_signalling->setUser(public_ip,user_name);
-    clients = m_signalling->getUserList();//获取用户列表
+    // m_signalling->connectToHost(/*{"broker.emqx.io",1883}*/mqtt_server);
+    // m_signalling->subscribe("nnpyro_syncTunnel/user_topics/" + user_name.toUtf8().toBase64());
+    // m_signalling->setPwd(pwd.toUtf8());
+    // m_signalling->setUser(public_ip,user_name);
+    // clients = m_signalling->getUserList();//获取用户列表
+    m_signalling->setPublicIp(public_ip);
+    m_signalling->setMqttBroker(mqtt_server.ip,mqtt_server.port);
+    m_signalling->setPassport(user_name,pwd);
+    if(!m_signalling->start()) ncritical<<"Unable to start m_signalling";
+    m_signalling->registerOnline();
+    clients = m_signalling->getAllDevices();
     if(1)foreach(auto i,clients)qDebug()<<i;
 //    emit messageChanged(tr("加载成功"));
     emit deviceListUpdated(clients);
     
     //等待直到用户列表获取完成
-    QEventLoop el1;
-    connect(m_signalling,&Signalling::on_userlist_updata,&el1,&QEventLoop::quit);
+    // QEventLoop el1;
+    // connect(m_signalling,&Signalling::on_userlist_updata,&el1,&QEventLoop::quit);
 //    el1.exec(QEventLoop::ExcludeUserInputEvents);
 //    QCoreApplication::processEvents();
     
@@ -518,8 +524,8 @@ void BusinessLogic::init(){
     connect(m_transmissionengine,&TransmissionEngine::messageChanged,this,[this](QString msg){emit messageChanged(msg);});
     connect(m_transmissionengine,&TransmissionEngine::SPTP_sendFinished,this,[this]{emit businessEventOccurred(BusinessEvent::SendedSuccessfully);playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));});
     connect(m_transmissionengine,&TransmissionEngine::SPTP_ctrlMsgReceived,this,&BusinessLogic::on_SPTP_ctrlMsg_received);
-    connect(m_signalling,&Signalling::on_userlist_updata,this,[this](Devices userl){
-        clients = userl;if(1)foreach(auto i,clients)qDebug()<<i;
+    connect(m_signalling,&Signalling::deviceUpdated,this,[this]{
+        clients = m_signalling->getAllDevices();if(1)foreach(auto i,clients)qDebug()<<i;
         QTimer::singleShot(3000,[this]{
             for(int i=0;i<5;i++){
                 send("{\n    \"hole\":1\n}");
@@ -543,7 +549,7 @@ void BusinessLogic::init(){
 //        if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i.toFullString());}
         emit deviceListUpdated(clients);
     });
-    connect(m_signalling,&Signalling::errorOccurred,this,[=](QString err){emit businessEventOccurred(BusinessEvent::SignallingFailed,{{"error",err}});});
+    // connect(m_signalling,&Signalling::errorOccurred,this,[=](QString err){emit businessEventOccurred(BusinessEvent::SignallingFailed,{{"error",err}});});
     connect(m_transmissionengine,&TransmissionEngine::sendInfoChanged,this,&BusinessLogic::sendInfoChanged);
     //接管remotecontrolengine
     m_remotecontrolengine=new RemoteControlEngine(m_transmissionengine,this);
@@ -632,8 +638,10 @@ void BusinessLogic::destory(){
     if (logFile->isOpen()) {
         logFile->close();
     }
-    if(m_signalling)
-        m_signalling->exit();
+    if(m_signalling->isAvailable()){
+        m_signalling->registerOffline();
+        m_signalling->stop();
+    }
     //销毁对象
     delete m_communication;             m_communication = nullptr;
     delete m_signalling;                m_signalling = nullptr;
@@ -657,6 +665,10 @@ BusinessLogic::Result BusinessLogic::sendFile(QSet<devid_t> dst,QSet<QString> in
 
 
 bool BusinessLogic::checkSkin(BusinessLogic::skinType skin){
+    //调整：
+    return true;
+    //不进行后面
+    
     if(skin<Silver) return true;
     
     //查找请求地址
@@ -979,8 +991,21 @@ BusinessLogic::RSLT BusinessLogic::on_remove_schedule(int index){
 
 
 void BusinessLogic::on_suspended(){
-    if(m_signalling)m_signalling->deleteLater();//自动exit
-    m_signalling=nullptr;//后续禁止使用
+    ninfo<<"应用程序退后台";
+    if(m_signalling){
+        m_signalling->registerOffline();
+        m_signalling->stop();
+    }
+}
+
+
+void BusinessLogic::on_resumed(){//此函数禁止使用。未绑定。
+    ninfo<<"应用程序回到前台";
+    if(m_signalling){
+        m_signalling->start();
+        m_signalling->registerOnline();
+        clients=m_signalling->getAllDevices();
+    }
 }
 
 
@@ -1030,6 +1055,11 @@ void BusinessLogic::on_start_remote(int index){
 
 void BusinessLogic::on_stop_remote(){
     m_remotecontrolengine->stopControl();
+}
+
+
+device BusinessLogic::getPublicIp(){
+    return public_ip;
 }
 
 

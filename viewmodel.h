@@ -40,6 +40,8 @@ public slots://以下是直接从BusinessLogic迁移的槽
     void on_start_remote(int index);                                //开始远程控制
     void on_stop_remote();
     
+    device getPublicIp();                                           //从BL获取公网IP
+    
     void on_debug(QVariantMap args={});                             //调试
     
 signals:
@@ -52,7 +54,6 @@ signals:
     void remoteControlEngineUpdated(RemoteControlEngine *eng);
     
 public://公有Observable
-    // ### 注意，这些OBS都没有在VM里面调用use。请编译前加上代码并删除此行。 ###
     OBS(QString,status);
     OBS(QString,styleSheet);
     OBS(int,currentSkinIndex);

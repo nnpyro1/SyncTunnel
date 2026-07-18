@@ -146,7 +146,7 @@ QMenu::item:selected{
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <property name="documentMode">
        <bool>false</bool>
@@ -271,7 +271,7 @@ QMenu::item:selected{
           </attribute>
           <column>
            <property name="text">
-            <string>设备用户</string>
+            <string>临时设备ID</string>
            </property>
           </column>
           <column>

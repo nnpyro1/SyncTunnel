@@ -54,9 +54,9 @@ bool Signalling::start(){
 
 
 void Signalling::stop(){
-    registerOffline();
-    subscription->deleteLater();subscription=0;
-    client->deleteLater();client=0;
+    if(isAvailable())registerOffline();
+    if(subscription)subscription->deleteLater();subscription=0;
+    if(client)client->deleteLater();client=0;
 }
 
 
@@ -85,13 +85,23 @@ void Signalling::registerOnline(){
     QByteArray msg;
     msg.resize(sizeof(pk));
     memcpy(msg.data(),&pk,sizeof(pk));
+    msg.append(public_ip.description.toUtf8());
     
     //发送并阻塞直到结果超时
+    ninfo<<"Registering...";
     client->publish(subscription->topic().filter(),encode(msg),2);
     QEventLoop loop;
     connect(&finishTimer,&QTimer::timeout,&loop,&QEventLoop::quit);
     finishTimer.start(5000);
     loop.exec();
+    
+    //添加自己
+    clients.insert(getIdByDevice(public_ip),public_ip);
+}
+
+
+Devices Signalling::getAllDevices(){
+    return clients;
 }
 
 
@@ -111,8 +121,21 @@ void Signalling::registerOffline(){
     memcpy(msg.data(),&pk,sizeof(pk));
     
     //发送
-    client->publish(subscription->topic().filter(),encode(msg),2);
-    QThread::msleep(500);
+    qint32 msgid = client->publish(subscription->topic().filter(),encode(msg),2);
+    ninfo<<"Registering offline.id="<<msgid;
+    // QThread::msleep(500);
+    QEventLoop loop;
+    connect(client,&QMqttClient::messageSent,this,[&](qint32 id){
+        if(id==msgid){loop.quit();}
+    });
+    QTimer::singleShot(5000,&loop,&QEventLoop::quit);
+    loop.exec();
+    ninfo<<"offline.";
+}
+
+
+bool Signalling::isAvailable(){
+    return client&&subscription;
 }
 
 
@@ -149,7 +172,16 @@ void Signalling::mqttReadyRead(QByteArray msg){
         buf.append(public_ip.description.toUtf8());
         client->publish(subscription->topic().filter(),encode(buf),2);
         //添加设备
-        
+        device dev;
+        dev.ip=bp.ip;
+        dev.port=bp.port;
+        dev.flag=bp.flag;
+        dev.description=description;
+        devid_t devid = getIdByDevice(dev);
+        clients.insert(devid,dev);
+        emit deviceUpdated();
+        emit deviceOnline(devid);
+        ninfo<<"Device "<<getStringByDeviceId(devid)<<" "<<dev.toFullString()<<"registered online.";
     }
     if(bp.type == DeviceInfo){//收到DeviceInfo，任何情况都添加或更新设备
         device dev;
@@ -159,6 +191,7 @@ void Signalling::mqttReadyRead(QByteArray msg){
         dev.description=description;
         //添加、触发信号
         devid_t devid = getIdByDevice(dev);
+        ninfo<<"Device "<<getStringByDeviceId(devid)<<" "<<dev.toFullString()<<"replied.";
         if(!clients.contains(devid)){//没有这个设备
             clients.insert(devid,dev);
             emit deviceUpdated();//必需先触发
@@ -180,6 +213,7 @@ void Signalling::mqttReadyRead(QByteArray msg){
         clients.remove(getIdByDevice(dev));
         emit deviceUpdated();
         emit deviceOffline(getIdByDevice(dev));
+        ninfo<<"Device "<<getStringByDeviceId(getIdByDevice(dev))<<" "<<dev.toFullString()<<"registered offline.";
     }
 }
 

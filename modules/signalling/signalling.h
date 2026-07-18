@@ -23,6 +23,8 @@ public:
     Devices getAllDevices();
     void registerOffline();
     
+    bool isAvailable();
+    
 signals:
     void deviceOnline(devid_t d);
     void deviceOffline(devid_t d);

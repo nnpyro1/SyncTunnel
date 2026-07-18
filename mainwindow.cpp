@@ -1839,9 +1839,9 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     connect(ui->pushButton_file_deleteCurrentSchedule,&QPushButton::clicked,this,[this]{int i=ui->listWidget_schedule->currentRow();if(i==-1){QMessageBox::warning(this,tr("删除"),tr("请先选中一个日程"));return;}
         schedule_list[i]->deleteLater();schedule_list.removeAt(i);ui->listWidget_schedule->clear();foreach(auto i,schedule_list)ui->listWidget_schedule->addItem(i->toString());
         QFile f("config/schedule.dat");f.open(QFile::WriteOnly);QDataStream d(&f);foreach(auto i,schedule_list)d<<(*i);f.close();});
-    connect(qApp,&QApplication::applicationStateChanged,this,[vm,this](Qt::ApplicationState st){androidRun{
+    connect(qApp,&QApplication::applicationStateChanged,this,[vm,this](Qt::ApplicationState st){androidComp({
             if(st == Qt::ApplicationSuspended){ninfo<<"应用程序退后台，自动关闭";vm->on_suspended();}
-            else if(st==Qt::ApplicationActive){Utils::restart();}}});
+            else if(st==Qt::ApplicationActive){Utils::restart();}})});
     connect(ui->actionExit_Application,&QAction::triggered,this,&MainWindow::close);
     connect(ui->pushButton_settings_console,&QPushButton::clicked,this,[this]{if(!QDir("tools/").exists())QDir().mkpath("tools/");QFile::copy(":/rc/bin/Alacritty.exe","tools/Alacritty.exe");QProcess::startDetached("tools/Alacritty.exe",QStringList()<<"-e"<<QApplication::applicationFilePath()<<QApplication::arguments()<<"CON_MODE");close();});
     connect(ui->commandLinkButton_route_page2,&QCommandLinkButton::clicked,this,[this]{ui->tabWidget->setCurrentIndex(2);});
@@ -1904,10 +1904,11 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
         ui->tableWidget_deviceList->setRowCount(0);
         auto clients=vm->o_clients.get();
         vm->o_status="设备列表更新成功";
+        auto public_ip=vm->getPublicIp();
         foreach(auto client,clients){
             int row_index=ui->tableWidget_deviceList->rowCount();
             ui->tableWidget_deviceList->insertRow(row_index);
-            ui->tableWidget_deviceList->setItem(row_index,0,new QTableWidgetItem(QString("(Current)")+(client.flag==Communication::DFHNDevice?"(DFHN)":"")));
+            ui->tableWidget_deviceList->setItem(row_index,0,new QTableWidgetItem(getStringByDeviceId(getIdByDevice(client))+(client==public_ip?"(本机)":"")+(client.flag==Communication::DFHNDevice?"(DFHN)":"")));
             ui->tableWidget_deviceList->setItem(row_index,1,new QTableWidgetItem((client.flag==Communication::DFHNDevice?"**":"")+client.ip));
             ui->tableWidget_deviceList->setItem(row_index,2,new QTableWidgetItem(QString::number(client.port)));
             ui->tableWidget_deviceList->setItem(row_index,3,new QTableWidgetItem((client.flag==Communication::DFHNDevice?"**":"")+client.description+"("+QMetaEnum::fromType<Communication::DeviceFlag>().valueToKey(client.flag)+")"));
@@ -3489,7 +3490,7 @@ void MainWindow::closeEvent(QCloseEvent *event){
     if(event->spontaneous()){//用户自主点击
         if((QGuiApplication::keyboardModifiers() & Qt::ControlModifier)!=0){//按下Ctrl
 //            m_signalling->exit();//发布关闭消息
-            vm->on_suspended();//发布关闭消息
+            // vm->on_suspended();//发布关闭消息
             event->accept();
         }
         else{
@@ -3499,7 +3500,7 @@ void MainWindow::closeEvent(QCloseEvent *event){
         }
     }
     else{//程序中的close
-        vm->on_suspended();//发布关闭消息
+        // vm->on_suspended();//发布关闭消息
         event->accept();
     }
 }

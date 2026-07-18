@@ -122,12 +122,15 @@ public slots://以下是公有槽，需在外部联接
     void on_add_schedule(Schedule *schedule);                       //增加日程
     BusinessLogic::RSLT on_remove_schedule(int index);              //删除日程
     void on_suspended();                                            //退后台
+    void on_resumed();                                              //进入前台
     void on_hangup_to_dfhn();                                       //挂起到DFHN
     void on_download_from_dfhn();                                   //从DFHN上面下
     void on_restart_all();                                          //重启全部
     RemoteControlEngine *getRemoteControlEngine();                  //获取远程控制引擎指针用于初始化RemoteControlWidget
     void on_start_remote(int index);                                //开始远控
     void on_stop_remote();                                          //停止远控
+    
+    device getPublicIp();
     
     void on_debug([[maybe_unused]]QVariant dbgArgs={});             //调试
     

@@ -99,6 +99,15 @@ void ViewModel::on_stop_remote(){
     RUN_IN_CUSTOM_THREAD(bl,bl->on_stop_remote(););
 }
 
+
+device ViewModel::getPublicIp(){
+    device public_ip;
+    QMetaObject::invokeMethod(bl,[=,&public_ip]{
+        public_ip=bl->getPublicIp();
+    },Qt::BlockingQueuedConnection);
+    return public_ip;
+}
+
 void ViewModel::on_debug(QVariantMap args){
     RUN_IN_CUSTOM_THREAD(bl,bl->on_debug(args););
 }
