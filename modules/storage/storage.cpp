@@ -1,326 +1,115 @@
 #include "storage.h"
-#include <QEventLoop>
-#include <QTimer>
-#include <QUrlQuery>
-#include <../../libary/Qt-AES/qaesencryption.h>
-#include <QJsonObject>
-#include <QJsonDocument>
-#include <QProgressDialog>
+#include "qeventloop.h"
+#include "qjsondocument.h"
+#include "qjsonobject.h"
+#include "qnetworkreply.h"
+#include "utils.h"
 
-
-Storage::Storage(){
+Storage::Storage(QObject *parent)
+    : QObject{parent}
+    ,manager(new QNetworkAccessManager(this))
+{
     
 }
+
 
 Storage::~Storage(){
-    
-}
-
-
-/*bool Storage::upload(QByteArray file){
-    QNetworkAccessManager manager;
-    QNetworkRequest request(QUrl("https://file.io"));
-    QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType,this);
-    
-    //构造请求体
-    QHttpPart p1;
-    p1.setHeader(QNetworkRequest::ContentDispositionHeader,QVariant(QString("form-data; name=\"file\"; filename=\"file\"")));
-    p1.setBody(file);
-    multiPart->append(p1);
-    request.setRawHeader("User-Agent", "SyncTunnel-File Hang-up Service");
-    
-    //发起请求
-    QNetworkReply *reply = manager.post(request,multiPart);
-    multiPart->setParent(reply);
-    
-    //等待回复
-    QEventLoop loop;
-    connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-    QTimer timer;
-    connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
-    timer.start(5000);
-    loop.exec();
-    
-    //处理请求和错误
-    QString result;
-    if(reply->error() != QNetworkReply::NoError){
-        qCritical()<<QString("Storage::upload(QByteArray) NetworkError. Details:%1").arg(reply->errorString());
-        result="<NETWORK ERROR>return value:"+reply->readAll();
-        qDebug()<<"|__var:result:"<<result;
-        reply->deleteLater();
-        return  "";
-    }
-    result = reply->readAll();
-    reply->deleteLater();
-    return result;
-}*/
-
-/*bool Storage::upload(const QByteArray &file){
-    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-    
-    //上传文件
-    QNetworkRequest request(QUrl("https://www.file.io"));
-    QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType,this);
-    QHttpPart part;
-    part.setHeader(QNetworkRequest::ContentDispositionHeader,QString("form-data; name=\"file\""));
-    part.setBody(file);
-    multiPart->append(part);
-    QNetworkReply *reply = manager->post(request,multiPart);
-    
-    //等待上传完成
-    QEventLoop loop;
-    connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-    loop.exec();
-    
-    //解析
-    if(reply->error() != QNetworkReply::NoError){
-        qCritical()<<"Storage::upload Error:Cannot upload file.Details:"<<reply->errorString();
-        return false;
-    }
-    
-    QByteArray response=reply->readAll();
-    qDebug()<<"Storage::upload Debug var:response="<<response;
-}*/
-
-/*bool Storage::upload(const QByteArray &file){
-    QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-    
-    //加密文件
-    QAESEncryption encryption(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray encoded = encryption.encode(file,QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256),QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Md5));
-    
-    //上传文件
-    QNetworkRequest request(QUrl("https://textdb.online/update"));
-    QUrlQuery query;
-    query.addQueryItem("key","nnpyro-SyncTunnel-FileHangup-userdata_"+username);
-    query.addQueryItem("value","");
-    
-}*/
-
-bool Storage::upload(const QByteArray &file){    
-    //文件分片
-    const int SPC = 1024 /** 1024*/  *1024 * 0.75;
-//    const int SPC = 64;
-    QList<QByteArray> list;
-    for(int startpos=0;startpos<file.size();){
-        list.append(file.mid(startpos,qMin(SPC,file.size()-startpos)));
-        startpos += SPC;
-    }
-    
-    //创建对象
-    QNetworkAccessManager *manager = new QNetworkAccessManager;
-    QNetworkRequest request;
-    QProgressDialog pg;
-    pg.setRange(0,list.size()-1);
-    pg.setWindowTitle("挂起文件");
-    pg.setLabelText("正在挂起文件");
-    pg.setCancelButtonText(nullptr);
-    pg.setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowMinimizeButtonHint);
-    pg.resize(500,100);
-    pg.show();
-    
-    //构造请求
-    request.setRawHeader("Authorization","Basic "+(QString("%1:%2").arg(username,pwd).toUtf8().toBase64()));
-    request.setHeader(QNetworkRequest::UserAgentHeader,"NNPYRO SyncTunnel FileHangUp Service");
-    QJsonObject json;
-    json["message"]="这个文件是SyncTunnel的文件挂起服务所需的文件，请不要修改或删除";
-    
-    
-    
-    //设置统计文件
-    request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/info-%2.txt").arg(username).arg(QString(QCryptographicHash::hash(userID.toUtf8(),QCryptographicHash::Sha1).toHex()))));
-    json["content"]=QString(QString::number(list.length()).toUtf8().toBase64());
-    QNetworkReply *reply = manager->put(request,QJsonDocument(json).toJson());
-    
-    //等待响应
-    QEventLoop loop;
-    connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-    loop.exec();
-    
-    if(1)qDebug()<<"Storage::upload Debug var:reply="<<reply->readAll();
-    if(reply->error() != QNetworkReply::NoError){
-        qDebug()<<"Storage::upload Error:"<<reply->errorString();
-        manager->deleteLater();
-        return false;
-    }
-    reply->deleteLater();
-    
-    
-    
-    int count=0;
-    const int DELAY_LOOP = 1;
-    foreach(auto i , list){
-        request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/%2-%3.nprivate").arg(username).arg(count).arg(QString(QCryptographicHash::hash(userID.toUtf8(),QCryptographicHash::Sha1).toHex()))));
-        json["content"]=QString((i).toBase64());
-        QNetworkReply *reply = manager->put(request,QJsonDocument(json).toJson());
-        pg.setValue(count);
-        
-        //等待响应
-        if(count%DELAY_LOOP==0||count<2){
-            QEventLoop loop;
-            connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-            loop.exec();
-        }
-        
-        if(1)qDebug()<<"Storage::upload Debug var:reply="<<reply->readAll();
-        if(reply->error() != QNetworkReply::NoError){
-            qDebug()<<"Storage::upload Error:"<<reply->errorString();
-            manager->deleteLater();
-            return false;
-        }
-        count++;
-        reply->deleteLater();
-    }
-    
-    return true;
-}
-
-
-bool Storage::remove(){
-    bool flag = true;
-    //获取文件个数
-    QNetworkAccessManager *manager = new QNetworkAccessManager;
-    QNetworkRequest request;
-    request.setRawHeader("Authorization","Basic "+(QString("%1:%2").arg(username,pwd).toUtf8().toBase64()));
-    request.setHeader(QNetworkRequest::UserAgentHeader,"NNPYRO SyncTunnel FileHangUp Service");
-    QJsonObject json;
-    json["message"] = "SyncTunnel应用程序自动删除";
-    request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/info-%2.txt").arg(username).arg(QString(QCryptographicHash::hash(userID.toUtf8(),QCryptographicHash::Sha1).toHex()))));
-    QNetworkReply *reply = manager->get(request);
-    //等待响应
-    QEventLoop loop;
-    connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-    loop.exec();
-    //解析
-    int file_total = QString(QByteArray::fromBase64(QJsonDocument::fromJson(reply->readAll()).object()["content"].toString().toUtf8())).toInt();
-    
-    QProgressDialog pg;
-    pg.setRange(0,file_total-1);
-    pg.setWindowTitle("挂起文件");
-    pg.setLabelText("正在操作……\n\n您现在可以使用刚刚下载的文件");
-    pg.setCancelButtonText(nullptr);
-    pg.setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowMinimizeButtonHint);
-    pg.resize(500,100);
-    pg.show();
-    
-    
-    //获取文件sha&删除文件
-    for(int i=0;i<file_total;i++){
-        request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/%2-%3.nprivate").arg(username).arg(i).arg(QString(QCryptographicHash::hash(userID.toUtf8(),QCryptographicHash::Sha1).toHex()))));
-        QNetworkReply *reply = manager->get(request);
-        QEventLoop loop;
-        connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-        loop.exec();
-        if(reply->error()!=QNetworkReply::NoError){
-            qDebug()<<"Storage::remove error:"<<reply->errorString();
-            flag=false;
-        }
-        //解析文件sha
-        QString sha = QString(QJsonDocument::fromJson(QByteArray(reply->readAll())).object()["sha"].toString());
-        if(sha.isEmpty()){
-            qDebug()<<"Storage::remove:empty sha";
-            flag=false;
-        }
-        //删除文件
-        json["sha"]=sha;
-        reply->deleteLater();
-        reply = manager->sendCustomRequest(request,"DELETE",QJsonDocument(json).toJson());
-        QEventLoop loop2;
-        connect(reply,&QNetworkReply::finished,&loop2,&QEventLoop::quit);
-        loop2.exec();
-        if(reply->error()!=QNetworkReply::NoError){
-            qDebug()<<"Storage::remove error:"<<reply->errorString();
-            flag=false; 
-        }
-        reply->deleteLater();
-        pg.setValue(i);
-    }
-    
-    
-    //删除info.txt
-    request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/info-%2.txt").arg(username).arg(QString(QCryptographicHash::hash(userID.toUtf8(),QCryptographicHash::Sha1).toHex()))));
-    reply = manager->get(request);
-    QEventLoop loop2;
-    connect(reply,&QNetworkReply::finished,&loop2,&QEventLoop::quit);
-    loop2.exec();
-    if(reply->error()!=QNetworkReply::NoError){
-        qDebug()<<"Storage::remove error:"<<reply->errorString();
-        flag=false;
-    }
-    //解析文件sha
-    QString sha = QString(QJsonDocument::fromJson(QByteArray(reply->readAll())).object()["sha"].toString());
-    if(sha.isEmpty()){
-        qDebug()<<"Storage::remove:empty sha";
-        flag=false;
-    }
-    //删除文件
-    json["sha"]=sha;
-    reply->deleteLater();
-    reply = manager->sendCustomRequest(request,"DELETE",QJsonDocument(json).toJson());
-    QEventLoop loop3;
-    connect(reply,&QNetworkReply::finished,&loop3,&QEventLoop::quit);
-    loop3.exec();
-    if(reply->error()!=QNetworkReply::NoError){
-        qDebug()<<"Storage::remove error:"<<reply->errorString();
-        flag=false; 
-    }
-    reply->deleteLater();
-    
-    return flag;
-}
-
-
-QByteArray Storage::get(){
-    QNetworkAccessManager *manager = new QNetworkAccessManager;
-    QNetworkRequest request;
-    
-    //获取info.txt
-    //构造请求
-    request.setRawHeader("Authorization","Basic "+(QString("%1:%2").arg(username,pwd).toUtf8().toBase64()));   
-    request.setHeader(QNetworkRequest::UserAgentHeader,"NNPYRO SyncTunnel FileHangUp Service");
-    request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/info-%2.txt").arg(username).arg(QString(QCryptographicHash::hash(userID.toUtf8(),QCryptographicHash::Sha1).toHex()))));
-    QNetworkReply *reply = manager->get(request);
-    
-    //处理响应
-    QEventLoop loop;
-    connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-    loop.exec();
-    
-    //分别请求每个文件
-    QByteArray return_value;
-    int total = QString(QByteArray::fromBase64(QJsonDocument::fromJson(reply->readAll()).object()["content"].toString().toUtf8())).toInt();
-    
-    QProgressDialog pg;
-    pg.setRange(0,total);
-    pg.setWindowTitle("挂起文件");
-    pg.setLabelText("正在下载挂起的文件");
-    pg.setCancelButtonText(nullptr);
-    pg.setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowMinimizeButtonHint);
-    pg.resize(500,100);
-    pg.show();
-    
-    for(int i=0;i<total;i++){
-        pg.setValue(i);
-        request.setUrl(QUrl(QString("https://api.github.com/repos/%1/synctunnel-filehangup/contents/%2-%3.nprivate").arg(username).arg(i).arg(QString(QCryptographicHash::hash(userID.toUtf8(),QCryptographicHash::Sha1).toHex()))));
-        QNetworkReply *reply = manager->get(request);
-        QEventLoop loop;
-        connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-        loop.exec();
-        if(reply->error()!=QNetworkReply::NoError){
-            qDebug()<<"Storage::get error:"<<reply->errorString();
-        }
-        //解析文件
-        QByteArray response = reply->readAll();
-        qDebug()<<"Storage::get var:response="<<response;
-        QByteArray content = QByteArray::fromBase64(QJsonDocument::fromJson(QByteArray(response)).object()["content"].toString().toUtf8());
-        if(content.isEmpty()){
-            qDebug()<<"Storage::get:empty content";
-        }
-        return_value.append(content);
-        reply->deleteLater();
-    }
-    
     manager->deleteLater();
-    reply->deleteLater();
-    return return_value;
+}
+
+
+void Storage::setPassport(QString username, QString pwd){
+    this->username=username;
+    this->pwd=pwd;
+    userPassport=QCryptographicHash::hash((username+"@"+pwd).toUtf8(),QCryptographicHash::Sha256).toHex();
+}
+
+
+Result Storage::upload(QByteArray data){
+    QObject memoryManager;
+    //发送init请求
+    QNetworkRequest req;
+    req.setUrl(QUrl("https://storage.to/api/upload/init"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader,"application/json");
+    req.setRawHeader("X-Visitor-Token","synctunnel_visitor_token-"+userPassport.toUtf8());
+    QJsonObject body;
+    body.insert("filename",userPassport+"-encrypted.bin");
+    body.insert("content_type","application/octet-stream");
+    body.insert("size",data.size());
+    QNetworkReply *reply = manager->post(req, QJsonDocument(body).toJson());
+    reply->setParent(&memoryManager);
+    emit progressUpdated(Init,0.01);
+    //等待直到请求完成
+    QEventLoop loop;
+    connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
+    loop.exec();
+    //错误处理
+    if(reply->error()!=QNetworkReply::NoError){
+        return Result("Init\n"+reply->errorString());
+    }
+    auto response = QJsonDocument::fromJson(reply->readAll()).object();
+    if(response["success"] != true){
+        return Result("Init\n"+reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toString()+"\n"+response["error"].toString());
+    }
+    //解析请求
+    if(response["type"]=="single"){//单分片上传
+        return uploadSmallFile(data,QUrl(response["upload_url"].toString()),response["r2_key"].toString());
+    }
+    if(response["type"]=="multipart"){//单分片上传
+        auto iurl = response["inital_urls"].toObject();
+        QList<QUrl> initalUrlList;
+        initalUrlList.resize(iurl.size());
+        for(auto key:iurl.keys()){
+            initalUrlList[key.toInt()-1]=iurl[key].toString();
+        }
+        return uploadLargeFile(data,response["r2_key"].toString(),response["upload_id"].toString(),response["part_size"].toInt(),response["total_parts"].toInt(),initalUrlList,response["owner_token"].toString());
+    }
+    else{
+        return Result("Init\nUnknown "+response["type"].toString());
+    }
+}
+
+
+QByteArray Storage::download(){
+    
+}
+
+
+QByteArray Storage::encode(QByteArray data){
+    return Utils::encode(data,pwd);
+}
+
+
+QByteArray Storage::decode(QByteArray data){
+    return Utils::decode(data,pwd);
+}
+
+
+Result Storage::uploadSmallFile(QByteArray data,QUrl uploadUrl,QString r2Key){
+    
+}
+
+
+Result Storage::uploadLargeFile(QByteArray data,QString r2Key,QString uploadId,quint32 partSize,quint32 totalParts,QList<QUrl> initalUrls,QString ownerToken){
+    
+}
+
+
+Result Storage::uploadToCf(QByteArray data, QUrl uploadUrl, QByteArray *outputETag){
+    QObject memoryManager;
+    QNetworkRequest req(uploadUrl);
+    req.setHeader(req.ContentTypeHeader,"application/octet-stream");
+    auto reply = manager->put(req,data);
+    reply->setParent(&memoryManager);
+    //等待结果
+    QEventLoop loop;
+    connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
+    connect(reply,&QNetworkReply::uploadProgress,&memoryManager,[this](qint64 d,qint64 t){emit stepProgressUpdated(d*1./t);});
+    loop.exec();
+    //错误处理
+    if(reply->error()!=reply->NoError){
+        return Result("uploadToCf\n"+reply->errorString());
+    }
+    //数据处理
+    //###
 }

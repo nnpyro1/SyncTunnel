@@ -1,28 +1,50 @@
-#pragma once
+#ifndef STORAGE_H
+#define STORAGE_H
 
+#include "general.h"
+#include "qnetworkaccessmanager.h"
 #include <QObject>
-#include <QNetworkAccessManager>
-#include <QNetworkRequest>
-#include <QNetworkReply>
-#include <QHttpMultiPart>
-
 
 class Storage : public QObject
 {
     Q_OBJECT
 public:
-    Storage();
+    enum ProcessingState{
+        Idle,
+        //上传文件
+        Init,
+    };
+    Q_ENUM(ProcessingState)
+    
+    explicit Storage(QObject *parent = nullptr);
     virtual ~Storage();
     
-public://公有函数
-    inline void setUser(QString usr,QString p){username=usr;pwd=p;}             //设置用户
-    inline void setUserId(QString id){userID=id;}
-    bool upload(const QByteArray &file);                                        //上传文件并返回成功情况
-    bool remove();                                                              //删除所有文件
-    QByteArray get();                                                           //获取但不删除
+    void setPassport(QString username,QString pwd);
     
-private://私有对象&变量
-    QString username;
-    QString pwd;
-    QString userID;
+    Result upload(QByteArray data);
+    QByteArray download();
+    
+signals:
+    void progressUpdated(Storage::ProcessingState state,double progress);
+    
+protected:
+    QByteArray encode(QByteArray data);
+    QByteArray decode(QByteArray data);
+    
+    Result uploadSmallFile(QByteArray data,QUrl uploadUrl,QString r2Key); 
+    Result uploadLargeFile(QByteArray data,QString r2Key,QString uploadId,quint32 partSize,quint32 totalParts,QList<QUrl> initalUrls,QString ownerToken);
+    
+    Result uploadToCf(QByteArray data,QUrl uploadUrl,QByteArray *outputETag = nullptr);
+    
+protected:
+    Q_SIGNAL void stepProgressUpdated(double progress);
+    
+protected:
+    QNetworkAccessManager *manager;
+    QString username,pwd;
+    QString userPassport;
+    
+    const QString URL_KV = "https://mantledb.sh/v2";
 };
+
+#endif // STORAGE_H

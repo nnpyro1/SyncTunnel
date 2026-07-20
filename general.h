@@ -83,4 +83,14 @@ inline bool operator<(QDir left,QDir right){
 #endif
 #endif
 
+
+//自定义类型
+struct Result{
+    bool is_succeeded;
+    QString errorMessage;
+    
+    Result():is_succeeded(true),errorMessage(QString()){}
+    Result(QString errorMessage):is_succeeded(false),errorMessage(errorMessage){}
+};
+
 #endif // GENERAL_H
