@@ -1,4 +1,6 @@
 #include "businesslogic.h"
+#include "qmetaobject.h"
+#include "qnetworkreply.h"
 #include <QDir>
 #include <core/basic/utils.h>
 #ifdef Q_OS_WIN
@@ -450,6 +452,10 @@ void BusinessLogic::init(){
         }
     });
 //    connect(ui->actionRestart_all_applications,&QAction::triggered,this,[this]{m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);});
+    connect(m_storage,&Storage::progressUpdated,this,[this](Storage::ProcessingState st,double progress){
+        ninfo<<"Step:"<<QMetaEnum::fromType<Storage::ProcessingState>().valueToKey(st)<<",Progress:"<<progress*100<<"%";
+        emit businessEventOccurred(BusinessEvent::FileUploadProgressUpdated,{{"step",(int)st},{"progress",progress}});
+    });
     
     //目录显示
     current_dir = QDir("files/");
@@ -512,8 +518,9 @@ void BusinessLogic::init(){
 //    if(1)foreach(auto i,clients)ui->textBrowser_debug1->append(i);
     
     //设置文件挂起
-    m_storage->setUser(user_github_name,user_github_PAT);
-    m_storage->setUserId(user_name);
+    // m_storage->setUser(user_github_name,user_github_PAT);
+    // m_storage->setUserId(user_name);
+    m_storage->setPassport(user_name,pwd);
     
     //接管communicaion
     ndb<<"接管communication";
@@ -889,11 +896,20 @@ void BusinessLogic::on_hangup(){ //在找到可用替代方案之前，禁止文
 //        emit messageChanged(tr("文件挂起失败"));
 //        messageBoxRequested("文件挂起",tr("文件挂起失败！\n\n可能是由于网络波动、服务器关闭等原因。\n文件不能重复挂起，如果第一次文件挂起成功那么第二次重复挂起必定失败。建议检查文件挂起状态是否为“已挂起”。\nGitHub限制每小时最多5000请求，请勿频繁操作文件。（解决办法参见帮助文档）\n\n详细信息参见帮助文档。"),MessageBoxType::Critical);
 //    }
+
+    QByteArray fileContent = encode(Utils::mergeFile(QDir(syncFolder)));
+    auto result = m_storage->upload(/*fileContent*/"12345上山打老虎");
+    QVariantMap map;
+    if(!result.is_succeeded){
+        map["error"]=result.errorMessage;
+    }
+    emit businessEventOccurred(BusinessEvent::FileUploadingFinished,map);
 }
 
 
 void BusinessLogic::on_download(){
 //    emit messageBoxRequested("文件挂起","现在文件挂起功能非常的坏，强烈不建议使用，大概率失败、卡死、闪退、崩溃,所以还是别用了，考虑一下DFHN（详见设置）作为替代品",MessageBoxType::Information);
+    emit businessEventOccurred(BusinessEvent::FileUploadingFinished,{{"error","开发者偷了点懒，目前这个功能还没有编完~\n解决方案1:上传小于50MB的文件\n解决方案2::可以到Github上给本项目贡献一个PR来完善这个功能"}});
 }
 
 

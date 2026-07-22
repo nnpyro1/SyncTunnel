@@ -116,5 +116,16 @@ inline devid_t getIdByDevice(Communication::device dev){
     return (qHash(dev.ip+"@"+QString::number(dev.port))&0x7FFFFFFF);
 }
 inline QString getStringByDeviceId(devid_t devId){
-    return QString(QByteArray((char*)(&devId),sizeof(devId)).toBase64(QByteArray::OmitTrailingEquals));
+    QByteArray di('\0',sizeof(devId));
+    memcpy(di.data(),&devId,sizeof(devId));
+    return QString(di.toBase64(QByteArray::OmitTrailingEquals));
+}
+inline devid_t getIdByString(QString str){
+    auto d = QByteArray::fromBase64(str.toUtf8());
+    if(d.size()!=sizeof(devid_t)){
+        return 0;
+    }
+    devid_t ret;
+    memcpy(&ret,d.constData(),sizeof(ret));
+    return ret;
 }

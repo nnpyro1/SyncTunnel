@@ -145,6 +145,9 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
     case BusinessLogic::BusinessEvent::CurrentDirUpdated:
         o_current_dir=QDir(map["value"].toString());
         break;
+    case BusinessLogic::BusinessEvent::FileUploadProgressUpdated:
+        o_status=QString("正在挂起。当前步骤:")+QMetaEnum::fromType<Storage::ProcessingState>().valueToKey(map["step"].toInt())+"进度:"+QString::number(map["progress"].toDouble()*100)+"%";
+        break;
     //状态更新/提示类（可选提供参数，详见调用处）
     case BusinessLogic::BusinessEvent::PremiumUiUnauthorized:
         emit messageBoxRequested("限定UI","您无权使用限定UI！",BusinessLogic::MessageBoxType::Warning);
@@ -210,6 +213,14 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
         break;
     case BusinessLogic::BusinessEvent::Debug:
         emit debugSignal(map);
+        break;
+    case BusinessLogic::BusinessEvent::FileUploadingFinished:
+        if(map.contains("error")){
+            emit messageBoxRequested("操作失败","您刚刚的文件挂起（取下挂起的文件）操作出现错误。\n\n错误详细信息与位置\n错误位置:"+map["error"].toString(),BusinessLogic::MessageBoxType::Critical);
+            o_status="失败";
+            break;
+        }
+        o_status="完成";
         break;
     }
 }

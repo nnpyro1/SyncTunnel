@@ -13,6 +13,9 @@ public:
         Idle,
         //上传文件
         Init,
+        Upload,
+        Confirm,
+        SetDownloadUrl,
     };
     Q_ENUM(ProcessingState)
     
@@ -34,8 +37,14 @@ protected:
     Result uploadSmallFile(QByteArray data,QUrl uploadUrl,QString r2Key); 
     Result uploadLargeFile(QByteArray data,QString r2Key,QString uploadId,quint32 partSize,quint32 totalParts,QList<QUrl> initalUrls,QString ownerToken);
     
-    Result uploadToCf(QByteArray data,QUrl uploadUrl,QByteArray *outputETag = nullptr);
+    Result uploadToCf(QByteArray data,QUrl uploadUrl,QString *outputETag = nullptr);
     
+    Result confirm(QString filename, qsizetype size, QString r2Key, QString *outputFileId=nullptr);
+    
+    Result setDownloadUrl(QUrl downloadUrl);
+    Result getDownloadUrl(QUrl &output);
+    
+    Result setExpiry(int days,QString fileId);
 protected:
     Q_SIGNAL void stepProgressUpdated(double progress);
     

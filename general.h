@@ -91,6 +91,7 @@ struct Result{
     
     Result():is_succeeded(true),errorMessage(QString()){}
     Result(QString errorMessage):is_succeeded(false),errorMessage(errorMessage){}
+    operator bool (){return is_succeeded;}
 };
 
 #endif // GENERAL_H

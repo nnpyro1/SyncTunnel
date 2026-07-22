@@ -1,4 +1,5 @@
 ﻿#include "mainwindow.h"
+#include "qnetworkreply.h"
 #include "ui_mainwindow.h"
 //#include "ui_dialog_deviceList.h"
 #include <QFileInfoList>
@@ -1765,8 +1766,8 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     connect(ui->actionFolder,&QAction::triggered,this,[vm,this]{/*QProcess::startDetached("explorer.exe",QStringList(QDir::toNativeSeparators((current_dir).absolutePath())));*/QDesktopServices::openUrl(QUrl::fromLocalFile(vm->o_current_dir.get().absolutePath()));});
     connect(ui->pushButton_settings_save,&QPushButton::clicked,this,&MainWindow::on_settings_saved);
     connect(ui->actionupload_file,&QAction::triggered,this,[this]{sendFile();});
-//    connect(ui->actionHangup,&QAction::triggered,this,&MainWindow::on_hangup);
-//    connect(ui->actionDownload,&QAction::triggered,this,&MainWindow::on_download);
+   connect(ui->actionHangup,&QAction::triggered,this,&MainWindow::on_hangup);
+   connect(ui->actionDownload,&QAction::triggered,this,&MainWindow::on_download);
 //    connect(ui->actionSync_PAT,&QAction::triggered,this,[this]{
 //        QJsonObject json;json.insert("pat",ui->lineEdit_settings_githubPAT->text());
 //        send(QJsonDocument(json).toJson());
@@ -1807,18 +1808,18 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
 //    connect(ui->actionRemoteCopyFile, &QAction::triggered, this, [this] {int currentRow = ui->tableWidget_deviceList->currentRow();if (currentRow == -1) {QMessageBox::warning(this, "错误","你需要先选中一个设备");return;}copy_remote_file(currentRow);});
 //    connect(ui->actionSend_message,&QAction::triggered,this,[this]{int index=ui->tableWidget_deviceList->currentRow();if(index==-1){QMessageBox::warning(this,"发送测试消息","请先选中一个设备");return;} QString msg=QInputDialog::getText(this,"发送测试消息","请输入测试消息：");QJsonObject json;json.insert("test_msg",QString(msg.toUtf8()));send(QJsonDocument(json).toJson(),1,index);});
     connect(ui->actionOpen_DriveCrypto,&QAction::triggered,this,[]{QProcess::startDetached("DriveCrypto.exe");});
-    connect(ui->pushButton_settings_getDefaultPAT,&QPushButton::clicked,this,[this]{
-        QNetworkAccessManager *manager = new QNetworkAccessManager(this);
-        QNetworkRequest request;
-        request.setUrl(QUrl("https://nnpyro.netlify.app/synctunnel-interface/github_pat.txt"));
-        request.setHeader(QNetworkRequest::UserAgentHeader,"nnpyro SyncTunnel vbeta-x.x");
-        QNetworkReply *reply=manager->get(request);
-        QEventLoop loop;
-        connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
-        loop.exec();
-        if(reply->error() != QNetworkReply::NoError) QMessageBox::critical(this,"错误","错误"+reply->errorString());
-        else {ui->lineEdit_settings_githubPAT->setText(reply->readAll());ui->lineEdit_settings_gitubUser->setText("nnpyro1");}
-    });
+    // connect(ui->pushButton_settings_getDefaultPAT,&QPushButton::clicked,this,[this]{
+    //     QNetworkAccessManager *manager = new QNetworkAccessManager(this);
+    //     QNetworkRequest request;
+    //     request.setUrl(QUrl("https://nnpyro.netlify.app/synctunnel-interface/github_pat.txt"));
+    //     request.setHeader(QNetworkRequest::UserAgentHeader,"nnpyro SyncTunnel vbeta-x.x");
+    //     QNetworkReply *reply=manager->get(request);
+    //     QEventLoop loop;
+    //     connect(reply,&QNetworkReply::finished,&loop,&QEventLoop::quit);
+    //     loop.exec();
+    //     if(reply->error() != QNetworkReply::NoError) QMessageBox::critical(this,"错误","错误"+reply->errorString());
+    //     else {ui->lineEdit_settings_githubPAT->setText(reply->readAll());ui->lineEdit_settings_gitubUser->setText("nnpyro1");}
+    // });
     connect(shortcut_debug,&QShortcut::activated,this,[this]{is_debug=is_debug?false:true;restartDebug();QMessageBox::information(this,"debug",QString("您已%1调试模式").arg(is_debug?"进入":"离开"));});
     connect(ui->pushButton_settings_recordLog,&QPushButton::pressed,this,[this]{if(!QDir("logs").exists())QDir("logs").mkpath(".");logFile->open(QFile::WriteOnly);ninfo<<"类"<<this<<"将日志输出重定向到文件";output_to_file = true;qInstallMessageHandler(static_cast<QtMessageHandler>(log));ninfo<<"日志输出重定向成功！";});
     connect(ui->actionAdd_file,&QAction::triggered,this,[vm,this]{QString dir=QFileDialog::getOpenFileName(this);QFile(dir).copy(vm->o_current_dir.get().absolutePath());});
@@ -2116,6 +2117,20 @@ void MainWindow::on_settings_saved(){
                 ui->checkBox_settings_disableNotice->isChecked(),
                 ui->lineEdit_settings_description->text()
     );
+}
+
+
+void MainWindow::on_hangup(){
+    auto btn = QMessageBox::warning(this,"提示","此功能没有完善，挂起的文件甚至无法下载，确认操作?",QMessageBox::Ok|QMessageBox::Cancel);
+    if(btn!=QMessageBox::Ok){
+        return;
+    }
+    vm->on_hangup();
+}
+
+
+void MainWindow::on_download(){
+    vm->on_download();
 }
 
 

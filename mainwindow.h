@@ -122,8 +122,8 @@ private slots://槽函数
 //    void on_SPTP_readyRead(QByteArray msg);     //SPTP协议收到大消息
 //    void on_request_resend();                   //请求重传文件
     void on_settings_saved();                   //设置的保存按钮被点击
-//    void on_hangup();                           //当文件挂起
-//    void on_download();                         //当文件下载
+   void on_hangup();                           //当文件挂起
+   void on_download();                         //当文件下载
 //    void on_proxy();                            //当开始/停止网络加速
     void on_rightclick_deviceList();            //设备列表被右击
     void on_test_rtt();                         //当测试RTT

@@ -51,6 +51,7 @@ public:
         PageIndexUpdated,
         DestoryShutdownBlock,
         CurrentDirUpdated,
+        FileUploadProgressUpdated,
         //状态更新/提示类（可选提供参数，详见调用处）
         PremiumUiUnauthorized,
         GettingPublicIp,
@@ -71,6 +72,7 @@ public:
         SignallingFailed,//需要QString error
         CurrentPathSetFailed,
         Debug,//调试用，可能需参数
+        FileUploadingFinished,//可选QString error
     };
     Q_ENUM(BusinessEvent);
     
