@@ -1,4 +1,5 @@
 #pragma once
+#include "qendian.h"
 #include "qobject.h"
 #include <QObject>
 #include <QUdpSocket>
@@ -11,6 +12,7 @@
 #include <QThread>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QCryptographicHash>
 
 
 class Communication : public QObject
@@ -113,11 +115,18 @@ typedef QMap<devid_t,Communication::device> Devices;
 Q_DECLARE_METATYPE(Communication::device)
 Q_DECLARE_METATYPE(Devices)
 inline devid_t getIdByDevice(Communication::device dev){
-    return (qHash(dev.ip+"@"+QString::number(dev.port))&0x7FFFFFFF);
+    // return (qHash(dev.ip+"@"+QString::number(dev.port))&0x7FFFFFFF);
+    QByteArray d;d.append(QHostAddress(dev).toString().toUtf8());d.append("@");d.append(QString::number(dev.port).toUtf8());
+    QByteArray hash = QCryptographicHash::hash(d,QCryptographicHash::Md4);
+    devid_t res;
+    memcpy(&res,hash.constData(),sizeof(devid_t));
+    return qToBigEndian(res);
 }
 inline QString getStringByDeviceId(devid_t devId){
-    QByteArray di('\0',sizeof(devId));
-    memcpy(di.data(),&devId,sizeof(devId));
+    // QByteArray di('\0',sizeof(devId));
+    QByteArray di(sizeof(devId),'\0');
+    auto bi = qToBigEndian(devId);
+    memcpy(di.data(),&bi,sizeof(devId));
     return QString(di.toBase64(QByteArray::OmitTrailingEquals));
 }
 inline devid_t getIdByString(QString str){
@@ -127,5 +136,5 @@ inline devid_t getIdByString(QString str){
     }
     devid_t ret;
     memcpy(&ret,d.constData(),sizeof(ret));
-    return ret;
+    return qFromBigEndian(ret);
 }

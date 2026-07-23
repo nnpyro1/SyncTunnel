@@ -43,7 +43,7 @@ public://公有接口
     void abortTransfer();                                                                   //强制终止传输
     
     //可靠控制消息
-    Result sendControl(QByteArray key,QByteArray value,QSet<devid_t> destinations);         //发送控制消息。外部控制消息禁止以___开头
+    Result sendControl(QString key, QVariant value, devid_t destination);                   //发送控制消息。外部控制消息禁止以___开头且结尾
     
     //属性/信息获取
     QString getUsername();
@@ -54,7 +54,7 @@ public://公有接口
     
 signals:
     void dataReceived(QByteArray data,devid_t src);                                         //收到大数据包
-    void controlReceived(QByteArray key,QByteArray value,devid_t src);                      //收到控制消息
+    void controlReceived(QString key,QVariant value,devid_t src);                           //收到控制消息
     void eventOccurred(RpepEngine::Event event,QVariantMap args = QVariantMap());           //触发事件
     void deviceUpdated();                                                                   //Signalling转移：设备列表更新
     void deviceOnline(devid_t dev);                                                         //Signalling转移：设备上线
@@ -62,6 +62,7 @@ signals:
     
 private:
 #pragma pack(push,1)
+    using chunkid_t = quint32;
     struct CommonHeader{
         devid_t src;
         quint16 type;
@@ -69,37 +70,51 @@ private:
         quint16 reserved=0;
     };
     struct DataMessageHeader : public CommonHeader{
-        quint32 chunkId;
-        quint32 totalChunkNum;
+        chunkid_t chunkId;
+        chunkid_t totalChunkNum;
+    };
+    struct ControlMessageHeader : public CommonHeader{
+        char uuid[33];
+        quint16 keySize;
     };
 #pragma pack(pop)
-    CommonHeader qToBigEndian(CommonHeader h);
-    CommonHeader qFromBigEndian(CommonHeader h);
-    DataMessageHeader qToBigEndian(DataMessageHeader h);
-    DataMessageHeader qFromBigEndian(DataMessageHeader h);
+    static CommonHeader qToBigEndian(CommonHeader h);
+    static CommonHeader qFromBigEndian(CommonHeader h);
+    static DataMessageHeader qToBigEndian(DataMessageHeader h);
+    static DataMessageHeader qFromBigEndian(DataMessageHeader h);
+    static ControlMessageHeader qToBigEndian(ControlMessageHeader h);
+    static ControlMessageHeader qFromBigEndian(ControlMessageHeader h);
     enum class MessageType{
-        //联接相关
+        //联接状态/协议内部相关
         Punch               = 101,  //打洞
         //可靠ControlMessage相关
         ReliableMessage     = 201,  //发布可靠消息
         ReliableResponse    = 202,  //回复201
-        RelialeDone         = 203,  //回复202
+        ReliableDone        = 203,  //回复202
         ReliableComplete    = 204,  //回复203
+        //DataMessage传输相关
+        DataPayload         = 301,  //数据载荷
     };
     
     void send(QByteArray msg,bool e=1,int d=-1);
     QByteArray encode(const QByteArray &msg);
     QByteArray decode(const QByteArray &msg);
     Result punch(QSet<devid_t> dsts);
-    template<typename T>QByteArray getHeaderBytes(T header);
-    template<typename T>T getHeaderStruct(const QByteArray msg);
-    
+    template<typename T>static QByteArray getHeaderBytes(T header);
+    template<typename T>static T getHeaderStruct(const QByteArray msg);
+    Result transferData(QByteArray data,devid_t dst);
+    Result preloadData(QByteArray data);                                                //预加载数据存储在transferBuf内
+    Result transferPreloadedData(devid_t dst);                                          //使用成员变量transferBuf指定数据，要求transferBuf必需是已加密的完整数据包结构
     
 private://private signals
     Q_SIGNAL void punchReceived(devid_t sender,int seq);
+    Q_SIGNAL void reliableStepsReceived(MessageType received,QString uuid);//received只允许是201~204
+    Q_SIGNAL void transferAccepted();
+    Q_SIGNAL void transferRefused(QString reason);
     
 private slots:
     void onCommunicationReadyRead();
+    void onPrivateControlMessageReceived(QString key, QVariant value, devid_t src);
     
 private:
     Communication *m_communication;
@@ -111,11 +126,16 @@ private:
     State state = RpepEngine::State::Invalid;
     Devices devices;
     QSet<devid_t> unconnectedDevices;//打洞失败的设备。
-    QMap<QString,QByteArray> pendingReliableMessages;
+    QMap<QString,QPair<QString,QVariant>> pendingReliableMessages;
+    QList<QByteArray> transferBuf;
     
     const int MAX_STUN_RETRIES = 3;
     const int CURRENT_VERSION = 1;
     const int MIN_COMPATIBLE_VERSION = 1;
+    const int MAX_RELIABLE_RETRIES = 6;
+    const int RELIABLE_INTERVAL = 1000;
+    const int CHUNK_SIZE = 1449;
+    const int MAX_TIMEOUT = 5000;
 };
 
 #endif // RPEPENGINE_H
