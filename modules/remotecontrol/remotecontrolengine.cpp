@@ -11,21 +11,21 @@
 #include <QColorSpace>
 #include <qbuffer.h>
 
-RemoteControlEngine::RemoteControlEngine(TransmissionEngine *te, QObject *parent)
+RemoteControlEngine::RemoteControlEngine(RpepEngine *te, QObject *parent)
     : QObject{parent} ,
     te(te)
 {
     if(this->thread()!=te->thread()){
-        ncritical<<"RemoteControlEngine:TransmissionEngine线程不在同一线程";
+        ncritical<<"RemoteControlEngine:RpepEngine";
     }
     
-    connect(this->te,&TransmissionEngine::SPTP_commonMsgReceived,this,[this](TransmissionEngine::msg_common msg){
-        if(msg.msg.startsWith("__RMCT__")){
-            parseEvent(msg.msg);
+    connect(this->te,&RpepEngine::externalReceived,this,[this](QByteArray msg,devid_t src){
+        if(msg.startsWith("__RMCT__")){
+            parseEvent(msg);
         }
     });
     connect(this,&RemoteControlEngine::eventReceived,this,[this](RemoteEvent e){RUN_IN_MAIN_THREAD(this->handleReceivedEvent(e););});
-    connect(this->te,&TransmissionEngine::reliableMessageReceived,this,[this](QString msg,int sender){
+    connect(this->te,&RpepEngine::controlReceived,this,[this](QString msg,QVariant value,int sender){
         if(!msg.startsWith("__RMCT_R__")) return;
         msg=msg.mid(10);
         if(msg=="START_CONTROL"){
@@ -190,10 +190,14 @@ bool RemoteControlEngine::startControl(int id){
         nwarning<<"无法在非空闲状态开始远程控制 currentState ="<<QMetaEnum::fromType<RemoteControlEngine::State>().valueToKey((int)currentState);
         return false;
     }
+    if(!te->acquireBusy()){
+        ncritical<<"Cannot acquire Busy state";
+        return false;
+    }
     //发送开始控制消息
     bool succeeded = false;
     for(int i=0;i<3;i++){
-        if(te->sendReliableMessage(id,"__RMCT_R__START_CONTROL")){
+        if(te->sendControl("__RMCT_R__START_CONTROL","",id)){
             succeeded = true;
             break;
         }
@@ -212,14 +216,14 @@ bool RemoteControlEngine::startControl(int id){
 
 bool RemoteControlEngine::stopControl(){
     if(currentId<0){
-        nwarning<<"RemoteControlEngine: currentId无效 无法开始远控";
+        nwarning<<"RemoteControlEngine: currentId无效 无法停止远控";
         return false;
     }
-    
+    te->releaseBusy();
     //发送停止消息
     bool succeeded = false;
     for(int i=0;i<5;i++){
-        if(te->sendReliableMessage(currentId,"__RMCT_R__FINISH_CONTROL")){
+        if(te->sendControl("__RMCT_R__FINISH_CONTROL","",currentId)){
             succeeded = true;
             break;
         }
@@ -242,7 +246,7 @@ bool RemoteControlEngine::sendEvent(RemoteEvent event){
     }
     QByteArray a;
     QDataStream s(&a,QDataStream::ReadWrite);s<<event;
-    te->SPTP_sendCommon("__RMCT__"+a,currentId);
+    te->externalSend("__RMCT__"+a,1,currentId);
     return true;
 }
 

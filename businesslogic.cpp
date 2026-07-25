@@ -31,12 +31,13 @@ BusinessLogic::~BusinessLogic(){
 
 void BusinessLogic::init(){
     //对象创建
-    m_communication = new Communication;
-    m_signalling = new Signalling;
+    // m_communication = new Communication;
+    // m_signalling = new Signalling;
     m_storage = new Storage;
-    m_transmissionengine = nullptr;
+    // m_transmissionengine = nullptr;
     process_proxy = new QProcess(this);
     process_proxy_ui = new QProcess(this);
+    m_rpepengine = new RpepEngine();
 //    dialog_remoteFile = new Dialog_remoteFile(this);
     logFile = new QFile(QString("logs/%1.log").arg(QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss")).toStdString().c_str(),this);
     
@@ -338,7 +339,7 @@ void BusinessLogic::init(){
 //    connect(trayIcon,&QSystemTrayIcon::activated,this,[this](QSystemTrayIcon::ActivationReason reason){Q_UNUSED(reason);if(isMinimized())showNormal();if(isHidden())show();raise();});//无需接管
 //    connect(ui->pushButton_copyId,&QPushButton::clicked,this,[this]{QApplication::clipboard()->setText(QSysInfo::machineUniqueId());QMessageBox::information(this,"SyncTunnel","复制成功！");});//无需接管
 //    connect(ui->actionRequestFile,&QAction::triggered,this,[this]{if(ui->tableWidget_deviceList->currentRow()==-1){QMessageBox::warning(this,"错误","请先选中一个设备");return;} send("REQ_FILE",1,ui->tableWidget_deviceList->currentRow());label_status->setText("正在等待发送方响应...");});//已接管
-    connect(&timer_keepAlive,&QTimer::timeout,this,[this]{if(chunks.empty()&&currentFileMap.empty())send("KEEP_ALIVE");});
+    // connect(&timer_keepAlive,&QTimer::timeout,this,[this]{if(chunks.empty()&&currentFileMap.empty())send("KEEP_ALIVE");});
 //    connect(ui->actionRemoteCopyFile, &QAction::triggered, this, [this] {int currentRow = ui->tableWidget_deviceList->currentRow();if (currentRow == -1) {QMessageBox::warning(this, "错误","你需要先选中一个设备");return;}copy_remote_file(currentRow);});//无需接管
 //    connect(ui->actionSend_message,&QAction::triggered,this,[this]{int index=ui->tableWidget_deviceList->currentRow();if(index==-1){QMessageBox::warning(this,"发送测试消息","请先选中一个设备");return;} QString msg=QInputDialog::getText(this,"发送测试消息","请输入测试消息：");QJsonObject json;json.insert("test_msg",QString(msg.toUtf8()));send(QJsonDocument(json).toJson(),1,index);});
 //    connect(ui->actionStart_remote,&QAction::triggered,this,[this]{int index=ui->tableWidget_deviceList->currentRow();if(index==-1){QMessageBox::warning(this,"远程控制","请先选中一个设备");return;} send("{\n    \"opt\":\"start_remote\"\n}",1,index);ui->tabWidget->setCurrentIndex(2);remote_device=clients[index];});
@@ -467,110 +468,143 @@ void BusinessLogic::init(){
     //网络部分
     //发起STUN
 //    emit messageChanged(tr("正在获取公网IP……"));
-    emit businessEventOccurred(BusinessEvent::GettingPublicIp);
-    if(QDir("config/empty/label3").exists())QCoreApplication::processEvents();
-    public_ip = m_communication->stun();
-    public_ip.description=device_description;
-    public_ip.flag = device_flag;
-    if(public_ip == Communication::ipport{"",0} || QApplication::arguments().contains("-ipv6")){
-        QCoreApplication::processEvents();
+//     emit businessEventOccurred(BusinessEvent::GettingPublicIp);
+//     if(QDir("config/empty/label3").exists())QCoreApplication::processEvents();
+//     public_ip = m_communication->stun();
+//     public_ip.description=device_description;
+//     public_ip.flag = device_flag;
+//     if(public_ip == Communication::ipport{"",0} || QApplication::arguments().contains("-ipv6")){
+//         QCoreApplication::processEvents();
         
-        //开始用IPv6
-        public_ip = m_communication->getIPv6();
+//         //开始用IPv6
+//         public_ip = m_communication->getIPv6();
         
-        if(public_ip == Communication::ipport{"",0}){
-//            emit messageBoxRequested(tr("获取公网IP"),tr("您的设备获取IPv4公网IP失败，且不支持IPV6。\n请如果是第一次发生，请重试。\n如果多次发生，请只使用文件挂起功能或更换网络环境。"),MessageBoxType::Warning);
-//            QProcess::startDetached(QCoreApplication::applicationFilePath(),QCoreApplication::arguments());
-//            QCoreApplication::quit();
-//            abort();
-//            QApplication::processEvents();
-            emit businessEventOccurred(BusinessEvent::PublicIpGetFailed);
-            Utils::restart();
+//         if(public_ip == Communication::ipport{"",0}){
+// //            emit messageBoxRequested(tr("获取公网IP"),tr("您的设备获取IPv4公网IP失败，且不支持IPV6。\n请如果是第一次发生，请重试。\n如果多次发生，请只使用文件挂起功能或更换网络环境。"),MessageBoxType::Warning);
+// //            QProcess::startDetached(QCoreApplication::applicationFilePath(),QCoreApplication::arguments());
+// //            QCoreApplication::quit();
+// //            abort();
+// //            QApplication::processEvents();
+//             emit businessEventOccurred(BusinessEvent::PublicIpGetFailed);
+//             Utils::restart();
+//         }
+//     }
+// //    emit messageChanged(tr("正在获取上线用户列表……"));
+//     emit businessEventOccurred(BusinessEvent::GettingDeviceList);
+//     ninfo<<"var:public ip="<<public_ip;
+//     //MQTT
+//     // m_signalling->connectToHost(/*{"broker.emqx.io",1883}*/mqtt_server);
+//     // m_signalling->subscribe("nnpyro_syncTunnel/user_topics/" + user_name.toUtf8().toBase64());
+//     // m_signalling->setPwd(pwd.toUtf8());
+//     // m_signalling->setUser(public_ip,user_name);
+//     // clients = m_signalling->getUserList();//获取用户列表
+//     m_signalling->setPublicIp(public_ip);
+//     m_signalling->setMqttBroker(mqtt_server.ip,mqtt_server.port);
+//     m_signalling->setPassport(user_name,pwd);
+//     if(!m_signalling->start()) ncritical<<"Unable to start m_signalling";
+//     m_signalling->registerOnline();
+//     clients = m_signalling->getAllDevices();
+//     if(1)foreach(auto i,clients)qDebug()<<i;
+// //    emit messageChanged(tr("加载成功"));
+//     emit deviceListUpdated(clients);
+    
+//     //等待直到用户列表获取完成
+//     // QEventLoop el1;
+//     // connect(m_signalling,&Signalling::on_userlist_updata,&el1,&QEventLoop::quit);
+// //    el1.exec(QEventLoop::ExcludeUserInputEvents);
+// //    QCoreApplication::processEvents();
+    
+//     //调试
+// //    if(1)ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));
+// //    if(1)foreach(auto i,clients)ui->textBrowser_debug1->append(i);
+    
+//     //设置文件挂起
+//     // m_storage->setUser(user_github_name,user_github_PAT);
+//     // m_storage->setUserId(user_name);
+//     m_storage->setPassport(user_name,pwd);
+    
+//     //接管communicaion
+//     ndb<<"接管communication";
+//     m_transmissionengine = new TransmissionEngine(m_communication,user_name,pwd,public_ip,this);
+//     m_transmissionengine->setClients(clients);
+//     connect(m_transmissionengine,&TransmissionEngine::communicationReadyRead,this,&BusinessLogic::on_readyRead);
+//     connect(m_transmissionengine,&TransmissionEngine::SPTP_readyRead,this,&BusinessLogic::on_SPTP_readyRead);
+//     connect(m_transmissionengine,&TransmissionEngine::messageChanged,this,[this](QString msg){emit messageChanged(msg);});
+//     connect(m_transmissionengine,&TransmissionEngine::SPTP_sendFinished,this,[this]{emit businessEventOccurred(BusinessEvent::SendedSuccessfully);playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));});
+//     connect(m_transmissionengine,&TransmissionEngine::SPTP_ctrlMsgReceived,this,&BusinessLogic::on_SPTP_ctrlMsg_received);
+//     connect(m_signalling,&Signalling::deviceUpdated,this,[this]{
+//         clients = m_signalling->getAllDevices();if(1)foreach(auto i,clients)qDebug()<<i;
+//         QTimer::singleShot(3000,[this]{
+//             for(int i=0;i<5;i++){
+//                 send("{\n    \"hole\":1\n}");
+//                 QThread::msleep(20);
+//                 send("{\n    \"hole\":2\n}");
+//                 QThread::msleep(20);
+//             }
+//         });
+// //        emit messageChanged(tr("用户列表更新成功"));
+// //        ui->tableWidget_deviceList->clearContents();ui->tableWidget_deviceList->setRowCount(0);ndb<<"IN";
+//         if(m_transmissionengine)m_transmissionengine->setClients(clients);
+        
+// //        foreach(auto i,clients){        //表格设置
+// //            int r=ui->tableWidget_deviceList->rowCount();
+// //            ui->tableWidget_deviceList->insertRow(r);
+// //            ui->tableWidget_deviceList->setItem(r,0,new QTableWidgetItem((i.flag==Communication::DFHNDevice?"**":"") + user_name));
+// //            ui->tableWidget_deviceList->setItem(r,1,new QTableWidgetItem(i.ip));
+// //            ui->tableWidget_deviceList->setItem(r,2,new QTableWidgetItem(QString::number(i.port)));
+// //            ui->tableWidget_deviceList->setItem(r,3,new QTableWidgetItem((i.flag==Communication::DFHNDevice?"**":"")+i.description+"("+QMetaEnum::fromType<Communication::DeviceFlag>().valueToKey(i.flag)+")"));
+// //        }
+// //        if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i.toFullString());}
+//         emit deviceListUpdated(clients);
+//     });
+//     // connect(m_signalling,&Signalling::errorOccurred,this,[=](QString err){emit businessEventOccurred(BusinessEvent::SignallingFailed,{{"error",err}});});
+//     connect(m_transmissionengine,&TransmissionEngine::sendInfoChanged,this,&BusinessLogic::sendInfoChanged);
+//     //接管remotecontrolengine
+    m_remotecontrolengine=new RemoteControlEngine(m_rpepengine,this);
+//     //临时测试用：
+//     // connect(m_remotecontrolengine,&RemoteControlEngine::remoteScreenChanged,this,[this](QImage pm){emit businessEventOccurred(BusinessEvent::Debug,{{"data",pm}});});
+    
+//     //打洞
+//     for(int i=0;i<5;i++){
+//         send("{\n    \"hole\":1\n}");
+//         send("{\n    \"hole\":2\n}");
+//         QThread::msleep(50);
+//     }
+// //    emit messageChanged(tr("加载成功"));
+//     emit businessEventOccurred(BusinessEvent::LoadedSuccessfully);
+    
+    //初始化网络
+    m_rpepengine->setMqttBroker(mqtt_server);
+    m_rpepengine->setUsername(user_name);
+    m_rpepengine->setPassword(pwd);
+    connect(m_rpepengine,&RpepEngine::eventOccurred,this,[this](RpepEngine::Event e,QVariantMap args){
+        switch(e){
+        case RpepEngine::Event::GettingPublicIp:
+            emit businessEventOccurred(BusinessEvent::GettingPublicIp);
+            break;
+        case RpepEngine::Event::Error:
+            emit businessEventOccurred(BusinessLogic::BusinessEvent::ErrorOccurred,args);
+            break;
+        case RpepEngine::Event::RegisteringOnline:
+            emit businessEventOccurred(BusinessEvent::GettingDeviceList);
+            break;
+        case RpepEngine::Event::Ready:
+            emit businessEventOccurred(BusinessEvent::LoadedSuccessfully);
+            break;
+        case RpepEngine::Event::Punch:
+            emit businessEventOccurred(BusinessEvent::ConnectedSuccessfully,{{"ipport",args["id"]}});
+            break;
+        }
+    });
+    connect(m_rpepengine,&RpepEngine::deviceUpdated,this,[this]{ninfo<<"设备列表更新";clients=m_rpepengine->getAllDevices();emit deviceListUpdated(clients);});
+    connect(m_rpepengine,&RpepEngine::controlReceived,this,&BusinessLogic::onControlReceived);
+    connect(m_rpepengine,&RpepEngine::dataReceived,this,&BusinessLogic::onDataReceived);
+    {
+        auto ret = m_rpepengine->init();
+        if(!ret){
+            emit businessEventOccurred(BusinessEvent::ErrorOccurred,{{"error",ret.errorMessage}});
         }
     }
-//    emit messageChanged(tr("正在获取上线用户列表……"));
-    emit businessEventOccurred(BusinessEvent::GettingDeviceList);
-    ninfo<<"var:public ip="<<public_ip;
-    //MQTT
-    // m_signalling->connectToHost(/*{"broker.emqx.io",1883}*/mqtt_server);
-    // m_signalling->subscribe("nnpyro_syncTunnel/user_topics/" + user_name.toUtf8().toBase64());
-    // m_signalling->setPwd(pwd.toUtf8());
-    // m_signalling->setUser(public_ip,user_name);
-    // clients = m_signalling->getUserList();//获取用户列表
-    m_signalling->setPublicIp(public_ip);
-    m_signalling->setMqttBroker(mqtt_server.ip,mqtt_server.port);
-    m_signalling->setPassport(user_name,pwd);
-    if(!m_signalling->start()) ncritical<<"Unable to start m_signalling";
-    m_signalling->registerOnline();
-    clients = m_signalling->getAllDevices();
-    if(1)foreach(auto i,clients)qDebug()<<i;
-//    emit messageChanged(tr("加载成功"));
-    emit deviceListUpdated(clients);
-    
-    //等待直到用户列表获取完成
-    // QEventLoop el1;
-    // connect(m_signalling,&Signalling::on_userlist_updata,&el1,&QEventLoop::quit);
-//    el1.exec(QEventLoop::ExcludeUserInputEvents);
-//    QCoreApplication::processEvents();
-    
-    //调试
-//    if(1)ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));
-//    if(1)foreach(auto i,clients)ui->textBrowser_debug1->append(i);
-    
-    //设置文件挂起
-    // m_storage->setUser(user_github_name,user_github_PAT);
-    // m_storage->setUserId(user_name);
-    m_storage->setPassport(user_name,pwd);
-    
-    //接管communicaion
-    ndb<<"接管communication";
-    m_transmissionengine = new TransmissionEngine(m_communication,user_name,pwd,public_ip,this);
-    m_transmissionengine->setClients(clients);
-    connect(m_transmissionengine,&TransmissionEngine::communicationReadyRead,this,&BusinessLogic::on_readyRead);
-    connect(m_transmissionengine,&TransmissionEngine::SPTP_readyRead,this,&BusinessLogic::on_SPTP_readyRead);
-    connect(m_transmissionengine,&TransmissionEngine::messageChanged,this,[this](QString msg){emit messageChanged(msg);});
-    connect(m_transmissionengine,&TransmissionEngine::SPTP_sendFinished,this,[this]{emit businessEventOccurred(BusinessEvent::SendedSuccessfully);playSound(QUrl("qrc:/rc/audio/file_send_successfully.wav"));});
-    connect(m_transmissionengine,&TransmissionEngine::SPTP_ctrlMsgReceived,this,&BusinessLogic::on_SPTP_ctrlMsg_received);
-    connect(m_signalling,&Signalling::deviceUpdated,this,[this]{
-        clients = m_signalling->getAllDevices();if(1)foreach(auto i,clients)qDebug()<<i;
-        QTimer::singleShot(3000,[this]{
-            for(int i=0;i<5;i++){
-                send("{\n    \"hole\":1\n}");
-                QThread::msleep(20);
-                send("{\n    \"hole\":2\n}");
-                QThread::msleep(20);
-            }
-        });
-//        emit messageChanged(tr("用户列表更新成功"));
-//        ui->tableWidget_deviceList->clearContents();ui->tableWidget_deviceList->setRowCount(0);ndb<<"IN";
-        if(m_transmissionengine)m_transmissionengine->setClients(clients);
-        
-//        foreach(auto i,clients){        //表格设置
-//            int r=ui->tableWidget_deviceList->rowCount();
-//            ui->tableWidget_deviceList->insertRow(r);
-//            ui->tableWidget_deviceList->setItem(r,0,new QTableWidgetItem((i.flag==Communication::DFHNDevice?"**":"") + user_name));
-//            ui->tableWidget_deviceList->setItem(r,1,new QTableWidgetItem(i.ip));
-//            ui->tableWidget_deviceList->setItem(r,2,new QTableWidgetItem(QString::number(i.port)));
-//            ui->tableWidget_deviceList->setItem(r,3,new QTableWidgetItem((i.flag==Communication::DFHNDevice?"**":"")+i.description+"("+QMetaEnum::fromType<Communication::DeviceFlag>().valueToKey(i.flag)+")"));
-//        }
-//        if(1){ui->textBrowser_debug1->clear();ui->textBrowser_debug1->append(QString("本机IP = %1").arg(public_ip));foreach(auto i,clients)ui->textBrowser_debug1->append(i.toFullString());}
-        emit deviceListUpdated(clients);
-    });
-    // connect(m_signalling,&Signalling::errorOccurred,this,[=](QString err){emit businessEventOccurred(BusinessEvent::SignallingFailed,{{"error",err}});});
-    connect(m_transmissionengine,&TransmissionEngine::sendInfoChanged,this,&BusinessLogic::sendInfoChanged);
-    //接管remotecontrolengine
-    m_remotecontrolengine=new RemoteControlEngine(m_transmissionengine,this);
-    //临时测试用：
-    // connect(m_remotecontrolengine,&RemoteControlEngine::remoteScreenChanged,this,[this](QImage pm){emit businessEventOccurred(BusinessEvent::Debug,{{"data",pm}});});
-    
-    //打洞
-    for(int i=0;i<5;i++){
-        send("{\n    \"hole\":1\n}");
-        send("{\n    \"hole\":2\n}");
-        QThread::msleep(50);
-    }
-//    emit messageChanged(tr("加载成功"));
-    emit businessEventOccurred(BusinessEvent::LoadedSuccessfully);
     
     
     //参数处理
@@ -645,29 +679,36 @@ void BusinessLogic::destory(){
     if (logFile->isOpen()) {
         logFile->close();
     }
-    if(m_signalling->isAvailable()){
-        m_signalling->registerOffline();
-        m_signalling->stop();
-    }
+    // if(m_signalling->isAvailable()){
+    //     m_signalling->registerOffline();
+    //     m_signalling->stop();
+    // }
+    m_rpepengine->destroy();
     //销毁对象
-    delete m_communication;             m_communication = nullptr;
-    delete m_signalling;                m_signalling = nullptr;
+    // delete m_communication;             m_communication = nullptr;
+    // delete m_signalling;                m_signalling = nullptr;
     delete m_storage;                   m_storage = nullptr;
-    delete m_transmissionengine;        m_transmissionengine = nullptr;
+    // delete m_transmissionengine;        m_transmissionengine = nullptr;
+    
+    m_rpepengine->deleteLater();m_rpepengine=nullptr;
 }
 
-void BusinessLogic::send(QByteArray msg, bool e, int d){
-    m_transmissionengine->send(msg,e,d); 
-}
+// void BusinessLogic::send(QByteArray msg, bool e, int d){
+//     m_transmissionengine->send(msg,e,d); 
+// }
 
 
-BusinessLogic::Result BusinessLogic::sendFile(QSet<devid_t> dst,QSet<QString> incremental_sync_set){
+Result BusinessLogic::sendFile(QSet<devid_t> dst,QSet<QString> incremental_sync_set){
     if(dst.empty()){
         return Result("请指定传输目标");
     }
     lastSyncDst=dst;
-    m_transmissionengine->SPTP_send(Utils::mergeFile(QDir("files/"),incremental_sync_set),dst);
-    return Result();
+    // m_transmissionengine->SPTP_send(Utils::mergeFile(QDir("files/"),incremental_sync_set),dst);
+    Result res = m_rpepengine->transfer(Utils::mergeFile(syncFolder,incremental_sync_set),dst);
+    if(!res){
+        ncritical<<res.errorMessage;
+    }
+    return res;
 }
 
 
@@ -914,8 +955,8 @@ void BusinessLogic::on_download(){
 
 
 void BusinessLogic::on_sync_pat(){
-    QJsonObject json;json.insert("pat",user_github_PAT);
-    send(QJsonDocument(json).toJson());
+    // QJsonObject json;json.insert("pat",user_github_PAT);
+    // send(QJsonDocument(json).toJson());
 }
 
 
@@ -925,63 +966,66 @@ void BusinessLogic::on_shutdown_current(int id){
 //        emit messageBoxRequested(tr("关闭选中的设备"),tr("请先选中一个设备！"),MessageBoxType::Warning);return;
         return;
     }
-    m_communication->send(clients.value(index),encode("{\n    \"cmd\":\"shutdown -s -t 10\"\n}"));
+    // m_communication->send(clients.value(index),encode("{\n    \"cmd\":\"shutdown -s -t 10\"\n}"));
+    m_rpepengine->sendControl("SHUTDOWN","",id);
 }
 
 
 void BusinessLogic::on_test_rtt(){
-    rtt_result.clear();
-    elapsed_rtt.start();
+//     rtt_result.clear();
+//     elapsed_rtt.start();
     
-    //发送测试信息
-    send("{\n    \"opt\":\"rtt_test\"\n}");
+//     //发送测试信息
+//     // send("{\n    \"opt\":\"rtt_test\"\n}");
+//     // m_rpepengine->sendControl("TEST_RTT","",)
     
-//    emit messageChanged("正在测试RTT");
-    emit businessEventOccurred(BusinessEvent::TestingRTT);
-    QEventLoop loop;
-    QTimer timer;
-    connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
-    timer.start(2000);
-    loop.exec();
-//    emit messageChanged("RTT测试成功");
-    emit businessEventOccurred(BusinessEvent::RTTTestSuccessfully);
+// //    emit messageChanged("正在测试RTT");
+//     emit businessEventOccurred(BusinessEvent::TestingRTT);
+//     QEventLoop loop;
+//     QTimer timer;
+//     connect(&timer,&QTimer::timeout,&loop,&QEventLoop::quit);
+//     timer.start(2000);
+//     loop.exec();
+// //    emit messageChanged("RTT测试成功");
+//     emit businessEventOccurred(BusinessEvent::RTTTestSuccessfully);
     
-//    QString result_str;
-    QList<QVariantMap> rttResult;
-    for(auto it=rtt_result.begin();it!=rtt_result.end();it++){
-        auto c=clients.value(it.key());
-//        result_str.append(QString("device%4:%1\tdelay:%2\tRTT:%3\n").arg(clients[it.key()]).arg(it.value()).arg(it.value()/2).arg(it.key()));
-        rttResult.append({
-                             {"id",it.key()},
-                             {"ip",c.ip},
-                             {"port",c.port},
-                             {"rtt",it.value()/2.},
-                             {"delay",it.value()}
-                         });
-    }
-//    emit messageBoxRequested("RTT测试结果","下面是本轮RTT测试的结果：\n\n"+result_str,MessageBoxType::Information);
-    emit rttTestResultUpdated(rttResult);
+// //    QString result_str;
+//     QList<QVariantMap> rttResult;
+//     for(auto it=rtt_result.begin();it!=rtt_result.end();it++){
+//         auto c=clients.value(it.key());
+// //        result_str.append(QString("device%4:%1\tdelay:%2\tRTT:%3\n").arg(clients[it.key()]).arg(it.value()).arg(it.value()/2).arg(it.key()));
+//         rttResult.append({
+//                              {"id",it.key()},
+//                              {"ip",c.ip},
+//                              {"port",c.port},
+//                              {"rtt",it.value()/2.},
+//                              {"delay",it.value()}
+//                          });
+//     }
+// //    emit messageBoxRequested("RTT测试结果","下面是本轮RTT测试的结果：\n\n"+result_str,MessageBoxType::Information);
+//     emit rttTestResultUpdated(rttResult);
 }
 
 
-BusinessLogic::Result BusinessLogic::on_request_file(int index){
+Result BusinessLogic::on_request_file(int index){
     if(!clients.contains(index)){
         return Result(QString("Index %1 out of range").arg(index));
     }
-    send("REQ_FILE",1,index);
+    // send("REQ_FILE",1,index);
+    m_rpepengine->sendControl("REQ_FILE","",index);
 //    emit messageChanged("正在等待发送方响应...");
     emit businessEventOccurred(BusinessEvent::WaitingForResponse);
     return Result();
 }
 
 
-void BusinessLogic::on_copy_remote_file_operation_requested(QString subdir, int index){
+void BusinessLogic::on_copy_remote_file_operation_requested(QString subdir, int index){// ### 需要重写 ###
     if(!subdir.startsWith("|")){
-        send(QString("{\n    \"get_folderList\":\"%1\"\n}").arg(subdir).toUtf8(),1,index);
+        // send(QString("{\n    \"get_folderList\":\"%1\"\n}").arg(subdir).toUtf8(),1,index);
     }
     else{
         subdir.replace("|","");
-        send(QString("{\n    \"copy\":\"%1\"\n}").arg(subdir).toUtf8(),1,index);
+        // send(QString("{\n    \"copy\":\"%1\"\n}").arg(subdir).toUtf8(),1,index);
     }
 }
 
@@ -1008,20 +1052,22 @@ BusinessLogic::RSLT BusinessLogic::on_remove_schedule(int index){
 
 void BusinessLogic::on_suspended(){
     ninfo<<"应用程序退后台";
-    if(m_signalling){
-        m_signalling->registerOffline();
-        m_signalling->stop();
-    }
+    // if(m_signalling){
+    //     m_signalling->registerOffline();
+    //     m_signalling->stop();
+    // }
+    m_rpepengine->destroy();
 }
 
 
 void BusinessLogic::on_resumed(){//此函数禁止使用。未绑定。
     ninfo<<"应用程序回到前台";
-    if(m_signalling){
-        m_signalling->start();
-        m_signalling->registerOnline();
-        clients=m_signalling->getAllDevices();
-    }
+    // if(m_signalling){
+    //     m_signalling->start();
+    //     m_signalling->registerOnline();
+    //     clients=m_signalling->getAllDevices();
+    // }
+    m_rpepengine->init();
 }
 
 
@@ -1044,7 +1090,8 @@ void BusinessLogic::on_download_from_dfhn(){
     QSet<devid_t> l;
     for(auto i : clients){
         if(i.flag==Communication::DFHNDevice){
-            send("REQ_FILE",1,getIdByDevice(i));
+            // send("REQ_FILE",1,getIdByDevice(i));
+            m_rpepengine->sendControl("REQ_FILE","",getIdByDevice(i));
             return;
         }
     }
@@ -1054,7 +1101,10 @@ void BusinessLogic::on_download_from_dfhn(){
 
 
 void BusinessLogic::on_restart_all(){
-    m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);
+    // m_transmissionengine->SPTP_sendCtrl("RESTART_NETWORK","",-2);
+    for(auto i:clients.keys()){
+        m_rpepengine->sendControl("RESTART_NETWORK","",i);
+    }
 }
 
 
@@ -1134,7 +1184,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
         if(json["hole"].toInt() == 2){
 //            replyJson.insert("hole",3);
 //            send(QJsonDocument(json).toJson());
-            send("{\n    \"hole\":3\n}");
+            // send("{\n    \"hole\":3\n}");
 //            emit tempMessageChanged(QString("成功与%1建立连接").arg(sender),5000);
             emit businessEventOccurred(BusinessEvent::ConnectedSuccessfully,{{"ipport",sender.toString()}});
         }
@@ -1177,7 +1227,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
         QString opt = json["opt"].toString();
         
         if(opt == "rtt_test"){
-            send("{\n    \"opt\":\"ack_rtt_test\"\n}",1,sender_index);
+            // send("{\n    \"opt\":\"ack_rtt_test\"\n}",1,sender_index);
         }
         if(opt == "ack_rtt_test"){
             rtt_result[sender_index] = elapsed_rtt.elapsed();
@@ -1205,7 +1255,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
         json_reply.insert("folderList",QString(content.toBase64()));
         json_reply.insert("folderList_folder",json["get_folderList"].toString());
         QThread::msleep(500);
-        send(QJsonDocument(json_reply).toJson(),1,sender_index);
+        // send(QJsonDocument(json_reply).toJson(),1,sender_index);
     }
     if(json.contains("folderList")){
         QByteArray data = QByteArray::fromBase64(json["folderList"].toString().toUtf8());
@@ -1239,6 +1289,22 @@ void BusinessLogic::on_SPTP_ctrlMsg_received(TransmissionEngine::msg_ctrl msg){
     if(msg.ctrl=="RESTART_NETWORK"){
         
     }
+}
+
+
+void BusinessLogic::onControlReceived(QString key, QVariant value, devid_t src){
+    if(key=="SHUTDOWN"){
+        QProcess::startDetached("cmd.exe",{"/c","shutdown","/s","/t","10"});
+    }
+    if(key=="REQ_FILE"){
+        sendFile({src});
+    }
+}
+
+
+void BusinessLogic::onDataReceived(QByteArray data, devid_t src){
+    Utils::releaseFile(data);
+    RUN_IN_MAIN_THREAD(playSound(QUrl("qrc:/rc/audio/file_release_successfully.wav")););
 }
 
 

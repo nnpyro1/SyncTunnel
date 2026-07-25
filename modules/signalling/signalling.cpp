@@ -97,6 +97,7 @@ void Signalling::registerOnline(){
     
     //添加自己
     clients.insert(getIdByDevice(public_ip),public_ip);
+    emit deviceUpdated();
 }
 
 

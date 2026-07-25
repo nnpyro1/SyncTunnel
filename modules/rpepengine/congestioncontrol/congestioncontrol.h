@@ -2,6 +2,9 @@
 #define CONGESTIONCONTROL_H
 
 #include <QObject>
+#include <QSet>
+#include     <general.h>
+#include <core/basic/utils.h>
 
 class CongestionControl : public QObject
 {
@@ -10,7 +13,8 @@ public:
     explicit CongestionControl(QObject *parent = nullptr);
     
     struct CongestionControlInput{
-        
+        QSet<quint32> loss;
+        double rtt;
     };
     
     struct CongestionControlOutput{
@@ -21,6 +25,9 @@ public:
     void update(CongestionControlInput);        //更新
     CongestionControlOutput getOutput();        //获取输出
 signals:
+private:
+    CongestionControlInput input;
+    CongestionControlOutput output;
 };
 
 #endif // CONGESTIONCONTROL_H

@@ -8,7 +8,7 @@
 #include "qpoint.h"
 #include "qsize.h"
 #include <QObject>
-#include <modules/transmissionengine/transmissionengine.h>
+#include <modules/rpepengine/rpepengine.h>
 #include <general.h>
 #include <utils.h>
 
@@ -99,7 +99,7 @@ public:
     };
 
 public:
-    explicit RemoteControlEngine(TransmissionEngine *te,QObject *parent = nullptr);
+    explicit RemoteControlEngine(RpepEngine *te,QObject *parent = nullptr);
     
 public slots:
     bool startControl(int id);
@@ -131,7 +131,7 @@ private:
     QList<int> getDivisors(int num); 
     QSize calculateChunkSize(QSize screenSize,int maxArea);
 private:
-    TransmissionEngine *te;
+    RpepEngine *te;
     QTimer refreshTimer;
     int currentId=-1;
     State currentState = State::Idle;

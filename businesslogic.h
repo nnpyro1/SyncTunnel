@@ -8,6 +8,7 @@
 #include "modules/signalling/signalling.h"
 #include "modules/transmissionengine/transmissionengine.h"
 #include "modules/remotecontrol/remotecontrolengine.h"
+#include "modules/rpepengine/rpepengine.h"
 #include "core/services/schedule.h"
 #include <QSettings>
 #include <QProcess>
@@ -73,23 +74,24 @@ public:
         CurrentPathSetFailed,
         Debug,//调试用，可能需参数
         FileUploadingFinished,//可选QString error
+        ErrorOccurred,//必选QString error，仅用于Result反馈
     };
     Q_ENUM(BusinessEvent);
     
-    struct Result{
-        bool is_succeeded;
-        QString errorMessage;
+    // struct Result{
+    //     bool is_succeeded;
+    //     QString errorMessage;
         
-        Result():is_succeeded(true),errorMessage(QString()){}
-        Result(QString errorMessage):is_succeeded(false),errorMessage(errorMessage){}
-    }; 
+    //     Result():is_succeeded(true),errorMessage(QString()){}
+    //     Result(QString errorMessage):is_succeeded(false),errorMessage(errorMessage){}
+    // }; 
      private:typedef Result RSLT;public:
     
 public://公有函数
     Q_INVOKABLE void init();                                        //初始化
     Q_INVOKABLE void destory();                                     //销毁对象
     
-    Q_INVOKABLE void send(QByteArray msg,bool e=1,int d=-1);        //自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
+    // Q_INVOKABLE void send(QByteArray msg,bool e=1,int d=-1);        //自动加密msg并发送给所有client,e标识是否需要加密,d标识发给哪个客户端
     Q_INVOKABLE Result sendFile(QSet<devid_t> dst,QSet<QString> incremental_sync_set=QSet<QString>());//发送文件给所有客户端
 //    Q_INVOKABLE bool restartDebug();                                //切换当前调试状态，返回切换过后的状态
     Q_INVOKABLE bool checkSkin(skinType skin);                      //检查skin是否可用
@@ -140,6 +142,9 @@ private slots://私有槽
     void on_readyRead(QByteArray msg);                              //原始消息接收
     void on_SPTP_readyRead(QByteArray msg);                         //SPTP协议收到大包
     void on_SPTP_ctrlMsg_received(TransmissionEngine::msg_ctrl);    //SPTP协议收到控制包
+    //以上是废弃接口，以下是新版可用
+    void onControlReceived(QString  key,QVariant value,devid_t src);//收到控制消息
+    void onDataReceived(QByteArray data,devid_t src);               //收到大型数据
     
 private://私有函数 
     QByteArray encode(const QByteArray &msg);                       //加密msg并返回密文
@@ -150,11 +155,12 @@ private://私有函数
     bool stat();                                                    //统计用户
     
 private:
-    Communication *m_communication;
-    Signalling *m_signalling;
+    // Communication *m_communication;
+    // Signalling *m_signalling;
     Storage *m_storage;
-    TransmissionEngine *m_transmissionengine;
+    // TransmissionEngine *m_transmissionengine;
     RemoteControlEngine *m_remotecontrolengine;
+    RpepEngine *m_rpepengine;
     
 private://私有变量
     device public_ip;
