@@ -1893,6 +1893,13 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     });
     connect(ui->actionStart_remote,&QAction::triggered,this,[this]{int index=ui->tableWidget_deviceList->currentRow();if(index==-1){QMessageBox::warning(this,"远程控制","请先选中一个设备");return;} ui->tabWidget->setCurrentIndex(2); this->vm->on_start_remote(index);});
     connect(ui->pushButton_remote_stop,&QPushButton::clicked,this,[this]{this->vm->on_stop_remote();});
+    connect(&timer_clearCongestioncontrolInfo,&QTimer::timeout,this,[this]{
+        ui->label_sendInfo_currentPackage->setText("无正在进行的传输任务");
+        ui->label_sendInfo_totalPackege->setText("-");
+        ui->label_sendInfo_currentRate->setText("-");
+        ui->label_sendInfo_progress->setText("-");
+        this->vm->o_status="加载成功";
+    });
     
     //其他
     vm->o_current_dir=QDir("files");
@@ -1906,13 +1913,14 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
         auto clients=vm->o_clients.get();
         vm->o_status="设备列表更新成功";
         auto public_ip=vm->getPublicIp();
+        // ndb<<"public_ip"<<public_ip;
         foreach(auto client,clients){
             int row_index=ui->tableWidget_deviceList->rowCount();
             ui->tableWidget_deviceList->insertRow(row_index);
-            ui->tableWidget_deviceList->setItem(row_index,0,new QTableWidgetItem(getStringByDeviceId(getIdByDevice(client))+(client==public_ip?"(本机)":"")+(client.flag==Communication::DFHNDevice?"(DFHN)":"")));
+            ui->tableWidget_deviceList->setItem(row_index,0,new QTableWidgetItem(getStringByDeviceId(getIdByDevice(client))));
             ui->tableWidget_deviceList->setItem(row_index,1,new QTableWidgetItem((client.flag==Communication::DFHNDevice?"**":"")+client.ip));
             ui->tableWidget_deviceList->setItem(row_index,2,new QTableWidgetItem(QString::number(client.port)));
-            ui->tableWidget_deviceList->setItem(row_index,3,new QTableWidgetItem((client.flag==Communication::DFHNDevice?"**":"")+client.description+"("+QMetaEnum::fromType<Communication::DeviceFlag>().valueToKey(client.flag)+")"));
+            ui->tableWidget_deviceList->setItem(row_index,3,new QTableWidgetItem(QString(client.flag==Communication::DFHNDevice?"**":"")+(client==public_ip?"(本机)":"")+(client.flag==Communication::DFHNDevice?"(DFHN)":"")+client.description+"("+QMetaEnum::fromType<Communication::DeviceFlag>().valueToKey(client.flag)+")"));
         }
     });
     vm->o_user_name.use(this,[=]{ui->lineEdit_settings_username->setText(vm->o_user_name);});
@@ -1947,7 +1955,7 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
 
 
 MainWindow::~MainWindow(){
-    
+    delete ui;
 }
 
 
@@ -2003,6 +2011,7 @@ void MainWindow::sendFile(QSet<devid_t> dst){
     if(dst.empty()){//让用户选择
         Dialog_selectSyncDst *dialog = new Dialog_selectSyncDst(this);
         auto tmp = vm->o_clients.get();
+        tmp.remove(getIdByDevice(vm->getPublicIp()));
         dialog->setup(tmp);
         connect(dialog,&Dialog_selectSyncDst::syncdstDecided,this,[&](QSet<devid_t> a){dst=a;});
         dialog->exec();
@@ -2015,7 +2024,9 @@ void MainWindow::sendFile(QSet<devid_t> dst){
     }
 //    dst.removeAll(public_ip);//文件不发给自己
 //    lastSyncDst=dst;
+    ninfo<<(dst);
     vm->sendFile(dst);
+    ui->tabWidget->setCurrentIndex((1));
 }
 
 
@@ -2152,14 +2163,17 @@ void MainWindow::on_test_rtt(){
 }
 
 
-void MainWindow::on_sendInfo_updated(TransmissionEngine::SendInfo info){
-    ui->tabWidget->setCurrentIndex(1);
+void MainWindow::on_sendInfo_updated(CongestionControl::CongestionControlInput ipt, CongestionControl::CongestionControlOutput opt){
+    // ui->tabWidget->setCurrentIndex(1);
     vm->o_status="正在发送";
-    ui->label_sendInfo_currentPackage->setNum(info.i);
-    ui->label_sendInfo_totalPackege->setNum(info.total);
-    ui->label_sendInfo_currentDelay->setNum(info.delay);
-    ui->label_sendInfo_currentReqAckLoop->setNum(info.reqAckLoop);
-    ui->label_sendInfo_progress->setText(info.total!=0?(QString("%1%").arg(100.*info.i/info.total)):"--");
+    ui->label_sendInfo_currentPackage->setNum((int)ipt.chunkId);
+    ui->label_sendInfo_totalPackege->setNum((int)ipt.totalChunks);
+    // ui->label_sendInfo_currentDelay->setNum(ipt.delay);
+    // ui->label_sendInfo_currentReqAckLoop->setNum(ipt.reqAckLoop);
+    ui->label_sendInfo_progress->setText(ipt.totalChunks!=0?(QString("%1%").arg(100.*ipt.chunkId/ipt.totalChunks)):"--");
+    ui->label_sendInfo_currentRate->setNum(opt.rate);
+    timer_clearCongestioncontrolInfo.stop();
+    timer_clearCongestioncontrolInfo.start(3000);
 }
 
 

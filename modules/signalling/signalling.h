@@ -67,6 +67,7 @@ private:
     QMqttClient *client;
     QMqttSubscription *subscription;
     QTimer finishTimer;
+    bool isOnline = false;
 };
 
 #endif // SIGNALLING_H

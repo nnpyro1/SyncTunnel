@@ -11,6 +11,9 @@ void CongestionControl::reset()
 
 void CongestionControl::update(CongestionControlInput ipt){
     input=ipt;
+    
+    //算法
+    output.rate=40;
 }
 
 CongestionControl::CongestionControlOutput CongestionControl::getOutput()

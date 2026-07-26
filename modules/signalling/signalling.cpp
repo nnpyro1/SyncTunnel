@@ -54,7 +54,7 @@ bool Signalling::start(){
 
 
 void Signalling::stop(){
-    if(isAvailable())registerOffline();
+    if(isAvailable()&&isOnline)registerOffline();
     if(subscription)subscription->deleteLater();subscription=0;
     if(client)client->deleteLater();client=0;
 }
@@ -75,6 +75,7 @@ void Signalling::registerOnline(){
         ncritical<<"Invalid subscription";
         return;
     }
+    isOnline=true;
     //发送registerOnline
     BasicPackage pk;
     memset(&pk,0,sizeof(pk));
@@ -111,6 +112,7 @@ void Signalling::registerOffline(){
         ncritical<<"Invalid subscription";
         return;
     }
+    isOnline=false;
     //发送registerOffline
     BasicPackage pk;
     memset(&pk,0,sizeof(pk));

@@ -127,10 +127,10 @@ inline QString getStringByDeviceId(devid_t devId){
     QByteArray di(sizeof(devId),'\0');
     auto bi = qToBigEndian(devId);
     memcpy(di.data(),&bi,sizeof(devId));
-    return QString(di.toBase64(QByteArray::OmitTrailingEquals));
+    return QString(di.toBase64(/*QByteArray::OmitTrailingEquals*/));
 }
 inline devid_t getIdByString(QString str){
-    auto d = QByteArray::fromBase64(str.toUtf8());
+    auto d = QByteArray::fromBase64(str.toUtf8()/*,QByteArray::OmitTrailingEquals*/);
     if(d.size()!=sizeof(devid_t)){
         return 0;
     }

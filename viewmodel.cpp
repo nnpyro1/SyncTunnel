@@ -226,8 +226,8 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
 }
 
 
-void ViewModel::on_sendInfoChange(TransmissionEngine::SendInfo info){
-    emit sendInfoChanged(info);
+void ViewModel::on_sendInfoChange(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt){
+    emit sendInfoChanged(ipt,opt);
 }
 
 

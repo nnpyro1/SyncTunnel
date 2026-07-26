@@ -15,6 +15,8 @@ public:
     struct CongestionControlInput{
         QSet<quint32> loss;
         double rtt;
+        quint32 chunkId;
+        quint32 totalChunks;
     };
     
     struct CongestionControlOutput{

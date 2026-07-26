@@ -4,6 +4,7 @@
 #include "general.h"
 #include <QObject>
 #include <modules/communication/communication.h>
+#include <modules/rpepengine/congestioncontrol/congestioncontrol.h>
 #include <modules/signalling/signalling.h>
 
 class RpepEngine : public QObject
@@ -52,6 +53,7 @@ public://公有接口
     ipport getMqttBroker();
     Devices getAllDevices();                                                                //获取所有在线设备
     State getState();
+    device getPublicIp();                                                                   //获取公有IP
     
     //外部接口
     bool acquireBusy();                                                                     //请求繁忙
@@ -69,6 +71,7 @@ signals:
     void deviceOnline(devid_t dev);                                                         //Signalling转移：设备上线
     void deviceOffline(devid_t dev);                                                        //Signalling转移：设备下线
     void externalReceived(QByteArray data,devid_t src);                                     //外部
+    void congestionControlInfoUpdated(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
     
 private:
 #pragma pack(push,1)
@@ -127,7 +130,8 @@ private:
     Result transferData(QByteArray data,devid_t dst);
     Result preloadData(QByteArray data);                                                //预加载数据存储在transferBuf内
     Result transferPreloadedData(devid_t dst);                                          //使用成员变量transferBuf指定数据，要求transferBuf必需是已加密的完整数据包结构
-    QVector<QVector<QPair<ipport,ipport>>> planAutoSend(Devices dsts);                  //自动规划向dsts发送的路径    
+    QVector<QVector<QPair<ipport,ipport>>> planAutoSend(Devices dsts);                  //自动规划向dsts发送的路径
+    void abortReceiving();
     
 private://private signals
     Q_SIGNAL void punchReceived(devid_t sender,int seq);
@@ -137,6 +141,7 @@ private://private signals
     Q_SIGNAL void reportReceived(ReportMessageHeader report,QSet<chunkid_t> loss);
     Q_SIGNAL void retransferRequested(QSet<chunkid_t> loss);
     Q_SIGNAL void transferCompleted();
+    Q_SIGNAL void transferAborted();
     
 private slots:
     void onCommunicationReadyRead();
@@ -156,11 +161,14 @@ private:
     QMap<QString,QPair<QString,QVariant>> pendingReliableMessages;
     //以下是发送方变量
     QList<QByteArray> transferBuf;
+    devid_t transferDestination = 0;
+    QTimer transferWatchdog;//发送方对接收方的看门狗，接收方超过指定时间没有发送Report就取消传输
     //以下是接收方变量
     QMap<int,QByteArray> receivingBuf;//接收缓冲区
     QElapsedTimer lastReportElapsedTime;//上次回复Report的时间
     chunkid_t lastReportChunk;
     devid_t acceptableSender;//接收方可接受的发送方。仅在state=Receiving时允许非零
+    QTimer receivingWatchdog;
     //专有成员结束
     QQueue<devid_t> transferTaskQueue;
     QTimer timer_keepAlive;
@@ -170,13 +178,15 @@ private:
     static const int MIN_COMPATIBLE_VERSION = 1;
     static const int MAX_RELIABLE_RETRIES = 8;
     static const int RELIABLE_INTERVAL = 1000;
-    static const int CHUNK_SIZE = 1449;
+    static const int CHUNK_SIZE = 1348;
     static const int MAX_TIMEOUT = 5000;
     static const int MAX_REPORT_TIMEOUT = 200;
     static const int MAX_REPORT_OFFSET = 2;
     static const int REPORT_BATCH = 100;
-    static const int INITAL_RATE = 5;
+    static const int INITAL_RATE = 10;
     static const int KEEPALIVE_INTERVAL = 15000;
+    static const int TRANSFER_WATCHDOG_TIMEOUT = 20000;
+    static const int RECEIVING_WATCHDOG_TIMEOUT = 20000;
 };
 
 #endif // RPEPENGINE_H

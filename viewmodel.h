@@ -4,6 +4,7 @@
 #include <QObject>
 #include <businesslogic.h>
 #include <core/basic/observable.h>
+#include <modules/rpepengine/congestioncontrol/congestioncontrol.h>
 
 //Q_DECLARE_METATYPE区
 Q_DECLARE_METATYPE(QSet<QString>)
@@ -49,7 +50,7 @@ signals:
     void messageBoxRequested(QString title,QString content,BusinessLogic::MessageBoxType type,bool doublebtn=false,std::function<void()> actionOnOk=nullptr,std::function<void()> actionOnCancel=nullptr);
     void destoryShutdownBlock();
     void remoteFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);
-    void sendInfoChanged(TransmissionEngine::SendInfo info);
+    void sendInfoChanged(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
     void debugSignal(QVariantMap args);
     void remoteControlEngineUpdated(RemoteControlEngine *eng);
     
@@ -74,7 +75,7 @@ public://公有Observable
     
 private slots://私有槽
     void on_businessEventOccur(BusinessLogic::BusinessEvent event,QVariantMap map);
-    void on_sendInfoChange(TransmissionEngine::SendInfo info);
+    void on_sendInfoChange(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
     void on_schedule_update(QByteArray schedule);
     void on_remoteFileFolderUpdate(QString folder,QSet<QPair<bool,QString>> list);
     void on_deviceListUpdate(Devices deviceList);

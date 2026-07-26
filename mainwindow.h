@@ -129,7 +129,7 @@ private slots://槽函数
     void on_test_rtt();                         //当测试RTT
 //    void on_SPTP_ctrlMsg_received(TransmissionEngine::msg_ctrl);//当SPTP收到控制消息 新版协议，以后不用Json了，迁移至此处
 //    void restart();                             //跨平台重启
-    void on_sendInfo_updated(TransmissionEngine::SendInfo info);
+    void on_sendInfo_updated(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
     
     void on_pushButton_debug1_clicked();//当调试
     
@@ -235,12 +235,13 @@ private://私有变量
 //    QMap<QString,QByteArray> fileHashMap;
 //    QDir syncFolder = QDir("files");
 //    QSettings settings;
-//    QList<device> lastSyncDst;
+//    QList<device> lastSyncDst
 #ifdef QT_DEBUG
     bool is_debug = true;
 #else
     bool is_debug = false;
 #endif
+    QTimer timer_clearCongestioncontrolInfo;
     
 private:
     // QSystemTrayIcon *trayIcon;

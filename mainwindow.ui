@@ -298,28 +298,14 @@ QMenu::item:selected{
             <item row="0" column="0">
              <widget class="QLabel" name="label_24">
               <property name="text">
-               <string>当前发送包间延迟(毫秒):</string>
+               <string>当前发送速率(包/秒):</string>
               </property>
              </widget>
             </item>
             <item row="0" column="1">
-             <widget class="QLabel" name="label_sendInfo_currentDelay">
+             <widget class="QLabel" name="label_sendInfo_currentRate">
               <property name="text">
-               <string>0</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0">
-             <widget class="QLabel" name="label_25">
-              <property name="text">
-               <string>当前发送请求统计频率(单位 次/包):</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="1">
-             <widget class="QLabel" name="label_sendInfo_currentReqAckLoop">
-              <property name="text">
-               <string>0</string>
+               <string>-</string>
               </property>
              </widget>
             </item>
@@ -337,7 +323,7 @@ QMenu::item:selected{
             <item row="0" column="1">
              <widget class="QLabel" name="label_sendInfo_currentPackage">
               <property name="text">
-               <string>0</string>
+               <string>无正在进行的传输任务</string>
               </property>
              </widget>
             </item>
@@ -351,7 +337,7 @@ QMenu::item:selected{
             <item row="1" column="1">
              <widget class="QLabel" name="label_sendInfo_totalPackege">
               <property name="text">
-               <string>0</string>
+               <string>-</string>
               </property>
              </widget>
             </item>

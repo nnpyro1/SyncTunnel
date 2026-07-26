@@ -1,4 +1,5 @@
 #include "dialog_selectsyncdst.h"
+#include "general.h"
 #include "ui_dialog_selectsyncdst.h"
 
 
@@ -22,7 +23,7 @@ void Dialog_selectSyncDst::setup(Devices _devices)
     ui->tableWidget->setColumnWidth(0,30);
     int index = 0;
     foreach(auto i,devices){
-        devid_t devId = qToBigEndian(getIdByDevice(i));
+        devid_t devId = (getIdByDevice(i));
         QCheckBox *checkBox = new QCheckBox;
         checkBoxList.append(checkBox);
         checkBox->setCheckState(Qt::Checked);
@@ -42,8 +43,15 @@ void Dialog_selectSyncDst::setup(Devices _devices)
 //                result.append(this->devices[index]);
 //                index++;}
         for(int i=0;i<ui->tableWidget->rowCount();i++){
-            if(checkBoxList[i]->isChecked()){
-                devid_t devid = qFromBigEndian(*(devid_t*)(QByteArray::fromBase64(ui->tableWidget->item(i,1)->text().toUtf8()).constData()));
+            QCheckBox *cb = qobject_cast<QCheckBox*>(ui->tableWidget->cellWidget(i,0));
+            if(!cb){
+                ncritical<<"Invalid checkbox.";
+                continue;
+            }
+            if(cb->isChecked()){
+                // ninfo<<"selectedDeviceId(before)"<<ui->tableWidget->item(i,1)->text();
+                devid_t devid = getIdByString(ui->tableWidget->item(i,1)->text());
+                ninfo<<"selectedDeviceId"<<getStringByDeviceId(devid);
                 result.insert(devid);
             }
         }
@@ -71,7 +79,17 @@ void Dialog_selectSyncDst::on_pushButton_selectWithoutDFHN_clicked(){
     //     else i->setCheckState(Qt::Unchecked);
     //     index++;
     // }
-    on_pushButton_selectAll_clicked();
+    // on_pushButton_selectAll_clicked();
+    for(int i=0;i<ui->tableWidget->rowCount();i++){
+        QCheckBox *cb = qobject_cast<QCheckBox*>(ui->tableWidget->cellWidget(i,0));
+        if(!cb){
+            ncritical<<"Invalid checkbox.";
+            continue;
+        }
+        devid_t dev = getIdByString(ui->tableWidget->item(i,1)->text());
+        if(devices.value(dev).flag!=Communication::DFHNDevice) cb->setCheckState(Qt::Checked);
+        else cb->setCheckState(Qt::Unchecked);
+    }
 }
 
 void Dialog_selectSyncDst::on_finished(){

@@ -596,7 +596,7 @@ void BusinessLogic::init(){
             break;
         }
     });
-    connect(m_rpepengine,&RpepEngine::deviceUpdated,this,[this]{ninfo<<"设备列表更新";clients=m_rpepengine->getAllDevices();emit deviceListUpdated(clients);});
+    connect(m_rpepengine,&RpepEngine::deviceUpdated,this,[this]{ninfo<<"设备列表更新";public_ip=m_rpepengine->getPublicIp();clients=m_rpepengine->getAllDevices();emit deviceListUpdated(clients);});
     connect(m_rpepengine,&RpepEngine::controlReceived,this,&BusinessLogic::onControlReceived);
     connect(m_rpepengine,&RpepEngine::dataReceived,this,&BusinessLogic::onDataReceived);
     {
@@ -605,6 +605,7 @@ void BusinessLogic::init(){
             emit businessEventOccurred(BusinessEvent::ErrorOccurred,{{"error",ret.errorMessage}});
         }
     }
+    connect(m_rpepengine,&RpepEngine::congestionControlInfoUpdated,this,&BusinessLogic::sendInfoChanged);
     
     
     //参数处理
@@ -1125,6 +1126,7 @@ void BusinessLogic::on_stop_remote(){
 
 
 device BusinessLogic::getPublicIp(){
+    ndb<<"public_ip"<<public_ip;
     return public_ip;
 }
 

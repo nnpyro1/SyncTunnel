@@ -102,7 +102,7 @@ signals:
 //    void messageBoxRequested(QString title,QString content,MessageBoxType type);    //请求弹出messageBox
 //    void operateRequested(QString object,QString method,QVariant value=QVariant()); //请求
     void businessEventOccurred(BusinessLogic::BusinessEvent event,QVariantMap args=QVariantMap()); //当事件触发
-    void sendInfoChanged(TransmissionEngine::SendInfo info);                        //发送砖头
+    void sendInfoChanged(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);                        //发送砖头
     
     void scheduleUpdated(QByteArray schedule);                                      //日程更新
     void remoteFileFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);    //远程目录改变
