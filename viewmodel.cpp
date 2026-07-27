@@ -23,6 +23,7 @@ ViewModel::ViewModel(BusinessLogic *businesslogic, QObject *parent) : QObject(pa
     connect(bl,&BusinessLogic::remoteFileFolderUpdated,this,&ViewModel::on_remoteFileFolderUpdate);
     connect(bl,&BusinessLogic::deviceListUpdated,this,&ViewModel::on_deviceListUpdate);
     connect(bl,&BusinessLogic::rttTestResultUpdated,this,&ViewModel::on_rttTestResultUpdate);
+    connect(bl,&BusinessLogic::receivingProgressUpdated,this,[this](quint32 r,quint32 t){o_status=QString("正在接收:%1/%2").arg(r).arg(t);});    
 }
 
 

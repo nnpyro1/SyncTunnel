@@ -72,6 +72,7 @@ signals:
     void deviceOffline(devid_t dev);                                                        //Signalling转移：设备下线
     void externalReceived(QByteArray data,devid_t src);                                     //外部
     void congestionControlInfoUpdated(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
+    void receivingProgressUpdated(quint32 received,quint32 total);                          //接收进度更新
     
 private:
 #pragma pack(push,1)
@@ -94,6 +95,7 @@ private:
         bool isRttAvailable;
         bool isEmpty;
         chunkid_t start;
+        chunkid_t lastReceive;
     };
 
 #pragma pack(pop)

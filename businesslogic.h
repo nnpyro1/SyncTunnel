@@ -108,6 +108,7 @@ signals:
     void remoteFileFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);    //远程目录改变
     void deviceListUpdated(Devices deviceList);                                     //设备列表改变
     void rttTestResultUpdated(QList<QVariantMap> rttResult);                        //测试RTT结果更新，每个QVariantMap需要有id,ip,port,rtt,delay
+    void receivingProgressUpdated(quint32 received,quint32 total);                  //接收进度更新
     
 public slots://以下是公有槽，需在外部联接
     void on_folder_change(QDir current_dir);

@@ -606,6 +606,7 @@ void BusinessLogic::init(){
         }
     }
     connect(m_rpepengine,&RpepEngine::congestionControlInfoUpdated,this,&BusinessLogic::sendInfoChanged);
+    connect(m_rpepengine,&RpepEngine::receivingProgressUpdated,this,&BusinessLogic::receivingProgressUpdated);
     
     
     //参数处理

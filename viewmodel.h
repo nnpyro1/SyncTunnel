@@ -18,7 +18,7 @@ public:
     explicit ViewModel(BusinessLogic *businesslogic,QObject *parent = nullptr);
     
 public slots://以下是直接从BusinessLogic迁移的槽
-    void sendFile(QSet<devid_t> dsts);
+    void sendFile(QSet<devid_t> dsts=QSet<devid_t>());
     void on_folder_change(QDir dir);
     void on_settings_saved(QString username_, QString pwd_, QString mqttServer_, 
                            int mqttPort_, QString githubUser_, QString githubPat_, 
@@ -27,9 +27,9 @@ public slots://以下是直接从BusinessLogic迁移的槽
     void on_hangup();                                               //当文件挂起
     void on_download();                                             //文件挂起下载
     void on_sync_pat();                                             //同步Github PAT
-    void on_shutdown_current(int id);                               //关闭选中
+    void on_shutdown_current(int id=0);                             //关闭选中
     void on_test_rtt();                                             //测试RTT
-    void on_request_file(int index);                                //请求文件
+    void on_request_file(int index=0);                              //请求文件
     /** @brief subdir输入|开头代表确定*/
     void on_copy_remote_file_operation_requested(QString subdir,int);//远程复制文件
     void on_add_schedule(Schedule *schedule);                       //增加日程
@@ -44,6 +44,14 @@ public slots://以下是直接从BusinessLogic迁移的槽
     device getPublicIp();                                           //从BL获取公网IP
     
     void on_debug(QVariantMap args={});                             //调试
+    
+    //后续
+    void openFile();                                                //打开文件
+    void openFolder();                                              //打开当前目录
+    void refresh();                                                 //同时刷新业务和UI
+    void shutdown();                                                //本机关机
+    void startCopyingRemoteFile();
+    void sendTestMessage();                                         //发送测试消息
     
 signals:
     void tempMessageChanged(QString tmpMessage,int maxtime=5000);

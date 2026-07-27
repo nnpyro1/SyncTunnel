@@ -224,10 +224,12 @@ void RpepEngine::abortTransfer(){
     //2 发送消息
     sendControl("___ABORT_TRANSFER___","",transferDestination);
     //3 清除状态
-    transferTaskQueue.clear();
-    transferBuf.clear();
-    transferDestination = 0;
-    transferWatchdog.stop();
+    QTimer::singleShot(2000,this,[this]{
+        transferTaskQueue.clear();
+        transferBuf.clear();
+        transferDestination = 0;
+        transferWatchdog.stop();
+    });
 }
 
 
@@ -387,6 +389,7 @@ RpepEngine::ReportMessageHeader RpepEngine::qFromBigEndian(ReportMessageHeader h
     fbe(h.src);
     fbe(h.type);
     fbe(h.version);
+    fbe(h.lastReceive);
     return h;
 }
 
@@ -398,6 +401,7 @@ RpepEngine::ReportMessageHeader RpepEngine::qToBigEndian(ReportMessageHeader h){
     tbe(h.src);
     tbe(h.type);
     tbe(h.version);
+    tbe(h.lastReceive);
     return h;    
 }
 
@@ -652,7 +656,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             transferWatchdog.stop();transferWatchdog.start();//重置看门狗
             ninfo<<"Report received. loss="<<loss;
             ccinput.loss=loss;
-            /*if(report.isRttAvailable)*/ccinput.rtt=timer.nsecsElapsed()/1.e6-elapsedTimes[report.start];
+            /*if(report.isRttAvailable)*/ccinput.rtt=timer.nsecsElapsed()/1.e6-elapsedTimes[report.lastReceive];
             cc.update(ccinput);
             ccoutput=cc.getOutput();
             QMap<chunkid_t,bool> lm;
@@ -666,7 +670,6 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             //更新信号
             emit congestionControlInfoUpdated(ccinput,ccoutput);
         });
-        bool isAborted = false;
         // connect(this,&RpepEngine::transferAborted,&cc,[&isAborted]{isAborted=true;});//侦测是否中断。随便绑定一个同作用域的QObject//已在开头添加
         connect(&transferWatchdog,&QTimer::timeout,&cc,[this]{abortTransfer();});
         for(int i=0;i<transferBuf.size();i++){
@@ -931,6 +934,7 @@ void RpepEngine::onCommunicationReadyRead(){
             if(!lastReportElapsedTime.isValid()){
                 lastReportElapsedTime.start();
             }
+            emit receivingProgressUpdated(dmh.chunkId,dmh.totalChunkNum);
             receivingWatchdog.stop();
             receivingWatchdog.start();
             //条件回复Report
@@ -952,6 +956,7 @@ void RpepEngine::onCommunicationReadyRead(){
                 rmh.isRttAvailable=isRttAvailable;
                 rmh.start=start;
                 rmh.isEmpty=loss.isEmpty();
+                rmh.lastReceive=dmh.chunkId;
                 QByteArray msgBody;
                 for(chunkid_t l:loss){
                     l=::qToBigEndian(l);
