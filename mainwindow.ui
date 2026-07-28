@@ -170,16 +170,6 @@ QMenu::item:selected{
           </property>
          </widget>
         </item>
-        <item row="2" column="3" colspan="3">
-         <widget class="QListWidget" name="listWidget_schedule">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Ignored">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
         <item row="1" column="2">
          <widget class="QPushButton" name="pushButton_file_syncAll">
           <property name="sizePolicy">
@@ -200,17 +190,24 @@ QMenu::item:selected{
           </property>
          </widget>
         </item>
-        <item row="0" column="0" colspan="6">
-         <widget class="QListWidget" name="listWidget_file">
-          <property name="contextMenuPolicy">
-           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
-          </property>
-         </widget>
-        </item>
         <item row="1" column="5">
          <widget class="QPushButton" name="pushButton_file_deleteCurrentSchedule">
           <property name="text">
            <string>删除选中</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="6">
+         <widget class="QCheckBox" name="checkBox_file_autoSync">
+          <property name="text">
+           <string>检测到文件修改自动同步（上次同步过则自动使用上次目标，自软件开启以来未同步过则提示选择目标）</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="6">
+         <widget class="QListWidget" name="listWidget_file">
+          <property name="contextMenuPolicy">
+           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
           </property>
          </widget>
         </item>
@@ -228,17 +225,15 @@ QMenu::item:selected{
             <height>100</height>
            </size>
           </property>
-          <item>
-           <property name="text">
-            <string>空 （所有文件都将被同步）</string>
-           </property>
-          </item>
          </widget>
         </item>
-        <item row="3" column="0" colspan="6">
-         <widget class="QCheckBox" name="checkBox_file_autoSync">
-          <property name="text">
-           <string>检测到文件修改自动同步（上次同步过则自动使用上次目标，自软件开启以来未同步过则提示选择目标）</string>
+        <item row="2" column="3" colspan="3">
+         <widget class="QListWidget" name="listWidget_schedule">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Ignored">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
          </widget>
         </item>
@@ -249,48 +244,6 @@ QMenu::item:selected{
         <string>设备和信息</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_7">
-        <item row="1" column="0" colspan="2">
-         <widget class="QTableWidget" name="tableWidget_deviceList">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="contextMenuPolicy">
-           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
-          </property>
-          <property name="editTriggers">
-           <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
-          </property>
-          <attribute name="verticalHeaderCascadingSectionResizes">
-           <bool>false</bool>
-          </attribute>
-          <attribute name="verticalHeaderDefaultSectionSize">
-           <number>30</number>
-          </attribute>
-          <column>
-           <property name="text">
-            <string>临时设备ID</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>IP地址</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>端口号</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>备注</string>
-           </property>
-          </column>
-         </widget>
-        </item>
         <item row="3" column="0" colspan="2">
          <layout class="QGridLayout" name="gridLayout_12">
           <item row="0" column="1">
@@ -385,6 +338,42 @@ QMenu::item:selected{
           <property name="text">
            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;当前发送详细信息&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
+         </widget>
+        </item>
+        <item row="1" column="0" colspan="2">
+         <widget class="QTableWidget" name="tableWidget_deviceList">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="contextMenuPolicy">
+           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+          </property>
+          <property name="editTriggers">
+           <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+          </property>
+          <column>
+           <property name="text">
+            <string>临时设备ID</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>IP地址</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>端口号</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>备注</string>
+           </property>
+          </column>
          </widget>
         </item>
        </layout>

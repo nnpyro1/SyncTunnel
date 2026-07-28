@@ -182,10 +182,10 @@ private:
     static const int RELIABLE_INTERVAL = 1000;
     static const int CHUNK_SIZE = 1348;
     static const int MAX_TIMEOUT = 5000;
-    static const int MAX_REPORT_TIMEOUT = 200;
+    static const int MAX_REPORT_TIMEOUT = 2000;
     static const int MAX_REPORT_OFFSET = 2;
     static const int REPORT_BATCH = 100;
-    static const int INITAL_RATE = 10;
+    static const int INITIAL_RATE = 10;
     static const int KEEPALIVE_INTERVAL = 15000;
     static const int TRANSFER_WATCHDOG_TIMEOUT = 20000;
     static const int RECEIVING_WATCHDOG_TIMEOUT = 20000;

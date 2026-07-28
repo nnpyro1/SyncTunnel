@@ -645,20 +645,17 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     //2 发送数据包
     {
         CongestionControl cc;
-        CongestionControl::CongestionControlOutput ccoutput = {INITAL_RATE};
+        CongestionControl::CongestionControlOutput ccoutput = {INITIAL_RATE};
         CongestionControl::CongestionControlInput ccinput;
         QMap<chunkid_t,double> elapsedTimes;
         QElapsedTimer timer;
         timer.start();
         QQueue<int> tq;
-        ccinput.totalChunks=transferBuf.size()-1;
+        // ccinput.totalChunks=transferBuf.size()-1;
+        // QElapsedTimer lastReportTimer;
         auto conn = connect(this,&RpepEngine::reportReceived,this,[&](ReportMessageHeader report,QSet<chunkid_t> loss){
             transferWatchdog.stop();transferWatchdog.start();//重置看门狗
             ninfo<<"Report received. loss="<<loss;
-            ccinput.loss=loss;
-            /*if(report.isRttAvailable)*/ccinput.rtt=timer.nsecsElapsed()/1.e6-elapsedTimes[report.lastReceive];
-            cc.update(ccinput);
-            ccoutput=cc.getOutput();
             QMap<chunkid_t,bool> lm;
             foreach(auto i,loss){
                 lm.insert(i,true);
@@ -667,6 +664,16 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             for(auto i=keys.rbegin();i<keys.rend();++i){
                 if(!tq.contains(*i))tq.insert(0,*i);
             }
+            
+            ccinput.loss=keys;
+            /*if(report.isRttAvailable)*/ccinput.rtt=timer.nsecsElapsed()/1.e6-elapsedTimes[report.lastReceive];
+            ccinput.start=report.start;
+            ccinput.end=report.lastReceive;
+            // if(lastReportTimer.isValid())ccinput.timeToLastReport=lastReportTimer.elapsed();
+            // lastReportTimer.restart();
+            ccinput.elapsedTimes=elapsedTimes;
+            cc.update(ccinput);
+            ccoutput=cc.getOutput();
             //更新信号
             emit congestionControlInfoUpdated(ccinput,ccoutput);
         });
@@ -685,7 +692,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                 return Result();
             }
             int i=tq.dequeue();
-            ccinput.chunkId=i;
+            // ccinput.chunkId=i;
             send(transferBuf[i],0,dst);
             ninfo<<"Data #"<<i<<" sent.";
             elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
