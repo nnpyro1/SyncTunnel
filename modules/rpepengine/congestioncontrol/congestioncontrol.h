@@ -15,7 +15,6 @@ public:
     enum State{
         Startup,
         CongestionResponse,
-        DrainHalf,
         Drain,
         Growth,
     };
@@ -34,24 +33,25 @@ public:
     struct CongestionControlOutput{
         double rate         =10;        //速率,pps(package per second)
         State state         =Startup;   //状态机状态
-        double crtt         = 0;        //拥塞时的rtt
-        double brtt         = 0;        //基准rtt
-        double fullrate     = 0;        //满载速率，瓶颈节点的出队速度
-        double maxrate      = 0;        //最大速率，节点上次发送达到的最大速率，大于满载速率
-        double halfdraincnt = 0;        //排空队列50%需要用到的RTT计数
+        int stateKeep       =0;         //状态持续次数，按需使用，不必勉强
+        double dbase        =0;         //基准RTT，需在Startup初始化，Drain更新
+        int drainsafe       =0;         //为了防止基准RTT变化而设置的最大排空时间 单位：次
+        double dcong        =0;         //拥塞RTT
+        double fullrate     =0;         //网络满载速率
     };
     
     void reset();                               //重置状态
     void update(CongestionControlInput);        //更新
     CongestionControlOutput getOutput();        //获取输出
     
-    static const int MAX_DROPTAIL_DIFFERENCE = 2;
-    static const int STARTUP_RATE_GAIN = 2;
-    static const int DRAIN_RATE_GAIN  = 2;
+    constexpr static const int MAX_DROPTAIL_DIFFERENCE = 2;
+    constexpr static const int DRAIN_RATE_GAIN  = 2;
+    constexpr static const double DRAIN_QUEUE_LEN = 0.2;
 signals:
 private:
     CongestionControlInput input;
     CongestionControlOutput output;
+    QElapsedTimer timer;
 };
 
 #endif // CONGESTIONCONTROL_H
