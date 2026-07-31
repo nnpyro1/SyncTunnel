@@ -97,7 +97,7 @@ void BusinessLogic::init(){
     if(!QApplication::arguments().contains("CON_MODE")){if(!QDir("tools/").exists())QDir().mkpath("tools/");QFile::copy(":/rc/bin/Alacritty.exe","tools/Alacritty.exe");QProcess::startDetached("tools/Alacritty.exe",QStringList()<<"-e"<<QApplication::applicationFilePath()<<QApplication::arguments()<<"CON_MODE");close();QApplication::quit();}
 #endif
 #ifdef NNPYRO_COLORFULCON//使用控制台
-    qInstallMessageHandler(static_cast<QtMessageHandler>(log));
+    qInstallMessageHandler(static_cast<QtMessageHandler>(::log));
 #endif
     
     //先初始化目录
@@ -206,7 +206,7 @@ void BusinessLogic::init(){
         if(!QDir("logs").exists())QDir("logs").mkpath(".");
         logFile->open(QFile::WriteOnly);
         output_to_file = true;
-        qInstallMessageHandler(static_cast<QtMessageHandler>(log));
+        qInstallMessageHandler(static_cast<QtMessageHandler>(::log));
         ninfo<<"日志输出重定向到文件";
 //        ui->checkBox_settings_recordLog->setCheckState(Qt::Checked);
 //        emit operateRequested("ui->checkBox_settings_recordLog","setCheckState",Qt::Checked);
@@ -605,7 +605,82 @@ void BusinessLogic::init(){
             emit businessEventOccurred(BusinessEvent::ErrorOccurred,{{"error",ret.errorMessage}});
         }
     }
-    connect(m_rpepengine,&RpepEngine::congestionControlInfoUpdated,this,&BusinessLogic::sendInfoChanged);
+    connect(m_rpepengine,&RpepEngine::congestionControlInfoUpdated,this,[this](CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt){
+        emit sendInfoChanged(ipt,opt);
+#ifdef QT_DEBUG
+        if(1)
+#else
+        if(0)
+#endif
+        {
+            auto wrapCsvCell = [](const QString &text){
+                QString res = text;
+                res.replace("\"", "\"\"");
+                return "\"" + res + "\"";
+            };
+            QStringList cells;
+            
+            // ---------------------- 1. loss 数组：空格分隔数字串 ----------------------
+            QString lossStr;
+            if (!ipt.loss.isEmpty())
+            {
+                QStringList lossItems;
+                for (quint32 num : ipt.loss)
+                    lossItems << QString::number(num);
+                lossStr = lossItems.join(" ");
+            }
+            cells << wrapCsvCell(lossStr); // 统一包裹
+            
+            // ---------------------- 2. 基础数字字段 ----------------------
+            cells << wrapCsvCell(QString::number(ipt.rtt));
+            cells << wrapCsvCell(QString::number(ipt.start));
+            cells << wrapCsvCell(QString::number(ipt.end));
+            
+            // ---------------------- 3. QMap 键值串 k:v;k:v ----------------------
+            QString elapsedStr;
+            if (!ipt.elapsedTimes.isEmpty())
+            {
+                QStringList mapItems;
+                auto iter = ipt.elapsedTimes.constBegin();
+                for (; iter != ipt.elapsedTimes.constEnd(); ++iter)
+                {
+                    mapItems << QString("%1:%2").arg(iter.key()).arg(iter.value());
+                }
+                elapsedStr = mapItems.join(";");
+            }
+            cells << wrapCsvCell(elapsedStr);
+            
+            // 剩余基础字段
+            cells << wrapCsvCell(QString::number(ipt.last));
+            cells << wrapCsvCell(QString::number(ipt.chunkId));
+            cells << wrapCsvCell(QString::number(ipt.totalChunks));
+            
+            // ---------------------- 4. 拥塞控制输出字段 ----------------------
+            cells << wrapCsvCell(QString::number(opt.rate));
+            
+            // 枚举状态字符串
+            QString stateName;
+            switch(opt.state)
+            {
+            case CongestionControl::Startup: stateName = "Startup"; break;
+            case CongestionControl::Drain:   stateName = "Drain";   break;
+            case CongestionControl::CongestionResponse: stateName = "CongestionResponse"; break;
+            case CongestionControl::Growth:  stateName = "Growth";  break;
+            default: stateName = "Unknown";
+            }
+            cells << wrapCsvCell(stateName);
+            
+            cells << wrapCsvCell(QString::number(opt.stateKeep));
+            cells << wrapCsvCell(QString::number(opt.dbase));
+            cells << wrapCsvCell(QString::number(opt.drainsafe));
+            cells << wrapCsvCell(QString::number(opt.dcong));
+            cells << wrapCsvCell(QString::number(opt.fullrate));
+            
+            // 拼接整行CSV，逗号分隔单元格，换行结尾
+            QString line = cells.join(",") + "\n";
+            log += line.toUtf8();
+        }
+    });
     connect(m_rpepengine,&RpepEngine::receivingProgressUpdated,this,&BusinessLogic::receivingProgressUpdated);
     
     
@@ -626,7 +701,7 @@ void BusinessLogic::init(){
     }
     if(args.contains("CON_MODE")){
         output_to_file=false;
-        qInstallMessageHandler(static_cast<QtMessageHandler>(log));
+        qInstallMessageHandler(static_cast<QtMessageHandler>(::log));
     }
     
     //其他部分
@@ -710,6 +785,7 @@ Result BusinessLogic::sendFile(QSet<devid_t> dst,QSet<QString> incremental_sync_
     if(!res){
         ncritical<<res.errorMessage;
     }
+    log.clear();
     return res;
 }
 
@@ -1133,7 +1209,10 @@ device BusinessLogic::getPublicIp(){
 
 
 void BusinessLogic::on_debug([[maybe_unused]]QVariant dbgArgs){
-    
+    QFile f("log/sendLog_"+QDateTime::currentDateTime().toString("yyyyMMddhhmmss").toUtf8()+".csv");
+    f.open(QFile::WriteOnly);
+    f.write(log.toUtf8());
+    f.close();
 }
 
 

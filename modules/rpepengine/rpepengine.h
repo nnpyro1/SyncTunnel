@@ -184,7 +184,7 @@ private:
     static const int MAX_TIMEOUT = 5000;
     static const int MAX_REPORT_TIMEOUT = 2000;
     static const int MAX_REPORT_OFFSET = 2;
-    static const int REPORT_BATCH = 100;
+    static const int REPORT_BATCH = 800;
     static const int INITIAL_RATE = 10;
     static const int KEEPALIVE_INTERVAL = 15000;
     static const int TRANSFER_WATCHDOG_TIMEOUT = 20000;

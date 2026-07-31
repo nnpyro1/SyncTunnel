@@ -102,9 +102,11 @@ TRANSLATIONS += \
 
 #CONFIG += console  #仅调试
 #DEFINES += NNPYRO_USE_CONSOLE   #仅调试
-Debug:DEFINES += DEBUG_NO_ENCRYPTION     #仅调试
+debug:DEFINES += DEBUG_NO_ENCRYPTION     #仅调试
 DEFINES += NNPYRO_COLORFULCON   #控制台彩色输出
-QT+=testlib
+# debug:QMAKE_CXXFLAGS += -fsanitize=address
+# debug:QMAKE_LFLAGS += -fsanitize=address
+debug:QT+=testlib
 
 # Default rules for deployment
 qnx: target.path = /tmp/$${TARGET}/bin

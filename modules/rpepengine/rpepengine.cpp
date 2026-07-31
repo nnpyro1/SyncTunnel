@@ -643,6 +643,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         }
     }
     //2 发送数据包
+    // Utils::multiDelay(120);//玄学等待
     {
         CongestionControl cc;
         CongestionControl::CongestionControlOutput ccoutput = {INITIAL_RATE};
@@ -676,6 +677,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             ccoutput=cc.getOutput();
             //更新信号
             emit congestionControlInfoUpdated(ccinput,ccoutput);
+            ccinput.last=ccinput.end;
         });
         // connect(this,&RpepEngine::transferAborted,&cc,[&isAborted]{isAborted=true;});//侦测是否中断。随便绑定一个同作用域的QObject//已在开头添加
         connect(&transferWatchdog,&QTimer::timeout,&cc,[this]{abortTransfer();});
@@ -683,6 +685,8 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             tq.enqueue(i);
         }
         transferWatchdog.start();
+        ccinput.totalChunks=transferBuf.size();
+        ccinput.last = 0;
         while(!tq.isEmpty()){
             if(isAborted){
                 ninfo<<"传输被强制终止";
@@ -695,6 +699,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             // ccinput.chunkId=i;
             send(transferBuf[i],0,dst);
             ninfo<<"Data #"<<i<<" sent.";
+            ccinput.chunkId = i;
             elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
             Utils::multiDelay(1000/ccoutput.rate);
             QApplication::processEvents(QEventLoop::ExcludeUserInputEvents,100);
@@ -735,7 +740,8 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             std::sort(sortedLoss.begin(),sortedLoss.end());
             for(auto i:sortedLoss){
                 send(transferBuf[i],0,dst);
-                QThread::msleep(10);
+                ninfo<<"Data #"<<i<<"Retransferred.";
+                QThread::msleep(50);
                 QApplication::processEvents();
                 transferWatchdog.stop();
                 transferWatchdog.start();
@@ -1014,9 +1020,9 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
     if(key=="___START_TRANSFER___"){
         if(state==State::Ready){
             ninfo<<"transfer accepted.";
-            sendControl("___ACCEPT_TRANSFER___","",src);
             state=State::Receiving;
             acceptableSender=src;
+            sendControl("___ACCEPT_TRANSFER___","",src);
         }
         else{
             sendControl("___REFUSE_TRANSFER___","state="+QString::number((int)state),src);
@@ -1076,6 +1082,7 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
         //解析包
         QSet<chunkid_t> loss;
         QByteArray msg = value.toByteArray();
+        ninfo<<"size:"<<msg.size();
         QBuffer buf(&msg);
         while(!buf.atEnd()){
             chunkid_t id;
@@ -1083,6 +1090,7 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             id = ::qFromBigEndian(id);
             loss.insert(id);
         }
+        ninfo<<"请求重传："<<loss;
         emit retransferRequested(loss);
     }
     if(key=="___TRANSFER_COMPLETE___"){

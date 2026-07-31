@@ -231,6 +231,7 @@ private://私有变量
     QSettings settings;
     QSet<devid_t> lastSyncDst;
     bool use_ipv6 = false;
+    QString log;
 };
 
 #ifndef BUSINESSLOGIC_H_2

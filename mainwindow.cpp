@@ -1899,6 +1899,13 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
         ui->label_sendInfo_currentRate->setText("-");
         ui->label_sendInfo_progress->setText("-");
         ui->label_sendInfo_rtt->setText("-");
+        ui->label_sendInfo_fullrate->setText("-");
+        ui->label_sendInfo_dbase->setText("-");
+        ui->label_sendInfo_dcong->setText("-");
+        ui->label_sendInfo_drainsafe->setText("-");
+        ui->label_sendInfo_loss->setText("-");
+        ui->label_sendInfo_state->setText("-");
+        ui->label_sendInfo_stateKeep->setText("-");
         this->vm->o_status="加载成功";
     });
     
@@ -2174,6 +2181,14 @@ void MainWindow::on_sendInfo_updated(CongestionControl::CongestionControlInput i
     ui->label_sendInfo_progress->setText(ipt.totalChunks!=0?(QString("%1%").arg(100.*ipt.chunkId/ipt.totalChunks)):"--");
     ui->label_sendInfo_currentRate->setNum(opt.rate);
     ui->label_sendInfo_rtt->setNum(ipt.rtt);
+    ui->label_sendInfo_fullrate->setNum(opt.fullrate);
+    ui->label_sendInfo_dbase->setNum(opt.dbase);
+    ui->label_sendInfo_dcong->setNum(opt.dcong);
+    ui->label_sendInfo_drainsafe->setNum(opt.drainsafe);
+    ui->label_sendInfo_loss->setNum((int)ipt.loss.size());
+    ui->label_sendInfo_state->setNum(opt.state);
+    ui->label_sendInfo_stateKeep->setNum(opt.stateKeep);
+    
     timer_clearCongestioncontrolInfo.stop();
     timer_clearCongestioncontrolInfo.start(3000);
 }
