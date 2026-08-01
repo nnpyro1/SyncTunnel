@@ -16,6 +16,47 @@ RpepEngine::RpepEngine(QObject *parent)
     transferWatchdog.setInterval(TRANSFER_WATCHDOG_TIMEOUT);
     receivingWatchdog.setInterval(RECEIVING_WATCHDOG_TIMEOUT);
     connect(&receivingWatchdog,&QTimer::timeout,this,[this]{abortReceiving();});//无需联接transferWatchdog因为在transferPreloadedData内连接
+    connect(&receivingReportTimer,&QTimer::timeout,this,[this]{
+        if(state!=State::Receiving){
+            receivingReportTimer.stop();
+            return ;
+        }
+        if(receivingBuf.isEmpty()){
+            nwarning<<"Receiving buf is empty.";
+            return; 
+        }
+        //侦测丢包
+        chunkid_t start = receivingBuf.lastKey() >REPORT_BATCH?receivingBuf.lastKey()-REPORT_BATCH:0;
+        QSet<chunkid_t> loss;
+        for(chunkid_t i=start;i<receivingBuf.lastKey();i++){
+            if(!receivingBuf.contains(i)){
+                loss.insert(i);
+            }
+        }
+        ninfo<<"Report:loss="<<loss;
+        //构造报文
+        ReportMessageHeader rmh;
+        rmh.src=deviceId;
+        rmh.type=(quint16)MessageType::Report;
+        rmh.isRttAvailable=/*isRttAvailable*/false;
+        rmh.start=start;
+        rmh.isEmpty=loss.isEmpty();
+        rmh.lastReceive=receivingBuf.lastKey();
+        QByteArray msgBody;
+        for(chunkid_t l:loss){
+            l=::qToBigEndian(l);
+            char lo[sizeof(l)];
+            memcpy(lo,&l,sizeof(l));
+            msgBody.append(lo,sizeof(l));
+        }
+        //发送
+        send(getHeaderBytes(rmh)+msgBody,1,acceptableSender);
+        lastReportElapsedTime.restart();
+        lastReportChunk=receivingBuf.lastKey();
+        int interval = receivingReportTimer.interval();
+        receivingReportTimer.stop();
+        receivingReportTimer.start(2*interval);
+    });
 }
 
 RpepEngine::~RpepEngine()
@@ -376,6 +417,7 @@ void RpepEngine::reset(){
     receivingBuf.clear();
     lastReportChunk=-1;
     acceptableSender=0;
+    receivingReportTimer.stop();
 }
 
 
@@ -485,7 +527,7 @@ void RpepEngine::send(QByteArray msg, bool e, int d){
         }
         ret=m_communication->send(devices.value(d),msg);
         if(ret<0){
-            ncritical<<"发送消息失败 目标"<<getStringByDeviceId(d);
+            ncritical<<"发送消息失败 目标"<<getStringByDeviceId(d)<<" 返回"<<ret<<" 实际"<<msg.size();
         }
     }
 }
@@ -642,6 +684,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             return Result("startTransfer\nrefused\n"+refuseReason);
         }
     }
+    
     //2 发送数据包
     // Utils::multiDelay(120);//玄学等待
     {
@@ -677,7 +720,8 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             ccoutput=cc.getOutput();
             //更新信号
             emit congestionControlInfoUpdated(ccinput,ccoutput);
-            ccinput.last=ccinput.end;
+            ccinput.lastEnd=ccinput.end;
+            ccinput.lastSend=ccinput.chunkId;
         });
         // connect(this,&RpepEngine::transferAborted,&cc,[&isAborted]{isAborted=true;});//侦测是否中断。随便绑定一个同作用域的QObject//已在开头添加
         connect(&transferWatchdog,&QTimer::timeout,&cc,[this]{abortTransfer();});
@@ -686,7 +730,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         }
         transferWatchdog.start();
         ccinput.totalChunks=transferBuf.size();
-        ccinput.last = 0;
+        ccinput.lastEnd = 0;
         while(!tq.isEmpty()){
             if(isAborted){
                 ninfo<<"传输被强制终止";
@@ -697,7 +741,13 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             }
             int i=tq.dequeue();
             // ccinput.chunkId=i;
-            send(transferBuf[i],0,dst);
+            //转换rate
+            quint64 db;
+            char tmp[sizeof(double)];
+            memcpy(&db,&ccoutput.rate,sizeof(double));
+            db=::qToBigEndian(db);
+            memcpy(tmp,&db,sizeof(double));
+            send(transferBuf[i]+QByteArray(tmp,sizeof(double))+"RATE_TP_",0,dst);
             ninfo<<"Data #"<<i<<" sent.";
             ccinput.chunkId = i;
             elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
@@ -826,13 +876,30 @@ void RpepEngine::abortReceiving(){
     receivingBuf.clear();
     lastReportChunk=-1;
     acceptableSender=0;
+    receivingReportTimer.stop();
 }
 
 
 void RpepEngine::onCommunicationReadyRead(){
     while(m_communication->hasPendingDatagrams()){
         auto datagram = m_communication->readDatagram();
-        QByteArray rawMsg = decode(datagram.data());
+        QByteArray undecoded = datagram.data();
+        double rate=0;
+        if(undecoded.endsWith("_TP_")){//尾部未加密载荷
+            undecoded.chop(4);
+            QByteArray id = undecoded.right(4);
+            undecoded.chop(4);
+            if(id=="RATE"){
+                QByteArray rt = undecoded.right(sizeof(double));
+                undecoded.chop(sizeof(double));
+                quint64 tmp;
+                memcpy(&tmp,rt.constData(),sizeof(double));
+                //翻转
+                tmp=::qFromBigEndian(tmp);
+                memcpy(&rate,&tmp,sizeof(double));
+            }
+        }
+        QByteArray rawMsg = decode(undecoded);
         if(rawMsg.size()<(qsizetype)sizeof(CommonHeader)){
             ncritical<<"Message Too Short. msg="<<rawMsg;
             continue;
@@ -950,9 +1017,16 @@ void RpepEngine::onCommunicationReadyRead(){
             emit receivingProgressUpdated(dmh.chunkId,dmh.totalChunkNum);
             receivingWatchdog.stop();
             receivingWatchdog.start();
+            //重置定时器
+            receivingReportTimer.stop();
+            if(rate!=0){
+                receivingReportTimer.start(MAX_SAFE_NOSEND*1000./rate);
+                ninfo<<"启动接收超时定时器："<<MAX_SAFE_NOSEND*1000./rate;
+            }
             //条件回复Report
             if(lastReportElapsedTime.elapsed()>=MAX_REPORT_TIMEOUT || dmh.chunkId >= lastReportChunk+MAX_REPORT_OFFSET){
-                bool isRttAvailable = dmh.chunkId >= lastReportChunk+MAX_REPORT_OFFSET;
+                // bool isRttAvailable = dmh.chunkId >= lastReportChunk+MAX_REPORT_OFFSET;
+                
                 //侦测丢包
                 chunkid_t start = dmh.chunkId>REPORT_BATCH?dmh.chunkId-REPORT_BATCH:0;
                 QSet<chunkid_t> loss;
@@ -966,7 +1040,7 @@ void RpepEngine::onCommunicationReadyRead(){
                 ReportMessageHeader rmh;
                 rmh.src=deviceId;
                 rmh.type=(quint16)MessageType::Report;
-                rmh.isRttAvailable=isRttAvailable;
+                rmh.isRttAvailable=/*isRttAvailable*/true;
                 rmh.start=start;
                 rmh.isEmpty=loss.isEmpty();
                 rmh.lastReceive=dmh.chunkId;
@@ -1069,6 +1143,7 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             receivingBuf.clear();
             lastReportChunk = -1;
             acceptableSender = 0;
+            receivingReportTimer.stop();
             //从队列中取出任务并执行
             if(!transferTaskQueue.isEmpty()){
                 QMetaObject::invokeMethod(this,[=]{
@@ -1084,6 +1159,7 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
         QByteArray msg = value.toByteArray();
         ninfo<<"size:"<<msg.size();
         QBuffer buf(&msg);
+        buf.open(QBuffer::ReadOnly);
         while(!buf.atEnd()){
             chunkid_t id;
             memcpy(&id,buf.read(sizeof(id)).constData(),sizeof(id));
@@ -1118,6 +1194,7 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             lastReportChunk=-1;
             acceptableSender=0;
             receivingWatchdog.stop();
+            receivingReportTimer.stop();
         }
     }
     if(key=="___ABORT_RECEIVING___"){

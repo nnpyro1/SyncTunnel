@@ -28,7 +28,8 @@ public:
         quint32 end;
         // quint64 timeToLastReport;//距离上一个统计的时间
         QMap<quint32,double> elapsedTimes;//多包间隔时间
-        quint32 last;
+        quint32 lastEnd;
+        quint32 lastSend;
         //以下是没用的
         quint32 chunkId;
         quint32 totalChunks;
@@ -53,7 +54,7 @@ public:
     // constexpr static const int DRAIN_RATE_GAIN  = 2;
     constexpr static const double DRAIN_GAIN = 0.8;
     constexpr static const double DRAIN_QUEUE_LEN = 0.2;//排空需要的队列长度 百分数
-    constexpr static const int MAX_SAFE_QUEUE_LEN = 15000;//算法工作的最大安全缓冲区，防止基准RTT变化导致的状态锁死
+    constexpr static const int MAX_SAFE_QUEUE_LEN = 850;//算法工作的最大安全缓冲区，防止基准RTT变化导致的状态锁死
     constexpr static const double MAXRATE_WEIGHT = 0.5;
     constexpr static const double GROWTH_START = 0.95;
 signals:

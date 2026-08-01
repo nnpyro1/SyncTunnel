@@ -638,20 +638,20 @@ void BusinessLogic::init(){
             
             // ---------------------- 3. QMap 键值串 k:v;k:v ----------------------
             QString elapsedStr;
-            if (!ipt.elapsedTimes.isEmpty())
-            {
-                QStringList mapItems;
-                auto iter = ipt.elapsedTimes.constBegin();
-                for (; iter != ipt.elapsedTimes.constEnd(); ++iter)
-                {
-                    mapItems << QString("%1:%2").arg(iter.key()).arg(iter.value());
-                }
-                elapsedStr = mapItems.join(";");
-            }
+            // if (!ipt.elapsedTimes.isEmpty())
+            // {
+            //     QStringList mapItems;
+            //     auto iter = ipt.elapsedTimes.constBegin();
+            //     for (; iter != ipt.elapsedTimes.constEnd(); ++iter)
+            //     {
+            //         mapItems << QString("%1:%2").arg(iter.key()).arg(iter.value());
+            //     }
+            //     elapsedStr = mapItems.join(";").right(1000);
+            // }
             cells << wrapCsvCell(elapsedStr);
             
             // 剩余基础字段
-            cells << wrapCsvCell(QString::number(ipt.last));
+            cells << wrapCsvCell(QString::number(ipt.lastEnd));
             cells << wrapCsvCell(QString::number(ipt.chunkId));
             cells << wrapCsvCell(QString::number(ipt.totalChunks));
             

@@ -15,6 +15,7 @@ void CongestionControl::update(CongestionControlInput ipt){
     
     //算法
     double lastUpdate = timer.isValid()?(timer.nsecsElapsed()/1.e6):0;
+    if(ipt.rtt<output.dbase) output.dbase=ipt.rtt;
     //计算尾丢
     QList<quint32> tl;//尾丢
     {
@@ -72,8 +73,8 @@ void CongestionControl::update(CongestionControlInput ipt){
         // double tc = lastUpdate;//拥塞时间
         // double fullrate = (output.rate * tc - tl.size()) / tc;//满载速率计算公式
         Q_ASSERT(input.elapsedTimes.contains(input.end));
-        Q_ASSERT(input.elapsedTimes.contains(input.last));
-        double fullrate = (input.end - input.last - tl.size())/((input.elapsedTimes[input.end] - input.elapsedTimes[input.last])/1000.);//满载速率计算
+        Q_ASSERT(input.elapsedTimes.contains(input.lastEnd));
+        double fullrate = (input.end - input.lastEnd - tl.size())/((input.elapsedTimes[input.end] - input.elapsedTimes[input.lastEnd])/1000.);//满载速率计算
         if(output.fullrate==0){//没有初始化
             output.fullrate=output.rate=fullrate;
         }

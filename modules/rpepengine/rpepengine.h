@@ -171,6 +171,7 @@ private:
     chunkid_t lastReportChunk;
     devid_t acceptableSender;//接收方可接受的发送方。仅在state=Receiving时允许非零
     QTimer receivingWatchdog;
+    QTimer receivingReportTimer;
     //专有成员结束
     QQueue<devid_t> transferTaskQueue;
     QTimer timer_keepAlive;
@@ -189,6 +190,7 @@ private:
     static const int KEEPALIVE_INTERVAL = 15000;
     static const int TRANSFER_WATCHDOG_TIMEOUT = 20000;
     static const int RECEIVING_WATCHDOG_TIMEOUT = 20000;
+    static const int MAX_SAFE_NOSEND = 4;
 };
 
 #endif // RPEPENGINE_H
