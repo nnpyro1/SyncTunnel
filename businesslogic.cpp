@@ -737,10 +737,15 @@ void BusinessLogic::init(){
     ndb<<syncFolder.absolutePath();
     
     //同步设置
-    emit businessEventOccurred(BusinessEvent::SettingsUpdated,{{"username",user_name},{"password",pwd},{"description",device_description},{"ipv6usage",use_ipv6},{"disablenotice",json_settings["disable_notice"].toBool()}});
+    emit businessEventOccurred(BusinessEvent::SettingsUpdated,{{"username",user_name},{"password",pwd},{"description",device_description},{"ipv6usage",use_ipv6},{"disablenotice",json_settings["disable_notice"].toBool()},{"stat",settings.value("ApplicationSettings/stat").toBool()}});
     
     //发送统计信息
     stat();
+    
+    //第一次启动
+    if(is_first_launch){
+        emit businessEventOccurred(BusinessEvent::RequestStat);
+    }
 }
 
 
@@ -857,7 +862,7 @@ void BusinessLogic::on_folder_change(QDir current_dir){
 }
 
 
-void BusinessLogic::on_settings_saved(QString username_,QString pwd_,QString mqttServer_,int mqttPort_,QString githubUser_,QString githubPat_,QVariant skin_,bool recordLog_,bool disableNotice_,QString description_){
+void BusinessLogic::on_settings_saved(QString username_, QString pwd_, QString mqttServer_, int mqttPort_, QString githubUser_, QString githubPat_, QVariant skin_, bool recordLog_, bool disableNotice_, QString description_, bool stat){
     bool restart_flag = false;
     
     if(user_name!=username_||pwd!=pwd_){//保存用户名密码
@@ -971,6 +976,8 @@ void BusinessLogic::on_settings_saved(QString username_,QString pwd_,QString mqt
         f.close();
         restart_flag=true;
     }
+    settings.setValue("ApplicationSettings/stat",stat);
+    
 //    if(ui->comboBox_settings_language->currentIndex() != current_language){
 //        switch (ui->comboBox_settings_language->currentIndex()) {
 //        case language_chinese:
@@ -1202,6 +1209,11 @@ void BusinessLogic::on_stop_remote(){
 }
 
 
+void BusinessLogic::on_stat_accepted(){
+    stat();
+}
+
+
 device BusinessLogic::getPublicIp(){
     ndb<<"public_ip"<<public_ip;
     return public_ip;
@@ -1285,7 +1297,7 @@ void BusinessLogic::on_readyRead(QByteArray msg){
 //        ui->lineEdit_settings_githubPAT->setText(json["pat"].toString());
 //        ui->pushButton_settings_save->click();
         RUN_LATER(
-            on_settings_saved(user_name,pwd,mqtt_server.ip,mqtt_server.port,user_github_name,json["pat"].toString(),currentSkin,json_settings["use_log"].toBool(),json_settings["disable_notice"].toBool(),device_description);
+            // on_settings_saved(user_name,pwd,mqtt_server.ip,mqtt_server.port,user_github_name,json["pat"].toString(),currentSkin,json_settings["use_log"].toBool(),json_settings["disable_notice"].toBool(),device_description);
         );
     }
     if(json.contains("cmd")){
@@ -1443,6 +1455,10 @@ void BusinessLogic::unserSchedule(QByteArray dat){
 
 
 bool BusinessLogic::stat(){
+    if(!settings.value("ApplicationSettings/stat").toBool()){
+        return true;
+    }
+    
     auto manager = new QNetworkAccessManager;
     auto func = [manager](QString url){
         QNetworkRequest request((QUrl(url)));

@@ -1908,6 +1908,7 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
         ui->label_sendInfo_stateKeep->setText("-");
         this->vm->o_status="加载成功";
     });
+    connect(vm,&ViewModel::statRequested,this,&MainWindow::onStatRequested);
     
     //其他
     vm->o_current_dir=QDir("files");
@@ -1936,6 +1937,7 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     vm->o_description.use(this,[=]{ui->lineEdit_settings_description->setText(vm->o_description);});
     vm->o_disableNoticeState.use(this,[=]{ui->checkBox_settings_disableNotice->setChecked(vm->o_disableNoticeState);});
     vm->o_ipv6UsageState.use(this,[=]{ui->checkBox_settings_ipv6->setChecked(vm->o_ipv6UsageState);});
+    vm->o_statEnableState.use(this,[=]{ui->checkBox_settings_stat->setChecked(vm->o_statEnableState);});
     ninfo<<"当前工作目录："<<QDir::currentPath();
     
     //安卓全屏策略
@@ -2125,16 +2127,17 @@ void MainWindow::on_rightclick(){       //右键点击事件
 
 void MainWindow::on_settings_saved(){
     vm->on_settings_saved(
-                ui->lineEdit_settings_username->text(),
-                ui->lineEdit_settings_pwd->text(),
-                ui->lineEdit_settings_mqttServer->text(),
-                ui->spinBox_settings_mqttPort->value(),
-                ui->lineEdit_settings_gitubUser->text(),
-                ui->lineEdit_settings_githubPAT->text(),
-                ui->comboBox_settings_uiskin->currentIndex(),
-                ui->checkBox_settings_recordLog->isChecked(),
-                ui->checkBox_settings_disableNotice->isChecked(),
-                ui->lineEdit_settings_description->text()
+        ui->lineEdit_settings_username->text(),
+        ui->lineEdit_settings_pwd->text(),
+        ui->lineEdit_settings_mqttServer->text(),
+        ui->spinBox_settings_mqttPort->value(),
+        ui->lineEdit_settings_gitubUser->text(),
+        ui->lineEdit_settings_githubPAT->text(),
+        ui->comboBox_settings_uiskin->currentIndex(),
+        ui->checkBox_settings_recordLog->isChecked(),
+        ui->checkBox_settings_disableNotice->isChecked(),
+        ui->lineEdit_settings_description->text(),
+        ui->checkBox_settings_stat->isChecked()
     );
 }
 
@@ -2191,6 +2194,27 @@ void MainWindow::on_sendInfo_updated(CongestionControl::CongestionControlInput i
     
     timer_clearCongestioncontrolInfo.stop();
     timer_clearCongestioncontrolInfo.start(3000);
+}
+
+
+void MainWindow::onStatRequested(){
+    ui->tabWidget->setCurrentIndex(5);
+    QMessageBox msg(this);
+    msg.setWindowTitle("帮助改进应用");
+    msg.setInformativeText("想要帮助我们改进应用程序吗？<br>同意后，将在应用程序启动后收集匿名信息（应用启动次数）<br><b>软件不会上传任何您的个人信息和隐私数据<b>，可在设置中随时关闭<br>感谢您的支持!");
+    msg.setStandardButtons(QMessageBox::Yes|QMessageBox::No);
+    msg.setIcon(QMessageBox::Question);
+    auto btn = msg.exec();
+    
+    if(btn == QMessageBox::Yes){
+        ui->checkBox_settings_stat->setChecked(true);
+        on_settings_saved();
+        vm->on_stat_accepted();
+    }
+    else{
+        ui->checkBox_settings_stat->setChecked(false);
+        on_settings_saved();
+    }
 }
 
 

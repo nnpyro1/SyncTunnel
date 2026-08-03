@@ -130,6 +130,7 @@ private slots://槽函数
 //    void on_SPTP_ctrlMsg_received(TransmissionEngine::msg_ctrl);//当SPTP收到控制消息 新版协议，以后不用Json了，迁移至此处
 //    void restart();                             //跨平台重启
     void on_sendInfo_updated(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
+    void onStatRequested();
     
     void on_pushButton_debug1_clicked();//当调试
     

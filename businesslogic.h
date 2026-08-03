@@ -53,6 +53,7 @@ public:
         DestoryShutdownBlock,
         CurrentDirUpdated,
         FileUploadProgressUpdated,
+        RequestStat,
         //状态更新/提示类（可选提供参数，详见调用处）
         PremiumUiUnauthorized,
         GettingPublicIp,
@@ -115,7 +116,7 @@ public slots://以下是公有槽，需在外部联接
     void on_settings_saved(QString username_, QString pwd_, QString mqttServer_, 
                            int mqttPort_, QString githubUser_, QString githubPat_, 
                            QVariant skin_, bool recordLog_, bool disableNotice_, 
-                           QString description_);                   //当设置保存
+                           QString description_,bool stat);         //当设置保存
     void on_hangup();                                               //当文件挂起
     void on_download();                                             //文件挂起下载
     void on_sync_pat();                                             //同步Github PAT
@@ -134,6 +135,7 @@ public slots://以下是公有槽，需在外部联接
     RemoteControlEngine *getRemoteControlEngine();                  //获取远程控制引擎指针用于初始化RemoteControlWidget
     void on_start_remote(int index);                                //开始远控
     void on_stop_remote();                                          //停止远控
+    void on_stat_accepted();                                        //统计接受
     
     device getPublicIp();
     

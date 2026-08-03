@@ -146,7 +146,7 @@ QMenu::item:selected{
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>5</number>
       </property>
       <property name="documentMode">
        <bool>false</bool>
@@ -577,24 +577,14 @@ li.checked::marker { content: &quot;\2612&quot;; }
              <x>0</x>
              <y>0</y>
              <width>707</width>
-             <height>876</height>
+             <height>912</height>
             </rect>
            </property>
            <layout class="QGridLayout" name="gridLayout_8">
-            <item row="7" column="2" colspan="3">
-             <widget class="QSpinBox" name="spinBox_settings_mqttPort">
-              <property name="maximum">
-               <number>65535</number>
-              </property>
-              <property name="value">
-               <number>1883</number>
-              </property>
-             </widget>
-            </item>
-            <item row="23" column="0">
-             <widget class="QLabel" name="label_15">
+            <item row="19" column="0">
+             <widget class="QLabel" name="label_18">
               <property name="text">
-               <string>日志设置</string>
+               <string notr="true">语言/Language</string>
               </property>
              </widget>
             </item>
@@ -605,21 +595,127 @@ li.checked::marker { content: &quot;\2612&quot;; }
               </property>
              </widget>
             </item>
-            <item row="3" column="0">
-             <widget class="QLabel" name="label_2">
+            <item row="24" column="4">
+             <layout class="QHBoxLayout" name="horizontalLayout">
+              <item>
+               <widget class="QPushButton" name="pushButton_settings_recordLog">
+                <property name="text">
+                 <string>本次记录</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="pushButton_settings_console">
+                <property name="text">
+                 <string>控制台</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="3" column="2" colspan="3">
+             <widget class="QLineEdit" name="lineEdit_settings_pwd">
               <property name="text">
-               <string>加密密码</string>
+               <string>DefaultUserPassword</string>
               </property>
              </widget>
             </item>
-            <item row="24" column="0">
-             <widget class="QLabel" name="label_21">
+            <item row="11" column="2">
+             <widget class="QLineEdit" name="lineEdit_settings_githubPAT"/>
+            </item>
+            <item row="4" column="2" colspan="3">
+             <widget class="QLineEdit" name="lineEdit_settings_description"/>
+            </item>
+            <item row="1" column="0" colspan="5">
+             <widget class="QLabel" name="label_3">
               <property name="text">
-               <string>应用程序模式</string>
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;用户设置&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignmentFlag::AlignCenter</set>
               </property>
              </widget>
             </item>
-            <item row="20" column="0" colspan="5">
+            <item row="0" column="0" colspan="5">
+             <widget class="QLabel" name="label_23">
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>30</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>注意：除了标*的设置项以外，其他设置项在修改后应用程序会自动重启</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="2" colspan="3">
+             <widget class="QSpinBox" name="spinBox_settings_mqttPort">
+              <property name="maximum">
+               <number>65535</number>
+              </property>
+              <property name="value">
+               <number>1883</number>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>用户名</string>
+              </property>
+             </widget>
+            </item>
+            <item row="10" column="0">
+             <widget class="QLabel" name="label_8">
+              <property name="text">
+               <string>Github账号</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="label_22">
+              <property name="text">
+               <string>设备描述(备注)</string>
+              </property>
+             </widget>
+            </item>
+            <item row="11" column="4">
+             <widget class="QPushButton" name="pushButton_settings_getDefaultPAT">
+              <property name="text">
+               <string>获取默认</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="2" colspan="3">
+             <widget class="QLineEdit" name="lineEdit_settings_username">
+              <property name="text">
+               <string>DefaultUser</string>
+              </property>
+             </widget>
+            </item>
+            <item row="18" column="2" colspan="2">
+             <widget class="QCheckBox" name="checkBox_settings_disableNotice">
+              <property name="text">
+               <string>应用程序启动时禁止自动显示公告</string>
+              </property>
+             </widget>
+            </item>
+            <item row="11" column="0">
+             <widget class="QLabel" name="label_9">
+              <property name="text">
+               <string>GitHub PAT</string>
+              </property>
+             </widget>
+            </item>
+            <item row="24" column="2">
+             <widget class="QCheckBox" name="checkBox_settings_recordLog">
+              <property name="text">
+               <string>记录日志</string>
+              </property>
+             </widget>
+            </item>
+            <item row="21" column="0" colspan="5">
              <widget class="Line" name="line">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -638,109 +734,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
               </property>
              </widget>
             </item>
-            <item row="6" column="2" colspan="3">
-             <widget class="QLineEdit" name="lineEdit_settings_mqttServer">
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_2">
               <property name="text">
-               <string>broker.emqx.io</string>
+               <string>加密密码</string>
               </property>
              </widget>
-            </item>
-            <item row="9" column="0" colspan="5">
-             <widget class="QLabel" name="label_7">
-              <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;文件挂起服务设置&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-             </widget>
-            </item>
-            <item row="15" column="1" colspan="4">
-             <widget class="QComboBox" name="comboBox_settings_uiskin"/>
-            </item>
-            <item row="24" column="1" colspan="4">
-             <layout class="QHBoxLayout" name="horizontalLayout_3">
-              <item>
-               <widget class="QPushButton" name="pushButton_settings_mode_normal">
-                <property name="text">
-                 <string>普通模式</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="pushButton_settings_mode_dfhn">
-                <property name="text">
-                 <string>DFHN（分布式文件挂起节点）模式</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item row="11" column="0">
-             <widget class="QLabel" name="label_9">
-              <property name="text">
-               <string>GitHub PAT</string>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="2" colspan="3">
-             <widget class="QLineEdit" name="lineEdit_settings_pwd">
-              <property name="text">
-               <string>DefaultUserPassword</string>
-              </property>
-             </widget>
-            </item>
-            <item row="23" column="4">
-             <layout class="QHBoxLayout" name="horizontalLayout">
-              <item>
-               <widget class="QPushButton" name="pushButton_settings_recordLog">
-                <property name="text">
-                 <string>本次记录</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QPushButton" name="pushButton_settings_console">
-                <property name="text">
-                 <string>控制台</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-            <item row="8" column="2">
-             <widget class="QCheckBox" name="checkBox_settings_ipv6">
-              <property name="text">
-               <string>强制使用IPv6</string>
-              </property>
-              <property name="checked">
-               <bool>false</bool>
-              </property>
-              <property name="tristate">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="6" column="0">
-             <widget class="QLabel" name="label_5">
-              <property name="text">
-               <string>MQTT服务器地址</string>
-              </property>
-             </widget>
-            </item>
-            <item row="10" column="0">
-             <widget class="QLabel" name="label_8">
-              <property name="text">
-               <string>Github账号</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="2" colspan="3">
-             <widget class="QLineEdit" name="lineEdit_settings_username">
-              <property name="text">
-               <string>DefaultUser</string>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="2" colspan="3">
-             <widget class="QLineEdit" name="lineEdit_settings_description"/>
             </item>
             <item row="18" column="0">
              <widget class="QLabel" name="label_16">
@@ -749,26 +748,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
               </property>
              </widget>
             </item>
-            <item row="7" column="0">
-             <widget class="QLabel" name="label_6">
-              <property name="text">
-               <string>MQTT服务器端口</string>
-              </property>
-             </widget>
-            </item>
-            <item row="19" column="0">
-             <widget class="QLabel" name="label_18">
-              <property name="text">
-               <string notr="true">语言/Language</string>
-              </property>
-             </widget>
-            </item>
-            <item row="5" column="0" colspan="5">
-             <widget class="QLabel" name="label_4">
-              <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;通信设置&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-             </widget>
+            <item row="10" column="2" colspan="3">
+             <widget class="QLineEdit" name="lineEdit_settings_gitubUser"/>
             </item>
             <item row="17" column="1" colspan="4">
              <widget class="QPushButton" name="pushButton_copyId">
@@ -777,79 +758,10 @@ li.checked::marker { content: &quot;\2612&quot;; }
               </property>
              </widget>
             </item>
-            <item row="19" column="1" colspan="4">
-             <widget class="QComboBox" name="comboBox_settings_language">
-              <item>
-               <property name="text">
-                <string notr="true">简体中文 simpChinese</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string notr="true">English(US) 英语</string>
-               </property>
-              </item>
-             </widget>
-            </item>
-            <item row="1" column="0" colspan="5">
-             <widget class="QLabel" name="label_3">
-              <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;用户设置&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item row="17" column="0">
-             <widget class="QLabel" name="label_14">
-              <property name="text">
-               <string>设备唯一ID*</string>
-              </property>
-             </widget>
-            </item>
-            <item row="10" column="2" colspan="3">
-             <widget class="QLineEdit" name="lineEdit_settings_gitubUser"/>
-            </item>
-            <item row="18" column="2" colspan="2">
-             <widget class="QCheckBox" name="checkBox_settings_disableNotice">
-              <property name="text">
-               <string>应用程序启动时禁止自动显示公告</string>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="0">
-             <widget class="QLabel" name="label_22">
-              <property name="text">
-               <string>设备描述(备注)*</string>
-              </property>
-             </widget>
-            </item>
-            <item row="15" column="0">
-             <widget class="QLabel" name="label_12">
-              <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;主题&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="0">
-             <widget class="QLabel" name="label">
-              <property name="text">
-               <string>用户名</string>
-              </property>
-             </widget>
-            </item>
             <item row="8" column="0">
              <widget class="QLabel" name="label_10">
               <property name="text">
                <string>IP设置</string>
-              </property>
-             </widget>
-            </item>
-            <item row="11" column="4">
-             <widget class="QPushButton" name="pushButton_settings_getDefaultPAT">
-              <property name="text">
-               <string>获取默认</string>
               </property>
              </widget>
             </item>
@@ -872,14 +784,56 @@ li.checked::marker { content: &quot;\2612&quot;; }
               </property>
              </widget>
             </item>
-            <item row="23" column="2">
-             <widget class="QCheckBox" name="checkBox_settings_recordLog">
+            <item row="15" column="0">
+             <widget class="QLabel" name="label_12">
               <property name="text">
-               <string>记录日志</string>
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;主题&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
              </widget>
             </item>
-            <item row="21" column="0" rowspan="2" colspan="5">
+            <item row="7" column="0">
+             <widget class="QLabel" name="label_6">
+              <property name="text">
+               <string>MQTT服务器端口</string>
+              </property>
+             </widget>
+            </item>
+            <item row="25" column="0">
+             <widget class="QLabel" name="label_21">
+              <property name="text">
+               <string>应用程序模式</string>
+              </property>
+             </widget>
+            </item>
+            <item row="17" column="0">
+             <widget class="QLabel" name="label_14">
+              <property name="text">
+               <string>设备唯一ID*</string>
+              </property>
+             </widget>
+            </item>
+            <item row="24" column="0">
+             <widget class="QLabel" name="label_15">
+              <property name="text">
+               <string>日志设置</string>
+              </property>
+             </widget>
+            </item>
+            <item row="9" column="0" colspan="5">
+             <widget class="QLabel" name="label_7">
+              <property name="text">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;文件挂起服务设置&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="0" colspan="5">
+             <widget class="QLabel" name="label_4">
+              <property name="text">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;通信设置&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+             </widget>
+            </item>
+            <item row="22" column="0" rowspan="2" colspan="5">
              <widget class="QLabel" name="label_13">
               <property name="minimumSize">
                <size>
@@ -892,19 +846,79 @@ li.checked::marker { content: &quot;\2612&quot;; }
               </property>
              </widget>
             </item>
-            <item row="11" column="2">
-             <widget class="QLineEdit" name="lineEdit_settings_githubPAT"/>
-            </item>
-            <item row="0" column="0" colspan="5">
-             <widget class="QLabel" name="label_23">
-              <property name="minimumSize">
-               <size>
-                <width>0</width>
-                <height>30</height>
-               </size>
-              </property>
+            <item row="6" column="0">
+             <widget class="QLabel" name="label_5">
               <property name="text">
-               <string>注意：除了标*的设置项以外，其他设置项在修改后应用程序会自动重启</string>
+               <string>MQTT服务器地址</string>
+              </property>
+             </widget>
+            </item>
+            <item row="8" column="2">
+             <widget class="QCheckBox" name="checkBox_settings_ipv6">
+              <property name="text">
+               <string>强制使用IPv6</string>
+              </property>
+              <property name="checked">
+               <bool>false</bool>
+              </property>
+              <property name="tristate">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="6" column="2" colspan="3">
+             <widget class="QLineEdit" name="lineEdit_settings_mqttServer">
+              <property name="text">
+               <string>broker.emqx.io</string>
+              </property>
+             </widget>
+            </item>
+            <item row="15" column="1" colspan="4">
+             <widget class="QComboBox" name="comboBox_settings_uiskin"/>
+            </item>
+            <item row="25" column="1" colspan="4">
+             <layout class="QHBoxLayout" name="horizontalLayout_3">
+              <item>
+               <widget class="QPushButton" name="pushButton_settings_mode_normal">
+                <property name="text">
+                 <string>普通模式</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="pushButton_settings_mode_dfhn">
+                <property name="text">
+                 <string>DFHN（分布式文件挂起节点）模式</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="19" column="1" colspan="4">
+             <widget class="QComboBox" name="comboBox_settings_language">
+              <item>
+               <property name="text">
+                <string notr="true">简体中文 simpChinese</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">English(US) 英语</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item row="20" column="0">
+             <widget class="QLabel" name="label_34">
+              <property name="text">
+               <string>启用统计</string>
+              </property>
+             </widget>
+            </item>
+            <item row="20" column="1" colspan="4">
+             <widget class="QCheckBox" name="checkBox_settings_stat">
+              <property name="text">
+               <string>启用应用统计功能</string>
               </property>
              </widget>
             </item>

@@ -36,8 +36,8 @@ void ViewModel::on_folder_change(QDir dir){
     RUN_IN_CUSTOM_THREAD(bl,bl->on_folder_change(dir););
 }
 
-void ViewModel::on_settings_saved(QString username_, QString pwd_, QString mqttServer_, int mqttPort_, QString githubUser_, QString githubPat_, QVariant skin_, bool recordLog_, bool disableNotice_, QString description_){
-    RUN_IN_CUSTOM_THREAD(bl,bl->on_settings_saved(username_,pwd_,mqttServer_,mqttPort_,githubUser_,githubPat_,skin_,recordLog_,disableNotice_,description_););
+void ViewModel::on_settings_saved(QString username_, QString pwd_, QString mqttServer_, int mqttPort_, QString githubUser_, QString githubPat_, QVariant skin_, bool recordLog_, bool disableNotice_, QString description_, bool stat_){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_settings_saved(username_,pwd_,mqttServer_,mqttPort_,githubUser_,githubPat_,skin_,recordLog_,disableNotice_,description_,stat_););
 }
 
 void ViewModel::on_hangup(){
@@ -101,6 +101,11 @@ void ViewModel::on_stop_remote(){
 }
 
 
+void ViewModel::on_stat_accepted(){
+    RUN_IN_CUSTOM_THREAD(bl,bl->on_stat_accepted(););
+}
+
+
 device ViewModel::getPublicIp(){
     device public_ip;
     QMetaObject::invokeMethod(bl,[=,&public_ip]{
@@ -148,6 +153,9 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
         break;
     case BusinessLogic::BusinessEvent::FileUploadProgressUpdated:
         o_status=QString("正在挂起。当前步骤:")+QMetaEnum::fromType<Storage::ProcessingState>().valueToKey(map["step"].toInt())+"进度:"+QString::number(map["progress"].toDouble()*100)+"%";
+        break;
+    case BusinessLogic::BusinessEvent::RequestStat:
+        emit statRequested();
         break;
     //状态更新/提示类（可选提供参数，详见调用处）
     case BusinessLogic::BusinessEvent::PremiumUiUnauthorized:
@@ -222,6 +230,8 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
             break;
         }
         o_status="完成";
+        break;
+    case BusinessLogic::BusinessEvent::ErrorOccurred:
         break;
     }
 }

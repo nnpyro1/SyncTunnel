@@ -24,7 +24,7 @@ public slots://以下是直接从BusinessLogic迁移的槽
     void on_settings_saved(QString username_, QString pwd_, QString mqttServer_, 
                            int mqttPort_, QString githubUser_, QString githubPat_, 
                            QVariant skin_, bool recordLog_, bool disableNotice_, 
-                           QString description_);                   //当设置保存
+                           QString description_,bool stat_);        //当设置保存
     void on_hangup();                                               //当文件挂起
     void on_download();                                             //文件挂起下载
     void on_sync_pat();                                             //同步Github PAT
@@ -41,6 +41,7 @@ public slots://以下是直接从BusinessLogic迁移的槽
     void on_restart_all();                                          //重启全部
     void on_start_remote(int index=0);                              //开始远程控制
     void on_stop_remote();
+    void on_stat_accepted();                                        //统计被接受
     
     device getPublicIp();                                           //从BL获取公网IP
     
@@ -68,6 +69,7 @@ signals:
     void sendInfoChanged(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
     void debugSignal(QVariantMap args);
     void remoteControlEngineUpdated(RemoteControlEngine *eng);
+    void statRequested();
     
 public://公有Observable
     OBS(QString,status);
@@ -87,6 +89,7 @@ public://公有Observable
 //    OBS(QSet<QString>,incremental_sync_set);
 //    QDir o_current_dir;
     QSet<QString> incremental_sync_set;
+    OBS(bool,statEnableState);
     
 private slots://私有槽
     void on_businessEventOccur(BusinessLogic::BusinessEvent event,QVariantMap map);
