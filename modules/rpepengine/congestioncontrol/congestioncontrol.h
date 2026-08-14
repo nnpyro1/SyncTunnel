@@ -13,10 +13,16 @@ public:
     explicit CongestionControl(QObject *parent = nullptr);
     
     enum State{
+        // Startup,
+        // CongestionResponse,
+        // Drain,
+        // Growth,
         Startup,
-        CongestionResponse,
-        Drain,
         Growth,
+        CongestionResponse,
+        ProbeMaxRate1,
+        ProbeMaxRate2,
+        Drain,
     };
     
     struct CongestionControlInput{
@@ -36,13 +42,22 @@ public:
     };
     
     struct CongestionControlOutput{
-        double rate         =10;        //速率,pps(package per second)
-        State state         =Startup;   //状态机状态
-        int stateKeep       =0;         //状态持续次数，按需使用，不必勉强
-        double dbase        =0;         //基准RTT，需在Startup初始化，Drain更新
-        int drainsafe       =0;         //为了防止基准RTT变化导致状态锁死而设置的最大排空时间 单位：次
-        double dcong        =0;         //拥塞RTT
-        double fullrate     =0;         //网络满载速率
+        // double rate         =10;        //速率,pps(package per second)
+        // State state         =Startup;   //状态机状态
+        // int stateKeep       =0;         //状态持续次数，按需使用，不必勉强
+        // double dbase        =0;         //基准RTT，需在Startup初始化，Drain更新
+        // int drainsafe       =0;         //为了防止基准RTT变化导致状态锁死而设置的最大排空时间 单位：次
+        // double dcong        =0;         //拥塞RTT
+        // double fullrate     =0;         //网络满载速率
+        double rate         =10;        //速率，pps
+        State state         =Startup;   //状态
+        int stateKeep       =0;         //状态持续次数
+        double dbase        =0;         //RTprop,d0
+        double dcong        =0;         //拥塞满载速率
+        double fullrate     =0;         //满载速率
+        int lastRttReportEnd=0;         //上一个RTT的Report的end，用于区分是否是一个新的RTT
+        
+        uint probeTimeout   =0;         //ProbeMaxRate1/2的超时时间戳
     };
     
     void reset();                               //重置状态
@@ -50,13 +65,21 @@ public:
     CongestionControlOutput getOutput();        //获取输出
     
     constexpr static const int MAX_DROPTAIL_DIFFERENCE = 2;
-    constexpr static const int INIT_INCREMENT = 800;
-    // constexpr static const int DRAIN_RATE_GAIN  = 2;
-    constexpr static const double DRAIN_GAIN = 0.8;
-    constexpr static const double DRAIN_QUEUE_LEN = 0.2;//排空需要的队列长度 百分数
-    constexpr static const int MAX_SAFE_QUEUE_LEN = 850;//算法工作的最大安全缓冲区，防止基准RTT变化导致的状态锁死
-    constexpr static const double MAXRATE_WEIGHT = 0.5;
-    constexpr static const double GROWTH_START = 0.95;
+    // constexpr static const int INIT_INCREMENT = 800;
+    // // constexpr static const int DRAIN_RATE_GAIN  = 2;
+    // constexpr static const double DRAIN_GAIN = 0.8;
+    // constexpr static const double DRAIN_QUEUE_LEN = 0.2;//排空需要的队列长度 百分数
+    // constexpr static const int MAX_SAFE_QUEUE_LEN = 850;//算法工作的最大安全缓冲区，防止基准RTT变化导致的状态锁死
+    // constexpr static const double MAXRATE_WEIGHT = 0.5;
+    // constexpr static const double GROWTH_START = 0.95;
+    constexpr static const double STARTUP_GAIN = 2;
+    constexpr static const double PROBE_MAX_RATE = 1.2;
+    constexpr static const double PROBE_DOWN_gain = 0.85;
+    constexpr static const double CONG_GAIN = 0.85;
+    constexpr static const double DRAIN_MIN_BUF = 0.35;
+    constexpr static const double ALPHA_FAIR = 0.01;
+    constexpr static const double BETA_FAIR = 1;
+    constexpr static const int    PROBE_TIMEOUT = 3000;
 signals:
 private:
     CongestionControlInput input;
