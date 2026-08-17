@@ -36,6 +36,7 @@ public:
         QMap<quint32,double> elapsedTimes;//多包间隔时间
         quint32 lastEnd;
         quint32 lastSend;
+        double deliverRate;
         //以下是没用的
         quint32 chunkId;
         quint32 totalChunks;
@@ -52,12 +53,14 @@ public:
         double rate         =10;        //速率，pps
         State state         =Startup;   //状态
         int stateKeep       =0;         //状态持续次数
-        double dbase        =0;         //RTprop,d0
+        double dbase        =1048576;   //RTprop,d0
         double dcong        =0;         //拥塞满载速率
         double fullrate     =0;         //满载速率
         int lastRttReportEnd=0;         //上一个RTT的Report的end，用于区分是否是一个新的RTT
         
         uint probeTimeout   =0;         //ProbeMaxRate1/2的超时时间戳
+        double probeMaxRate =0;         //ProbeMaxRate1/2获取的最大速率
+        double probeMaxRtt  =0;         //ProbeMaxRate1/2获取的最大延迟
     };
     
     void reset();                               //重置状态
@@ -72,14 +75,19 @@ public:
     // constexpr static const int MAX_SAFE_QUEUE_LEN = 850;//算法工作的最大安全缓冲区，防止基准RTT变化导致的状态锁死
     // constexpr static const double MAXRATE_WEIGHT = 0.5;
     // constexpr static const double GROWTH_START = 0.95;
-    constexpr static const double STARTUP_GAIN = 2;
-    constexpr static const double PROBE_MAX_RATE = 1.2;
-    constexpr static const double PROBE_DOWN_gain = 0.85;
+    constexpr static const double STARTUP_GAIN = 1.5;
+    constexpr static const double PROBE_UP_GAIN = 1.2;
+    constexpr static const double PROBE_DOWN_GAIN = 0.85;
     constexpr static const double CONG_GAIN = 0.85;
     constexpr static const double DRAIN_MIN_BUF = 0.35;
     constexpr static const double ALPHA_FAIR = 0.01;
     constexpr static const double BETA_FAIR = 1;
     constexpr static const int    PROBE_TIMEOUT = 3000;
+    constexpr static const int    GROWTH_ELAPSE = 3;
+    constexpr static const double PROBE_MIN_BUF = 0.6;
+    constexpr static const double PROBE_RTT_WEIGHT = 0.8;
+    constexpr static const double PROBE_RATE_WEIGHT = 0.8;
+    constexpr static const double DRAIN_MIN_RATE_FRAC = 0.25;
 signals:
 private:
     CongestionControlInput input;

@@ -637,7 +637,7 @@ void BusinessLogic::init(){
             cells << wrapCsvCell(QString::number(ipt.end));
             
             // ---------------------- 3. QMap 键值串 k:v;k:v ----------------------
-            QString elapsedStr;
+            // QString elapsedStr;
             // if (!ipt.elapsedTimes.isEmpty())
             // {
             //     QStringList mapItems;
@@ -648,7 +648,8 @@ void BusinessLogic::init(){
             //     }
             //     elapsedStr = mapItems.join(";").right(1000);
             // }
-            cells << wrapCsvCell(elapsedStr);
+            // cells << wrapCsvCell(elapsedStr);
+            cells<<QString::number(ipt.deliverRate);
             
             // 剩余基础字段
             cells << wrapCsvCell(QString::number(ipt.lastEnd));
@@ -666,19 +667,28 @@ void BusinessLogic::init(){
             case CongestionControl::Drain:   stateName = "Drain";   break;
             case CongestionControl::CongestionResponse: stateName = "CongestionResponse"; break;
             case CongestionControl::Growth:  stateName = "Growth";  break;
-            default: stateName = "Unknown";
+            // default: stateName = "Unknown";
+            case CongestionControl::ProbeMaxRate1:stateName = "ProbeMaxRate1";  break;
+            case CongestionControl::ProbeMaxRate2:stateName = "ProbeMaxRate2";  break;
             }
             cells << wrapCsvCell(stateName);
             
             cells << wrapCsvCell(QString::number(opt.stateKeep));
             cells << wrapCsvCell(QString::number(opt.dbase));
-            cells << wrapCsvCell(QString::number(opt.drainsafe));
+            // cells << wrapCsvCell(QString::number(opt.drainsafe));
             cells << wrapCsvCell(QString::number(opt.dcong));
             cells << wrapCsvCell(QString::number(opt.fullrate));
+            cells << wrapCsvCell(QString::number(opt.lastRttReportEnd));
+            cells << wrapCsvCell(QString::number(opt.probeTimeout));
+            cells << wrapCsvCell(QString::number(opt.probeMaxRate));
+            cells << wrapCsvCell(QString::number(opt.probeMaxRtt));
             
             // 拼接整行CSV，逗号分隔单元格，换行结尾
             QString line = cells.join(",") + "\n";
             log += line.toUtf8();
+            if(log.isEmpty()){
+                ncritical<<"Log is empty.";
+            }
         }
     });
     connect(m_rpepengine,&RpepEngine::receivingProgressUpdated,this,&BusinessLogic::receivingProgressUpdated);
@@ -785,12 +795,12 @@ Result BusinessLogic::sendFile(QSet<devid_t> dst,QSet<QString> incremental_sync_
         return Result("请指定传输目标");
     }
     lastSyncDst=dst;
+    log.clear();
     // m_transmissionengine->SPTP_send(Utils::mergeFile(QDir("files/"),incremental_sync_set),dst);
     Result res = m_rpepengine->transfer(Utils::mergeFile(syncFolder,incremental_sync_set),dst);
     if(!res){
         ncritical<<res.errorMessage;
     }
-    log.clear();
     return res;
 }
 

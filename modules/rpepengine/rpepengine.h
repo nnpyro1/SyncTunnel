@@ -96,6 +96,7 @@ private:
         bool isEmpty;
         chunkid_t start;
         chunkid_t lastReceive;
+        double deliverRate;
     };
 
 #pragma pack(pop)
@@ -140,7 +141,7 @@ private://private signals
     Q_SIGNAL void reliableStepsReceived(MessageType received,QString uuid);//received只允许是201~204
     Q_SIGNAL void transferAccepted();
     Q_SIGNAL void transferRefused(QString reason);
-    Q_SIGNAL void reportReceived(ReportMessageHeader report,QSet<chunkid_t> loss);
+    Q_SIGNAL void reportReceived(ReportMessageHeader report,QList<chunkid_t> loss);
     Q_SIGNAL void retransferRequested(QSet<chunkid_t> loss);
     Q_SIGNAL void transferCompleted();
     Q_SIGNAL void transferAborted();
@@ -172,6 +173,7 @@ private:
     devid_t acceptableSender;//接收方可接受的发送方。仅在state=Receiving时允许非零
     QTimer receivingWatchdog;
     QTimer receivingReportTimer;
+    chunkid_t delivered=0;
     //专有成员结束
     QQueue<devid_t> transferTaskQueue;
     QTimer timer_keepAlive;
@@ -185,7 +187,7 @@ private:
     static const int MAX_TIMEOUT = 5000;
     static const int MAX_REPORT_TIMEOUT = 2000;
     static const int MAX_REPORT_OFFSET = 2;
-    static const int REPORT_BATCH = 800;
+    static const int REPORT_BATCH = 1800;
     static const int INITIAL_RATE = 10;
     static const int KEEPALIVE_INTERVAL = 15000;
     static const int TRANSFER_WATCHDOG_TIMEOUT = 20000;

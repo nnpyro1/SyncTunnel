@@ -146,7 +146,7 @@ void Utils::releaseFile( QByteArray msg){
 }
 
 
-void Utils::multiDelay(float ms){
+void Utils::multiDelay(float ms,std::function<void()> dosth){
 #ifdef Q_OS_WIN
     LARGE_INTEGER start, end, freq;
     QueryPerformanceFrequency(&freq);  // 获取计数器频率
@@ -161,6 +161,9 @@ void Utils::multiDelay(float ms){
         QueryPerformanceCounter(&end);
         if (end.QuadPart >= targetCount) break;  // 达到目标时间
         
+        if(dosth){
+            dosth();
+        }
         // CPU优化策略
         LONGLONG remainingCount = targetCount - end.QuadPart;
         float remainingMs = (remainingCount * 1000.0f) / freq.QuadPart;

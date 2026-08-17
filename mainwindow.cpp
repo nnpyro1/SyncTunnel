@@ -2187,7 +2187,7 @@ void MainWindow::on_sendInfo_updated(CongestionControl::CongestionControlInput i
     ui->label_sendInfo_fullrate->setNum(opt.fullrate);
     ui->label_sendInfo_dbase->setNum(opt.dbase);
     ui->label_sendInfo_dcong->setNum(opt.dcong);
-    ui->label_sendInfo_drainsafe->setNum(opt.drainsafe);
+    // ui->label_sendInfo_drainsafe->setNum(opt.drainsafe);
     ui->label_sendInfo_loss->setNum((int)ipt.loss.size());
     ui->label_sendInfo_state->setNum(opt.state);
     ui->label_sendInfo_stateKeep->setNum(opt.stateKeep);
