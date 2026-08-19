@@ -177,6 +177,7 @@ private:
     //专有成员结束
     QQueue<devid_t> transferTaskQueue;
     QTimer timer_keepAlive;
+    QByteArray preprocessedKey;//预处理过的密码
     
     static const int MAX_STUN_RETRIES = 3;
     static const int CURRENT_VERSION = 1;

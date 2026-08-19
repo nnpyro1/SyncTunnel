@@ -107,6 +107,7 @@ DEFINES += NNPYRO_COLORFULCON   #控制台彩色输出
 # debug:QMAKE_CXXFLAGS += -fsanitize=address
 # debug:QMAKE_LFLAGS += -fsanitize=address
 debug:QT+=testlib
+debug:DEFINES += NNPYRO_PERFORMANCE_ANALYSIS  #性能分析
 
 # Default rules for deployment
 qnx: target.path = /tmp/$${TARGET}/bin
