@@ -45,6 +45,7 @@ void CongestionControl::update(CongestionControlInput ipt){
         if(!tl.empty()){
             output.state=CongestionResponse;
             output.stateKeep=0;
+            output.lastRttReportEnd=input.chunkId;
         }
         break;
     }
@@ -52,13 +53,17 @@ void CongestionControl::update(CongestionControlInput ipt){
         if(!tl.empty()){
             output.state=CongestionResponse;
             output.stateKeep=0;
+            output.lastRttReportEnd=input.chunkId;
         }
         break;
     }
     case CongestionResponse:{
-        output.state=ProbeMaxRate1;
-        output.probeTimeout=timer.elapsed()+PROBE_TIMEOUT;
-        output.stateKeep=0;
+        if(output.lastRttReportEnd<=input.end){//一个RTT过去了
+            output.state=ProbeMaxRate1;
+            output.probeTimeout=timer.elapsed()+PROBE_TIMEOUT;
+            output.stateKeep=0;
+            output.lastRttReportEnd=input.chunkId;
+        }
         break;
     }
     case ProbeMaxRate1:{
@@ -66,6 +71,7 @@ void CongestionControl::update(CongestionControlInput ipt){
             output.state=ProbeMaxRate2;
             output.probeTimeout=timer.elapsed()+PROBE_TIMEOUT;
             output.stateKeep=0;
+            output.lastRttReportEnd=input.chunkId;
         }
         break;
     }
@@ -85,7 +91,16 @@ void CongestionControl::update(CongestionControlInput ipt){
     case Drain:{
         if(input.end>=(quint32)output.lastRttReportEnd){//一个RTT过去了
             output.state=Growth;
-            output.lastRttReportEnd=input.chunkId;            
+            output.lastRttReportEnd=input.chunkId;
+            output.stateKeep=0;
+        }
+        break;
+    }
+    case SafeGrowth:{
+        if(!tl.empty()){
+            output.state=CongestionResponse;
+            output.stateKeep=0;
+            output.lastRttReportEnd=input.chunkId;
         }
         break;
     }
@@ -110,13 +125,27 @@ void CongestionControl::update(CongestionControlInput ipt){
         break;
     }
     case Growth:{
-        double m = 2.687368213 * ( (output.dcong-output.dbase) / (output.dbase*GROWTH_ELAPSE) );
-        double q = (input.rtt-output.dbase)/(output.dcong-output.dbase);//队列比例
-        if(q<=0.5){
-            output.rate = output.fullrate + output.fullrate * ( m * pow(32,q-0.5) );
+        // double m = 2.687368213 * ( (output.dcong-output.dbase) / (output.dbase*GROWTH_ELAPSE) );
+        // double q = (input.rtt-output.dbase)/(output.dcong-output.dbase);//队列比例
+        // if(q<=0.5){
+        //     output.rate = output.fullrate + output.fullrate * ( m * pow(32,q-0.5) );
+        // }
+        // else{
+        //     output.rate = output.fullrate + output.fullrate * ( m / pow(32,q-0.5) );
+        // }
+        if(input.rtt<=output.dcong){
+            output.rate=output.fullrate+output.fullrate * GROWTH_K * ( 1 - (input.rtt-output.dbase)/(output.dcong-output.dbase) ) + GROWTH_B;
         }
         else{
-            output.rate = output.fullrate + output.fullrate * ( m / pow(32,q-0.5) );
+            output.rate=output.fullrate+output.fullrate*GROWTH_B;
+        }
+        //侦测异常
+        output.growthQueueFracWindow.insert(input.chunkId,(input.rtt-output.dbase)/(output.dcong-output.dbase));
+        output.growthQueueFracWindow.erase(output.growthQueueFracWindow.begin(),output.growthQueueFracWindow.lowerBound(input.end));//删除旧值
+        if(output.growthQueueFracWindow.size()>=(input.chunkId-input.end) && (input.rtt-output.dbase)/(output.dcong-output.dbase)-output.growthQueueFracWindow.first()<0){
+            //可以通融在此切换
+            output.state=SafeGrowth;
+            output.growthQueueFracWindow.clear();
         }
         break;
     }
@@ -138,7 +167,7 @@ void CongestionControl::update(CongestionControlInput ipt){
         //侦测
         Q_ASSERT(input.elapsedTimes.contains(input.end));
         Q_ASSERT(input.elapsedTimes.contains(input.start));
-        // double deliverRate = (input.end-input.start-ptl.size()) / (input.elapsedTimes[input.end]-input.elapsedTimes[input.start]) * 1000;
+        // double deliverRate = (input.end-input.start-tl.size()) / (input.elapsedTimes[input.end]-input.elapsedTimes[input.start]) * 1000;
         output.probeMaxRate = qMax(input.deliverRate,output.probeMaxRate);
         output.probeMaxRtt = qMax(input.rtt,output.probeMaxRtt);
         break;
@@ -147,8 +176,11 @@ void CongestionControl::update(CongestionControlInput ipt){
         output.rate = qMax( output.fullrate - ( output.fullrate*(input.rtt-output.dbase) - output.fullrate*(output.dcong-output.dbase)*DRAIN_MIN_BUF ) / output.dbase , DRAIN_MIN_RATE_FRAC * output.fullrate);
         break;
     }
+    case SafeGrowth:{
+        if(output.lastRttReportEnd<=input.end){output.rate=output.rate*SAFEGROWTH_GAIN;}
+        break;
     }
-    
+    }
 }
 
 CongestionControl::CongestionControlOutput CongestionControl::getOutput()

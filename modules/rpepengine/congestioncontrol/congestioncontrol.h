@@ -23,6 +23,7 @@ public:
         ProbeMaxRate1,
         ProbeMaxRate2,
         Drain,
+        SafeGrowth,
     };
     
     struct CongestionControlInput{
@@ -56,11 +57,12 @@ public:
         double dbase        =1048576;   //RTprop,d0
         double dcong        =0;         //拥塞满载速率
         double fullrate     =0;         //满载速率
-        int lastRttReportEnd=0;         //上一个RTT的Report的end，用于区分是否是一个新的RTT
+        quint32 lastRttReportEnd=0;     //上一个RTT的Report的end，用于区分是否是一个新的RTT
         
         uint probeTimeout   =0;         //ProbeMaxRate1/2的超时时间戳
         double probeMaxRate =0;         //ProbeMaxRate1/2获取的最大速率
         double probeMaxRtt  =0;         //ProbeMaxRate1/2获取的最大延迟
+        QMap<quint32,double> growthQueueFracWindow;//增长期间的q的窗口,key=过期时间的end，value=q
     };
     
     void reset();                               //重置状态
@@ -83,11 +85,16 @@ public:
     constexpr static const double ALPHA_FAIR = 0.01;
     constexpr static const double BETA_FAIR = 1;
     constexpr static const int    PROBE_TIMEOUT = 3000;
-    constexpr static const int    GROWTH_ELAPSE = 3;
+    // constexpr static const int    GROWTH_ELAPSE = 3;
+    constexpr static const double GROWTH_K = 0.45;
+    constexpr static const double GROWTH_B = 0.05;
     constexpr static const double PROBE_MIN_BUF = 0.6;
     constexpr static const double PROBE_RTT_WEIGHT = 0.8;
     constexpr static const double PROBE_RATE_WEIGHT = 0.8;
     constexpr static const double DRAIN_MIN_RATE_FRAC = 0.25;
+    constexpr static const double SAFEGROWTH_GAIN = 1.1;
+    // constexpr static const double DCONG_WEIGHT = 0.2;
+    // constexpr static const double 
 signals:
 private:
     CongestionControlInput input;

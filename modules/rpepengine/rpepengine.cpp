@@ -66,7 +66,7 @@ RpepEngine::RpepEngine(QObject *parent)
             last=loss[i];
         }
         if(!lossRangeList.empty() && lossRangeList[0]==qMakePair(0u,0u)){lossRangeList.pop_front();}//删除第一个[0,0]区间                
-        ninfo<<"Report"/*":loss="<<loss*/<<"lossRangeList"<<lossRangeList;
+        ninfo<<"Report(timeout)"/*":loss="<<loss*/<<"lossRangeList"<<lossRangeList;
         //构造报文
         // ReportMessageHeader rmh;
         // rmh.src=deviceId;
