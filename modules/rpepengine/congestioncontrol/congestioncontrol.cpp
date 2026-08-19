@@ -162,7 +162,7 @@ void CongestionControl::update(CongestionControlInput ipt){
         //侦测
         Q_ASSERT(input.elapsedTimes.contains(input.end));
         Q_ASSERT(input.elapsedTimes.contains(input.start));
-        // double deliverRate = (input.end-input.start-tl.size()) / (input.elapsedTimes[input.end]-input.elapsedTimes[input.start]) * 1000;
+        // double deliverRate = (input.end-input.start-ptl.size()) / (input.elapsedTimes[input.end]-input.elapsedTimes[input.start]) * 1000;
         output.probeMaxRate = qMax(input.deliverRate,output.probeMaxRate);
         output.probeMaxRtt = qMax(input.rtt,output.probeMaxRtt);
         break;

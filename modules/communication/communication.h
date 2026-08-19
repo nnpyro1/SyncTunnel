@@ -103,6 +103,11 @@ private://私有变量&对象
     QQueue<QNetworkDatagram> buf;
     QTimer timer_read;
     
+    //性能分析
+#ifdef NNPYRO_PERFORMANCE_ANALYSIS
+    QQueue<double> performanceTimeQueue;
+    QElapsedTimer performanceTimer;
+#endif
 };
 
 inline uint qHash(const Communication::ipport &key, uint seed) noexcept{

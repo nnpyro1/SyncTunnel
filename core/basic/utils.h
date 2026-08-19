@@ -20,6 +20,8 @@ public:
 public://以下是纯静态函数
     static QByteArray encode(const QByteArray &msg,const QString &pwd);     //加密msg并返回密文
     static QByteArray decode(const QByteArray &msg,const QString &pwd);     //解密msg并返回解密后的值
+    static QByteArray encodeRaw(const QByteArray &msg,const QByteArray &pwd);//使用预生成的pwd加密msg
+    static QByteArray decodeRaw(const QByteArray &msg,const QByteArray &pwd);//使用预生成的pwd解密msg
     static QByteArray mergeFile(QDir folder,QSet<QString> incremental_sync_set=QSet<QString>(),bool c=1); //合并文件
     static void releaseFile(QByteArray msg);                                //释放文件
     static void multiDelay(float ms, std::function<void ()> dosth=0);       //高精度定时
