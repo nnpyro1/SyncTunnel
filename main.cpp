@@ -62,7 +62,7 @@ int nMain(int argc, char *argv[])
     tmp->deleteLater();
 //    RUN_IN_CUSTOM_THREAD(bl,bl->destory(););
     QMetaObject::invokeMethod(bl,[=]{bl->destory();},Qt::BlockingQueuedConnection);
-    bl->deleteLater();
+    QMetaObject::invokeMethod(bl,[=]{bl->deleteLater();},Qt::BlockingQueuedConnection);
     workThread.quit();
     workThread.wait(5000);
     if(!workThread.isFinished()){

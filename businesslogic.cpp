@@ -620,6 +620,8 @@ void BusinessLogic::init(){
             };
             QStringList cells;
             
+            // ---------------------- 0. 时间戳 ----------------------
+            cells << wrapCsvCell(QString::number(ipt.elapsedTimes[ipt.chunkId]));
             // ---------------------- 1. loss 数组：空格分隔数字串 ----------------------
             QString lossStr;
             if (!ipt.loss.isEmpty())

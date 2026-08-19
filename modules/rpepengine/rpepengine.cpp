@@ -85,13 +85,13 @@ RpepEngine::RpepEngine(QObject *parent)
         rmh.isEmpty=loss.isEmpty();
         rmh.lastReceive=receivingBuf.lastKey();
         auto e=lastReportElapsedTime.elapsed();
-        rmh.deliverRate= e!=0?delivered*1000./e:1;
+        rmh.deliverRate=/* e!=0?delivered*1000./e:1;
         if(rmh.deliverRate<1||rmh.deliverRate>10000){
             nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
         }
         if(rmh.deliverRate<1||rmh.deliverRate>10000){
             nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
-        }
+        }*/0;
         QByteArray msgBody;
         // for(chunkid_t l:loss){
         //     l=::qToBigEndian(l);
