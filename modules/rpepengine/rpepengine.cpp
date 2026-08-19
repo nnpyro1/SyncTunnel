@@ -141,7 +141,6 @@ void RpepEngine::setPassword(QString pwd){
         return;
     }
     this->pwd = pwd;
-    preprocessedKey=QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
 }
 
 
@@ -604,14 +603,12 @@ void RpepEngine::send(QByteArray msg, bool e, int d){
 
 
 QByteArray RpepEngine::encode(const QByteArray &msg){
-    // return Utils::encode(msg,pwd);
-    return Utils::encodeRaw(msg,preprocessedKey);
+    return Utils::encode(msg,pwd);
 }
 
 
 QByteArray RpepEngine::decode(const QByteArray &msg){
-    // return Utils::decode(msg,pwd);
-    return Utils::decodeRaw(msg,preprocessedKey);
+    return Utils::decode(msg,pwd);
 }
 
 
@@ -972,10 +969,6 @@ void RpepEngine::abortReceiving(){
 
 void RpepEngine::onCommunicationReadyRead(){
     while(m_communication->hasPendingDatagrams()){
-#ifdef NNPYRO_PERFORMANCE_ANALYSIS
-        QElapsedTimer performanceTimer;
-        performanceTimer.start();
-#endif
         auto datagram = m_communication->readDatagram();
         QByteArray undecoded = datagram.data();
         double rate=0;
@@ -1037,7 +1030,6 @@ void RpepEngine::onCommunicationReadyRead(){
         case MessageType::ReliableResponse:
         case MessageType::ReliableDone:
         case MessageType::ReliableComplete:{
-            ndb<<"Reliable receive "<<header.type;
             ControlMessageHeader cmh = getHeaderStruct<ControlMessageHeader>(rawMsg);
             QByteArray cmsg = rawMsg.mid(sizeof(cmh));
             MessageType tp=(MessageType)cmh.type;
@@ -1218,12 +1210,6 @@ void RpepEngine::onCommunicationReadyRead(){
         case MessageType::KeepAlive:
             break;
         }
-#ifdef NNPYRO_PERFORMANCE_ANALYSIS
-        double el = performanceTimer.nsecsElapsed()/1.e6;
-        if(el>=0.5){
-            nwarning<<"Performance Warning : onCommunicationReadyRead() finished in"<<el<<"ms.";
-        }
-#endif
     }
 }
 
@@ -1235,10 +1221,10 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             ninfo<<"transfer accepted.";
             state=State::Receiving;
             acceptableSender=src;
-            RUN_LATER(sendControl("___ACCEPT_TRANSFER___","",src););
+            sendControl("___ACCEPT_TRANSFER___","",src);
         }
         else{
-            RUN_LATER(sendControl("___REFUSE_TRANSFER___","state="+QString::number((int)state),src););
+            sendControl("___REFUSE_TRANSFER___","state="+QString::number((int)state),src);
             ninfo<<"transfer refused.state="+QString::number((int)state);
         }
     }
@@ -1266,11 +1252,11 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
         }
         //发送消息
         if(!msg.isEmpty()){
-            RUN_LATER(sendControl("___REQUEST_RESEND___",QVariant(msg),src););
+            sendControl("___REQUEST_RESEND___",QVariant(msg),src);
         }
         else{
             //发送complete
-            RUN_LATER(sendControl("___TRANSFER_COMPLETE___","",src););
+            sendControl("___TRANSFER_COMPLETE___","",src);
             //合并消息，前面已经确保了消息完整性
             QByteArray data;
             for(auto c : receivingBuf){

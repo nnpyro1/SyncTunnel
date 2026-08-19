@@ -40,30 +40,6 @@ QByteArray Utils::decode(const QByteArray &msg,const QString &pwd){
 }
 
 
-QByteArray Utils::encodeRaw(const QByteArray &msg, const QByteArray &pwd){
-#ifndef DEBUG_NO_ENCRYPTION
-    QAESEncryption aes(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray iv;iv.resize(16);
-    QRandomGenerator::system()->generate(iv.begin(),iv.end());
-    return iv+aes.encode(msg,pwd,iv);
-#else
-    return msg;
-#endif
-}
-
-
-QByteArray Utils::decodeRaw(const QByteArray &msg, const QByteArray &pwd){
-#ifndef DEBUG_NO_ENCRYPTION
-    const QByteArray &iv=msg.mid(0,16);
-    const QByteArray &msgBody=msg.mid(16);
-    QAESEncryption aes(QAESEncryption::AES_256,QAESEncryption::CBC);
-    return aes.removePadding(aes.decode(msgBody,pwd,iv));
-#else
-    return msg;
-#endif
-}
-
-
 QByteArray Utils::mergeFile(QDir folder, QSet<QString> incremental_sync_set, bool c){
     QByteArray f;
     auto fil = traverseFolder(folder);

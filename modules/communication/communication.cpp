@@ -1,5 +1,4 @@
 #include "communication.h"
-#include "general.h"
 #include <QRandomGenerator>
 #include <QDebug>
 #include <QNetworkDatagram>
@@ -17,12 +16,7 @@ Communication::Communication(){
     socket->setSocketOption(QUdpSocket::ReceiveBufferSizeSocketOption,QVariant(INT_MAX));//设置大缓冲区
 //    buf.open(QIODevice::ReadWrite);
     connect(&timer_read,&QTimer::timeout,this,&Communication::on_read);
-    // timer_read.start(10);
-    
-    //性能
-#ifdef NNPYRO_PERFORMANCE_ANALYSIS
-    performanceTimer.start();
-#endif
+    timer_read.start(50);
 }
 Communication::~Communication(){
     delete socket_stun;
@@ -208,12 +202,6 @@ qint64 Communication::send(ipport host, QByteArray msg){
 
 QNetworkDatagram Communication::readDatagram(){
     if(!buf.empty()){
-#ifdef NNPYRO_PERFORMANCE_ANALYSIS
-        double time = performanceTimer.nsecsElapsed()/1.e6-performanceTimeQueue.dequeue();
-        if(time>=0.5){
-            nwarning<<"Performance Warning: Datagram has stayed in buffer for"<<time<<"ms.";
-        }
-#endif
         return buf.dequeue();
     }
     else{
@@ -229,9 +217,6 @@ void Communication::on_read(){
     if(socket->hasPendingDatagrams()){
         while(socket->hasPendingDatagrams()){
             buf.enqueue(socket->receiveDatagram());
-#ifdef NNPYRO_PERFORMANCE_ANALYSIS
-            performanceTimeQueue.enqueue(performanceTimer.nsecsElapsed()/1.e6);
-#endif
         }
         emit readyRead();
     }

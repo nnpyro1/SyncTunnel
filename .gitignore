@@ -10,4 +10,3 @@ build
 #备份
 mainwindow -*.cpp
 mainwindow -*.h
-openTab.vbs
