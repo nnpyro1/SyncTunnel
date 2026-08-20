@@ -45,7 +45,7 @@ void CongestionControl::update(CongestionControlInput ipt){
         if(!tl.empty()){
             output.state=CongestionResponse;
             output.stateKeep=0;
-            output.lastRttReportEnd=input.chunkId;
+            output.lastRttReportEnd=input.chunkId+1;
         }
         break;
     }
@@ -53,7 +53,7 @@ void CongestionControl::update(CongestionControlInput ipt){
         if(!tl.empty()){
             output.state=CongestionResponse;
             output.stateKeep=0;
-            output.lastRttReportEnd=input.chunkId;
+            output.lastRttReportEnd=input.chunkId+1;
         }
         break;
     }
@@ -62,7 +62,7 @@ void CongestionControl::update(CongestionControlInput ipt){
             output.state=ProbeMaxRate1;
             output.probeTimeout=timer.elapsed()+PROBE_TIMEOUT;
             output.stateKeep=0;
-            output.lastRttReportEnd=input.chunkId;
+            output.lastRttReportEnd=input.chunkId+1;
         }
         break;
     }
@@ -71,14 +71,14 @@ void CongestionControl::update(CongestionControlInput ipt){
             output.state=ProbeMaxRate2;
             output.probeTimeout=timer.elapsed()+PROBE_TIMEOUT;
             output.stateKeep=0;
-            output.lastRttReportEnd=input.chunkId;
+            output.lastRttReportEnd=input.chunkId+1;
         }
         break;
     }
     case ProbeMaxRate2:{
         if(!tl.empty() || timer.elapsed()>=output.probeTimeout){
             output.state=Drain;
-            output.lastRttReportEnd=input.chunkId;
+            output.lastRttReportEnd=input.chunkId+1;
             //清除状态并EWMA
             output.dcong = output.probeMaxRtt * PROBE_RTT_WEIGHT + output.dcong * (1-PROBE_RTT_WEIGHT);
             output.fullrate = output.probeMaxRate * PROBE_RATE_WEIGHT + output.fullrate * (1-PROBE_RATE_WEIGHT);
@@ -91,7 +91,7 @@ void CongestionControl::update(CongestionControlInput ipt){
     case Drain:{
         if(input.end>=(quint32)output.lastRttReportEnd){//一个RTT过去了
             output.state=Growth;
-            output.lastRttReportEnd=input.chunkId;
+            output.lastRttReportEnd=input.chunkId+1;
             output.stateKeep=0;
         }
         break;
@@ -100,7 +100,7 @@ void CongestionControl::update(CongestionControlInput ipt){
         if(!tl.empty()){
             output.state=CongestionResponse;
             output.stateKeep=0;
-            output.lastRttReportEnd=input.chunkId;
+            output.lastRttReportEnd=input.chunkId+1;
         }
         break;
     }
@@ -110,7 +110,7 @@ void CongestionControl::update(CongestionControlInput ipt){
     switch(output.state){
     case Startup:{
         if(input.end>=(quint32)output.lastRttReportEnd){//大于一个RTT
-            output.lastRttReportEnd=input.chunkId;
+            output.lastRttReportEnd=input.chunkId+1;
             output.rate=output.rate*STARTUP_GAIN;
         }
         if(true/*output.fullrate==0*/){//初次初始化rullrate,后续禁止

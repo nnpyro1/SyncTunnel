@@ -120,6 +120,7 @@ private:
         //DataMessage传输相关
         DataPayload         = 301,  //数据载荷
         Report              = 302,  //丢包报告
+        RequestReport       = 303,  //主动请求Report
         //外部
         External            = 401,  //外部使用
     };
@@ -167,7 +168,7 @@ private:
     devid_t transferDestination = 0;
     QTimer transferWatchdog;//发送方对接收方的看门狗，接收方超过指定时间没有发送Report就取消传输
     //以下是接收方变量
-    QMap<int,QByteArray> receivingBuf;//接收缓冲区
+    QMap<chunkid_t,QByteArray> receivingBuf;//接收缓冲区
     QElapsedTimer lastReportElapsedTime;//上次回复Report的时间
     chunkid_t lastReportChunk;
     devid_t acceptableSender;//接收方可接受的发送方。仅在state=Receiving时允许非零

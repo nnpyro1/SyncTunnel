@@ -178,20 +178,19 @@ void Utils::multiDelay(float ms,std::function<void()> dosth){
     
     // 计算目标计数值
     LONGLONG targetCount = start.QuadPart + 
-        static_cast<LONGLONG>(((ms-0.5) / 1000.0) * freq.QuadPart);
+        static_cast<LONGLONG>(((ms/*-0.5*/) / 1000.0) * freq.QuadPart);
     
     // 智能忙等待循环
     while (true) {
         QueryPerformanceCounter(&end);
         if (end.QuadPart >= targetCount) break;  // 达到目标时间
         
-        if(dosth){
-            dosth();
-        }
         // CPU优化策略
         LONGLONG remainingCount = targetCount - end.QuadPart;
         float remainingMs = (remainingCount * 1000.0f) / freq.QuadPart;
-        
+        if(dosth&&remainingMs>0.25&&remainingCount%5==0){
+            dosth();
+        }
         if(remainingMs>20.){
             Sleep(0);
         }
