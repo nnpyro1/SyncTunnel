@@ -813,7 +813,12 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             // if(lastReportTimer.isValid())ccinput.timeToLastReport=lastReportTimer.elapsed();
             // lastReportTimer.restart();
             ccinput.elapsedTimes=elapsedTimes;
-            ccinput.deliverRate=report.deliverRate;
+            // ccinput.deliverRate=report.deliverRate;
+            if(report.deliverRate>2){//存在deliverRate信息
+                ccinput.deliverRate = ccinput.deliverRate==0? report.deliverRate
+                                                               :report.deliverRate*DELIVER_RATE_EWMA_WEIGHT+ccinput.deliverRate*(1-DELIVER_RATE_EWMA_WEIGHT);
+                
+            }
             //调用
             cc.update(ccinput);
             ccoutput=cc.getOutput();

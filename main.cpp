@@ -7,7 +7,7 @@
 
 int nMain(int argc, char *argv[])
 {
-    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    // QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication a(argc, argv);
     
     //注册
@@ -17,12 +17,16 @@ int nMain(int argc, char *argv[])
     
     QPixmap pixmap;pixmap.load(":/rc/img/splash1.png");
     pixmap=pixmap.scaledToHeight(QApplication::primaryScreen()->size().height()/2,Qt::SmoothTransformation);
-    QSplashScreen splash(pixmap);
-//    splash.setWindowFlags(/*Qt::WindowStaysOnTopHint | */Qt::SplashScreen);
-//    splash.setAttribute(Qt::WA_DeleteOnClose);
+    QSplashScreen splash(pixmap,Qt::WindowStaysOnTopHint);
     splash.show();
-    for(int i=0;i<10;i++){splash.raise();
-    a.processEvents();}
+    for(int i=0;i<10;i++){
+        splash.raise();
+        a.processEvents();
+        splash.show();
+        a.processEvents();
+        splash.showNormal();
+        a.processEvents();
+    }
     
     //创建对象
     QThread workThread;

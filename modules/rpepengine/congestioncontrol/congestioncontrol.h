@@ -92,7 +92,7 @@ public:
     constexpr static const double PROBE_RTT_WEIGHT = 0.8;
     constexpr static const double PROBE_RATE_WEIGHT = 0.8;
     constexpr static const double DRAIN_MIN_RATE_FRAC = 0.25;
-    constexpr static const double SAFEGROWTH_GAIN = 1.1;
+    constexpr static const double SAFEGROWTH_GAIN = 1.08;
     // constexpr static const double DCONG_WEIGHT = 0.2;
     // constexpr static const double 
 signals:

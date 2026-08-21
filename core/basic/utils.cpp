@@ -171,34 +171,52 @@ void Utils::releaseFile( QByteArray msg){
 
 
 void Utils::multiDelay(float ms,std::function<void()> dosth){
-#ifdef Q_OS_WIN
-    LARGE_INTEGER start, end, freq;
-    QueryPerformanceFrequency(&freq);  // 获取计数器频率
-    QueryPerformanceCounter(&start);   // 获取开始时间
+// #ifdef Q_OS_WIN
+//     LARGE_INTEGER start, end, freq;
+//     QueryPerformanceFrequency(&freq);  // 获取计数器频率
+//     QueryPerformanceCounter(&start);   // 获取开始时间
     
-    // 计算目标计数值
-    LONGLONG targetCount = start.QuadPart + 
-        static_cast<LONGLONG>(((ms/*-0.5*/) / 1000.0) * freq.QuadPart);
+//     // 计算目标计数值
+//     LONGLONG targetCount = start.QuadPart + 
+//         static_cast<LONGLONG>(((ms/*-0.5*/) / 1000.0) * freq.QuadPart);
     
-    // 智能忙等待循环
-    while (true) {
-        QueryPerformanceCounter(&end);
-        if (end.QuadPart >= targetCount) break;  // 达到目标时间
+//     // 智能忙等待循环
+//     while (true) {
+//         QueryPerformanceCounter(&end);
+//         if (end.QuadPart >= targetCount) break;  // 达到目标时间
         
-        // CPU优化策略
-        LONGLONG remainingCount = targetCount - end.QuadPart;
-        float remainingMs = (remainingCount * 1000.0f) / freq.QuadPart;
-        if(dosth&&remainingMs>0.25&&remainingCount%5==0){
-            dosth();
-        }
-        if(remainingMs>20.){
-            Sleep(0);
-        }
+//         // CPU优化策略
+//         LONGLONG remainingCount = targetCount - end.QuadPart;
+//         float remainingMs = (remainingCount * 1000.0f) / freq.QuadPart;
+//         if(dosth&&remainingMs>0.25&&remainingCount%5==0){
+//             dosth();
+//         }
+//         if(remainingMs>20.){
+//             Sleep(0);
+//         }
+//     }
+// #else
+//     // 其他平台的实现
+//     QThread::usleep(static_cast<useconds_t>(ms * 1000));
+// #endif
+using namespace std::chrono;
+auto target = high_resolution_clock::now() + nanoseconds((long long)(ms*1'000'000ll));
+int cnt=0;
+while (true) {
+    ++cnt;
+    // CPU优化策略
+    auto remaining = target-high_resolution_clock::now();
+    if(remaining<=0ms){
+        return;
     }
-#else
-    // 其他平台的实现
-    QThread::usleep(static_cast<useconds_t>(ms * 1000));
-#endif
+    if(dosth&&remaining>300us&&cnt%5==0){
+        dosth();
+    }
+    if(remaining>20ms){
+        // Sleep(0);
+        std::this_thread::yield();
+    }
+}   
 }
 
 

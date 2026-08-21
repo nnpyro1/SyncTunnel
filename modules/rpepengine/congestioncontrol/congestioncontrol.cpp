@@ -90,6 +90,7 @@ void CongestionControl::update(CongestionControlInput ipt){
     }
     case Drain:{
         if(input.end>=(quint32)output.lastRttReportEnd){//一个RTT过去了
+            output.growthQueueFracWindow.clear();
             output.state=Growth;
             output.lastRttReportEnd=input.chunkId+1;
             output.stateKeep=0;
@@ -142,7 +143,7 @@ void CongestionControl::update(CongestionControlInput ipt){
         //侦测异常
         output.growthQueueFracWindow.insert(input.chunkId,(input.rtt-output.dbase)/(output.dcong-output.dbase));
         output.growthQueueFracWindow.erase(output.growthQueueFracWindow.begin(),output.growthQueueFracWindow.lowerBound(input.end));//删除旧值
-        if(output.growthQueueFracWindow.size()>=(input.chunkId-input.end) && (input.rtt-output.dbase)/(output.dcong-output.dbase)-output.growthQueueFracWindow.first()<0){
+        if(output.growthQueueFracWindow.size()>=(input.chunkId-input.end) && !output.growthQueueFracWindow.empty() && (input.rtt-output.dbase)/(output.dcong-output.dbase)-output.growthQueueFracWindow.first()<0){
             //可以通融在此切换
             output.state=SafeGrowth;
             output.growthQueueFracWindow.clear();
@@ -177,7 +178,10 @@ void CongestionControl::update(CongestionControlInput ipt){
         break;
     }
     case SafeGrowth:{
-        if(output.lastRttReportEnd<=input.end){output.rate=output.rate*SAFEGROWTH_GAIN;}
+        if(output.lastRttReportEnd<=input.end){
+            output.rate=output.rate*SAFEGROWTH_GAIN;
+            output.lastRttReportEnd=input.chunkId+1;
+        }
         break;
     }
     }

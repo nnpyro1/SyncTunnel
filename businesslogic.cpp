@@ -670,8 +670,9 @@ void BusinessLogic::init(){
             case CongestionControl::CongestionResponse: stateName = "CongestionResponse"; break;
             case CongestionControl::Growth:  stateName = "Growth";  break;
             // default: stateName = "Unknown";
-            case CongestionControl::ProbeMaxRate1:stateName = "ProbeMaxRate1";  break;
-            case CongestionControl::ProbeMaxRate2:stateName = "ProbeMaxRate2";  break;
+            case CongestionControl::ProbeMaxRate1:stateName = "PMR1";  break;
+            case CongestionControl::ProbeMaxRate2:stateName = "PMR2";  break;
+            case CongestionControl::SafeGrowth:stateName = "SafeGrowth";  break;
             }
             cells << wrapCsvCell(stateName);
             
