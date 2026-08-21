@@ -30,6 +30,14 @@ public:
         RegisteringOnline,
         Ready,//加载成功
         Punch,//打洞成功，加设备ID QString id
+        TransferAborted,
+    };
+    
+    enum class Error{
+        PublicIp,           //公网ip失败
+        Punch,              //打洞失败
+        StartTransfer,      //无法开始
+        FinishTransfer,     //无法结束
     };
 
 public://公有接口
@@ -73,6 +81,7 @@ signals:
     void externalReceived(QByteArray data,devid_t src);                                     //外部
     void congestionControlInfoUpdated(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
     void receivingProgressUpdated(quint32 received,quint32 total);                          //接收进度更新
+    void errorOccurred(RpepEngine::Error err);                                              //错误产生
     
 private:
 #pragma pack(push,1)

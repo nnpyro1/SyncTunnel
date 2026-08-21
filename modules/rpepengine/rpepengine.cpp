@@ -179,6 +179,7 @@ Result RpepEngine::init(){
     if((ipport{"",0}==public_ip)){
         state=State::Error;
         emit eventOccurred(Event::Error,{{"error","GettingPublicIp\nFailed to get Public IP."}});
+        emit errorOccurred(Error::PublicIp);
         return Result("GettingPublicIp\nFailed to get Public IP.");
     }
     deviceId = getIdByDevice(public_ip);
@@ -222,6 +223,7 @@ Result RpepEngine::init(){
         if(res.errorMessage.contains("self")){
             state=State::Error;
             emit eventOccurred(Event::Error,{{"error",res.errorMessage}});
+            emit errorOccurred(Error::Punch);
             return res;
         }
     }
@@ -718,6 +720,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             ncritical<<"Unable to start a transfer."<<res.errorMessage;
             senderReset();
             state=State::Ready;
+            emit errorOccurred(Error::StartTransfer);
             return res;
         }
         QEventLoop loop;
@@ -743,6 +746,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             else{
                 QMetaObject::invokeMethod(this,[this]{transferPreloadedData(transferTaskQueue.dequeue());},Qt::QueuedConnection);
             }
+            emit eventOccurred(Event::TransferAborted);
             return Result();
         }
         if(!received){
@@ -751,6 +755,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             if(transferTaskQueue.empty()){
                 transferBuf.clear();
             }
+            emit errorOccurred(Error::StartTransfer);            
             return Result("startTransfer\ntimeout");
         }
         if(!accepted){
@@ -847,7 +852,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                     if(succeeded){break;}
                 }
                 if(!succeeded){
-                    ncritical<<"客户端"<<getStringByDeviceId(dst)<<"下线";
+                    ncritical<<"客户端"<<getStringByDeviceId(dst)<<"下线"; //#####错误待处理！！！！！#####
                 }
             }
             reportReceiveTimer.start(MAX_SAFE_NOSEND * MAX_REPORT_OFFSET / qMin(ccoutput.rate,ccinput.deliverRate) * 1000 + qMax(ccoutput.dcong,ccinput.rtt));
@@ -864,6 +869,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                 if(transferTaskQueue.empty()){
                     transferBuf.clear();
                 }
+                emit eventOccurred(Event::TransferAborted);
                 return Result();
             }
             int i=tq.dequeue();
@@ -945,6 +951,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                 else{
                     QMetaObject::invokeMethod(this,[this]{transferPreloadedData(transferTaskQueue.dequeue());},Qt::QueuedConnection);
                 }
+                emit errorOccurred(Error::FinishTransfer);
             }
         },Qt::QueuedConnection);
         loop.exec();
@@ -952,6 +959,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             if(transferTaskQueue.empty()){
                 transferBuf.clear();
             }
+            emit errorOccurred(Error::FinishTransfer);            
             return Result();
         }
         if(isCompleted){//发送完成
