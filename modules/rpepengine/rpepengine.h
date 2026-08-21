@@ -136,6 +136,8 @@ private:
     Result transferPreloadedData(devid_t dst);                                          //使用成员变量transferBuf指定数据，要求transferBuf必需是已加密的完整数据包结构
     QVector<QVector<QPair<ipport,ipport>>> planAutoSend(Devices dsts);                  //自动规划向dsts发送的路径
     void abortReceiving();
+    void receiverReset();                                                               //接收方重置桩台
+    void senderReset();                                                                 //发送方重置状态
     
 private://private signals
     Q_SIGNAL void punchReceived(devid_t sender,int seq);
@@ -189,7 +191,7 @@ private:
     static const int MAX_TIMEOUT = 5000;
     static const int MAX_REPORT_TIMEOUT = 2000;
     static const int MAX_REPORT_OFFSET = 2;
-    static const int REPORT_BATCH = 1800;
+    static const int REPORT_BATCH = 2800;
     static const int INITIAL_RATE = 10;
     static const int KEEPALIVE_INTERVAL = 15000;
     static const int TRANSFER_WATCHDOG_TIMEOUT = 20000;

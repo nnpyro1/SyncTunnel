@@ -330,12 +330,13 @@ void RpepEngine::abortTransfer(){
     //2 发送消息
     sendControl("___ABORT_TRANSFER___","",transferDestination);
     //3 清除状态
-    QTimer::singleShot(2000,this,[this]{
-        transferTaskQueue.clear();
-        transferBuf.clear();
-        transferDestination = 0;
-        transferWatchdog.stop();
-    });
+    // QTimer::singleShot(2000,this,[this]{
+        // transferTaskQueue.clear();
+        // transferBuf.clear();
+        // transferDestination = 0;
+        // transferWatchdog.stop();
+        senderReset();
+    // });
 }
 
 
@@ -486,6 +487,7 @@ void RpepEngine::reset(){
     receivingWatchdog.stop();
     receivingReportTimer.stop();
     delivered=0;
+    transferTaskQueue.clear();
 }
 
 
@@ -714,6 +716,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         auto res = sendControl("___START_TRANSFER___","",dst);
         if(!res){
             ncritical<<"Unable to start a transfer."<<res.errorMessage;
+            senderReset();
             state=State::Ready;
             return res;
         }
@@ -737,6 +740,9 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             if(transferTaskQueue.empty()){
                 transferBuf.clear();
             }
+            else{
+                QMetaObject::invokeMethod(this,[this]{transferPreloadedData(transferTaskQueue.dequeue());},Qt::QueuedConnection);
+            }
             return Result();
         }
         if(!received){
@@ -749,7 +755,8 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         }
         if(!accepted){
             nwarning<<"Transfer refused.reason="<<refuseReason;
-            state=State::Ready;
+            // state=State::Ready;
+            senderReset();
             if(transferTaskQueue.empty()){
                 transferBuf.clear();
             }
@@ -886,12 +893,17 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         auto res=sendControl("___FINISH_TRANSFER___",(transferBuf.size()),dst);
         if(!res){
             ncritical<<"Unable to finish transfer";
-            transferBuf.clear();
-            transferDestination = 0;
-            state=State::Ready;
-            transferWatchdog.stop();
+            // transferBuf.clear();
+            // transferDestination = 0;
+            // state=State::Ready;
+            // transferWatchdog.stop();
+            abortTransfer();
+            senderReset();
             if(transferTaskQueue.empty()){
                 transferBuf.clear();
+            }
+            else{
+                QMetaObject::invokeMethod(this,[this]{transferPreloadedData(transferTaskQueue.dequeue());},Qt::QueuedConnection);
             }
             return res;
         }
@@ -921,11 +933,18 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             auto res=sendControl("___FINISH_TRANSFER___",(transferBuf.size()),dst);
             if(!res){
                 ncritical<<"Unable to finish transfer";
-                transferBuf.clear();
-                transferDestination = 0;
-                state=State::Ready;
-                transferWatchdog.stop();
+                // transferBuf.clear();
+                // transferDestination = 0;
+                // state=State::Ready;
+                // transferWatchdog.stop();
                 abortTransfer();
+                senderReset();
+                if(transferTaskQueue.empty()){
+                    transferBuf.clear();
+                }
+                else{
+                    QMetaObject::invokeMethod(this,[this]{transferPreloadedData(transferTaskQueue.dequeue());},Qt::QueuedConnection);
+                }
             }
         },Qt::QueuedConnection);
         loop.exec();
@@ -947,11 +966,12 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             else{
                 transferBuf.clear();
                 transferDestination = 0;
-                transferWatchdog.stop();                
+                transferWatchdog.stop();
+                senderReset();
             }
-            if(transferTaskQueue.empty()){
-                transferBuf.clear();
-            }
+            // if(transferTaskQueue.empty()){
+            //     transferBuf.clear();
+            // }
             return Result();
         }
     }
@@ -996,13 +1016,43 @@ void RpepEngine::abortReceiving(){
     sendControl("___ABORT_RECEIVING___","",acceptableSender);
     
     //2 清除状态
-    receivingBuf.clear();
-    lastReportElapsedTime.invalidate();
-    lastReportChunk=-1;
-    acceptableSender=0;
-    receivingWatchdog.stop();
-    receivingReportTimer.stop();
-    delivered=0;
+    // receivingBuf.clear();
+    // lastReportElapsedTime.invalidate();
+    // lastReportChunk=-1;
+    // acceptableSender=0;
+    // receivingWatchdog.stop();
+    // receivingReportTimer.stop();
+    // delivered=0;
+    receiverReset();
+}
+
+
+void RpepEngine::receiverReset(){
+    if(state==State::Receiving){
+        receivingBuf.clear();
+        lastReportElapsedTime.invalidate();
+        lastReportChunk=0;
+        acceptableSender=0;
+        receivingWatchdog.stop();
+        receivingReportTimer.stop();
+        delivered=0;
+        state=State::Ready;
+    }
+    else{
+        ncritical<<"Unable to reset receiver when state="<<(int)state;
+    }
+}
+
+
+void RpepEngine::senderReset(){
+    if(state==State::Transferring){
+        transferDestination=0;
+        transferWatchdog.stop();
+        state=State::Ready;
+    }
+    else{
+        ncritical<<"Unable to reset sender when state="<<(int)state;
+    }
 }
 
 
@@ -1337,14 +1387,15 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             }
             emit dataReceived(data,src);
             //重置状态
-            state=State::Ready;
-            receivingBuf.clear();
-            lastReportElapsedTime.invalidate();
-            lastReportChunk=-1;
-            acceptableSender=0;
-            receivingWatchdog.stop();
-            receivingReportTimer.stop();
-            delivered=0;
+            // state=State::Ready;
+            // receivingBuf.clear();
+            // lastReportElapsedTime.invalidate();
+            // lastReportChunk=-1;
+            // acceptableSender=0;
+            // receivingWatchdog.stop();
+            // receivingReportTimer.stop();
+            // delivered=0;
+            receiverReset();
             //从队列中取出任务并执行
             if(!transferTaskQueue.isEmpty()){
                 QMetaObject::invokeMethod(this,[=,this]{
@@ -1391,21 +1442,29 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
     }
     if(key=="___ABORT_TRANSFER___"){
         if(state==State::Receiving && src==acceptableSender){
-            receivingBuf.clear();
-            lastReportElapsedTime.invalidate();
-            lastReportChunk=-1;
-            acceptableSender=0;
-            receivingWatchdog.stop();
-            receivingReportTimer.stop();
-            delivered=0;
+            // receivingBuf.clear();
+            // lastReportElapsedTime.invalidate();
+            // lastReportChunk=-1;
+            // acceptableSender=0;
+            // receivingWatchdog.stop();
+            // receivingReportTimer.stop();
+            // delivered=0;
+            receiverReset();
         }
     }
     if(key=="___ABORT_RECEIVING___"){
         if(state==State::Transferring && src==transferDestination){
-            transferBuf.clear();
-            transferDestination=0;
-            transferWatchdog.stop();
-            transferTaskQueue.clear();
+            // transferBuf.clear();
+            // transferDestination=0;
+            // transferWatchdog.stop();
+            // transferTaskQueue.clear(); //**** 不清空！！！ ****
+            senderReset();
+            if(transferTaskQueue.empty()){
+                transferBuf.clear();
+            }
+            else{
+                QMetaObject::invokeMethod(this,[this]{transferPreloadedData(transferTaskQueue.dequeue());},Qt::QueuedConnection);
+            }
         }
     }
 }
