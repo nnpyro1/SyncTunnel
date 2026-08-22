@@ -25,12 +25,13 @@ public:
     };
     
     enum class Event{
-        Error,//参数中有QString error，仅在讲状态设置为Error的时候使用
+        Error,              //参数中有QString error，仅在讲状态设置为Error的时候使用
         GettingPublicIp,
         RegisteringOnline,
-        Ready,//加载成功
-        Punch,//打洞成功，加设备ID QString id
+        Ready,              //加载成功
+        Punch,              //打洞成功，加设备ID QString id
         TransferAborted,
+        Preloading,         //正在预处理，加参数int的i和total
     };
     
     enum class Error{

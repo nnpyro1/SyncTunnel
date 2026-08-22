@@ -4,6 +4,7 @@
 #include <core/basic/utils.h>
 #include <QBuffer>
 #include <QUuid>
+#include <deque>
 #include <modules/rpepengine/congestioncontrol/congestioncontrol.h>
 #include <QApplication>
 #include <algorithm>
@@ -702,6 +703,9 @@ Result RpepEngine::preloadData(QByteArray data){
         QByteArray chunk = data.mid(i,CHUNK_SIZE);
         dmh.chunkId=i/CHUNK_SIZE;
         transferBuf[dmh.chunkId]=encode(getHeaderBytes(dmh)+chunk);
+        if(dmh.chunkId%13==0){
+            emit eventOccurred(Event::Preloading,{{"i",dmh.chunkId},{"total",dmh.totalChunkNum}});
+        }
     }
     return Result();
 }
@@ -772,39 +776,65 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     //2 发送数据包
     // Utils::multiDelay(120);//玄学等待
     {
+        using namespace std;
         CongestionControl cc;
         CongestionControl::CongestionControlOutput ccoutput/* = {INITIAL_RATE}*/;
         CongestionControl::CongestionControlInput ccinput;
         QMap<chunkid_t,double> elapsedTimes;
         QElapsedTimer timer;
         timer.start();
-        QMap<chunkid_t,chunkid_t> retransferIgnore;//key存储忽略的重传的包，value存储从表中删除项目时需要的Report end
-        QQueue<int> tq;
+        QHash<chunkid_t,chunkid_t> retransferIgnore;//key存储忽略的重传的包，value存储从表中删除项目时需要的Report end
+        deque<chunkid_t> tq;
+        QSet<chunkid_t> tqSet;
         // ccinput.totalChunks=transferBuf.size()-1;
         // QElapsedTimer lastReportTimer;
         QTimer reportReceiveTimer;
         int reportLossCount = 0;
         auto conn = connect(this,&RpepEngine::reportReceived,this,[&](ReportMessageHeader report,QList<chunkid_t> loss){
             transferWatchdog.stop();transferWatchdog.start();//重置看门狗
-            ninfo<<"Report received. loss="<<loss;
-            if(!std::is_sorted(loss.begin(),loss.end())){
-                std::sort(loss.begin(),loss.end());
-            }
-            for(auto i=loss.rbegin();i<loss.rend();++i){
-                if(!tq.contains(*i)){
-                    if(retransferIgnore.contains(*i) && retransferIgnore[*i]>report.lastReceive){//过了一个rtt了，允许重传
-                        retransferIgnore.remove(*i);
+            // ndb<<"Report received. loss="<<loss;
+            // if(!std::is_sorted(loss.begin(),loss.end())){
+            //     std::sort(loss.begin(),loss.end());
+            // }
+            // for(auto i=loss.rbegin();i<loss.rend();++i){
+            //     if(!tq.contains(*i)){
+            //         if(retransferIgnore.contains(*i) && retransferIgnore[*i]>report.lastReceive){//过了一个rtt了，允许重传
+            //             retransferIgnore.remove(*i);
+            //         }
+            //         if(!retransferIgnore.contains(*i)){
+            //             // tq.insert(0,*i);
+            //             tq.prepend(*i);//重传
+            //             retransferIgnore.insert(*i,ccinput.chunkId);//一个RTT内不再重传
+            //         }
+            //         else{
+            //             // ninfo<<"Retransfer of Data #"<<*i<<" was ignored.";
+            //         }
+            //     }
+            // }
+            //性能优化
+            QList<chunkid_t> retransferList;
+            retransferList.resize(loss.size());
+            qsizetype retransferSize=0;
+            chunkid_t *retransferListData = retransferList.data();
+            const chunkid_t *lossData = loss.constData();
+            auto lossSize = loss.size();
+            for(qsizetype i=0;i<lossSize;i++){
+                chunkid_t l = lossData[i];
+                if(!tqSet.contains(l)){//仅在不存在时插入
+                    bool cts = retransferIgnore.contains(l);
+                    bool ent = cts && retransferIgnore[l]>report.lastReceive;
+                    if(ent){
+                        retransferIgnore.remove(l);
                     }
-                    if(!retransferIgnore.contains(*i)){
-                        // tq.insert(0,*i);
-                        tq.prepend(*i);//重传
-                        retransferIgnore.insert(*i,ccinput.chunkId);//一个RTT内不再重传
-                    }
-                    else{
-                        // ninfo<<"Retransfer of Data #"<<*i<<" was ignored.";
+                    if(!cts || retransferIgnore[l]>report.lastReceive){
+                        retransferListData[retransferSize++]=l;
+                        tqSet.insert(l);
+                        retransferIgnore.insert(l,ccinput.chunkId);
                     }
                 }
             }
+            retransferList.resize(retransferSize);
+            tq.insert(tq.begin(),retransferList.cbegin(),retransferList.cend());
             
             ccinput.loss=loss;
             if(report.isRttAvailable)ccinput.rtt=timer.nsecsElapsed()/1.e6-elapsedTimes[report.lastReceive];
@@ -863,12 +893,13 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             reportReceiveTimer.start(MAX_SAFE_NOSEND * MAX_REPORT_OFFSET / qMin(ccoutput.rate,ccinput.deliverRate) * 1000 + qMax(ccoutput.dcong,ccinput.rtt));
         });
         for(int i=0;i<transferBuf.size();i++){
-            tq.enqueue(i);
+            tq.push_back(i);
+            tqSet.insert(i);
         }
         transferWatchdog.start();
         ccinput.totalChunks=transferBuf.size();
         ccinput.lastEnd = 0;
-        while(!tq.isEmpty()){
+        while(!tq.empty()){
             if(isAborted){
                 ninfo<<"传输被强制终止";
                 if(transferTaskQueue.empty()){
@@ -877,7 +908,9 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                 emit eventOccurred(Event::TransferAborted);
                 return Result();
             }
-            int i=tq.dequeue();
+            int i=tq.front();
+            tq.pop_front();
+            tqSet.remove(i);
             // ccinput.chunkId=i;
             //转换rate
             quint64 db;
@@ -885,13 +918,13 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             memcpy(&db,&drate,sizeof(double));
             db=::qToBigEndian(db);
             memcpy(tmp,&db,sizeof(double));
-            send(transferBuf[i]+QByteArray(tmp,sizeof(double))+"DRAT_TP_",0,dst);
-            ninfo<<"Data #"<<i<<" sent.";
+            send(transferBuf[i]/*+QByteArray(tmp,sizeof(double))*//*+"DRAT_TP_"*/,0,dst);
+            // ndb<<"Data #"<<i<<" sent.";
             ccinput.chunkId = i;
             elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
-            Utils::multiDelay(1000/ccoutput.rate,[]{QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);});
+            Utils::multiDelay(1000/ccoutput.rate,/*[]{QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);}*/nullptr);
             QApplication::processEvents(QEventLoop::ExcludeUserInputEvents,100);
-            ndb<<"rate:"<<ccoutput.rate;
+            // ndb<<"rate:"<<ccoutput.rate;
         }
         disconnect(conn);
     }
@@ -1136,7 +1169,7 @@ void RpepEngine::onCommunicationReadyRead(){
         case MessageType::ReliableResponse:
         case MessageType::ReliableDone:
         case MessageType::ReliableComplete:{
-            ndb<<"Reliable receive "<<header.type;
+            // ndb<<"Reliable receive "<<header.type;
             ControlMessageHeader cmh = getHeaderStruct<ControlMessageHeader>(rawMsg);
             QByteArray cmsg = rawMsg.mid(sizeof(cmh));
             MessageType tp=(MessageType)cmh.type;
@@ -1211,7 +1244,7 @@ void RpepEngine::onCommunicationReadyRead(){
                 chunkId=dmh.chunkId;
                 QByteArray payload = rawMsg.mid(sizeof(dmh));
                 receivingBuf.insert(dmh.chunkId,payload);
-                ninfo<<"Data #"<<dmh.chunkId<<" received.";
+                // ndb<<"Data #"<<dmh.chunkId<<" received.";
                 if(!lastReportElapsedTime.isValid()){
                     lastReportElapsedTime.start();
                 }
@@ -1278,9 +1311,9 @@ void RpepEngine::onCommunicationReadyRead(){
                 rmh.lastReceive=chunkId;
                 auto e=lastReportElapsedTime.nsecsElapsed()/1.e6;
                 rmh.deliverRate= e!=0?delivered*1000./e:1;
-                if(rmh.deliverRate<1||rmh.deliverRate>10000){
-                    nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
-                }
+                // if(rmh.deliverRate<1||rmh.deliverRate>10000){
+                //     nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
+                // }
                 QByteArray msgBody;
                 // for(chunkid_t l:loss){
                 //     l=::qToBigEndian(l);
@@ -1288,12 +1321,16 @@ void RpepEngine::onCommunicationReadyRead(){
                 //     memcpy(lo,&l,sizeof(l));
                 //     msgBody.append(lo,sizeof(l));
                 // }
-                msgBody.reserve(2*lossRangeList.size()*sizeof(chunkid_t));
+                msgBody.resize(2*lossRangeList.size()*sizeof(chunkid_t));
+                auto ptr = msgBody.data();
                 auto insertNum = [&](chunkid_t num){
                     num=::qToBigEndian(num);
-                    char src[sizeof(num)];
-                    memcpy(src,&num,sizeof(num));
-                    msgBody.append(src,sizeof(src));
+                    // char src[sizeof(num)];
+                    // memcpy(src,&num,sizeof(num));
+                    // msgBody.append(src,sizeof(src));
+                    //快速插入
+                    memcpy(ptr,&num,sizeof(num));
+                    ptr+=sizeof(chunkid_t);
                 };
                 for(auto range:std::as_const(lossRangeList)){
                     insertNum(range.first);
@@ -1318,16 +1355,20 @@ void RpepEngine::onCommunicationReadyRead(){
                 QBuffer mbody;mbody.open(QBuffer::ReadWrite);
                 mbody.write(rawMsg.mid(sizeof(rmh)));
                 mbody.seek(0);
-                loss.reserve(500);
+                // loss.reserve(500);
                 while(!mbody.atEnd()){
                     chunkid_t start,end;
                     memcpy(&start,mbody.read(sizeof(chunkid_t)).constData(),sizeof(chunkid_t));
                     start=::qFromBigEndian(start);
                     memcpy(&end,mbody.read(sizeof(chunkid_t)).constData(),sizeof(chunkid_t));
                     end=::qFromBigEndian(end);
-                    loss.reserve(loss.size()+end-start+1);
-                    for(chunkid_t i=start;i<=end;i++){
-                        loss.append(i);
+                    //快速插入
+                    auto size = loss.size();
+                    loss.resize(loss.size()+end-start+1);
+                    auto ptr = loss.data()+size;
+                    for(chunkid_t i=start;i<=end;++i,++ptr){
+                        // loss.append(i);
+                        *ptr=i;
                     }
                 }
             }

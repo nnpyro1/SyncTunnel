@@ -13,6 +13,12 @@ void CongestionControl::reset()
 }
 
 void CongestionControl::update(CongestionControlInput ipt){
+    //仅用于测试！！！
+    // {
+    //     output.rate=4000;
+    //     return;
+    // }
+    
     input=ipt;
     ++output.stateKeep;
     
@@ -67,11 +73,21 @@ void CongestionControl::update(CongestionControlInput ipt){
         break;
     }
     case ProbeMaxRate1:{
+        // if(!tl.empty() || timer.elapsed()>=output.probeTimeout){
+        //     output.state=ProbeMaxRate2;
+        //     output.probeTimeout=timer.elapsed()+PROBE_TIMEOUT;
+        //     output.stateKeep=0;
+        //     output.lastRttReportEnd=input.chunkId+1;
+        // }
         if(!tl.empty() || timer.elapsed()>=output.probeTimeout){
-            output.state=ProbeMaxRate2;
-            output.probeTimeout=timer.elapsed()+PROBE_TIMEOUT;
-            output.stateKeep=0;
+            output.state=Drain;
             output.lastRttReportEnd=input.chunkId+1;
+            //清除状态并EWMA
+            output.dcong = output.probeMaxRtt * PROBE_RTT_WEIGHT + output.dcong * (1-PROBE_RTT_WEIGHT);
+            output.fullrate = output.probeMaxRate * PROBE_RATE_WEIGHT + output.fullrate * (1-PROBE_RATE_WEIGHT);
+            output.stateKeep=0;
+            output.probeMaxRate=0;
+            output.probeMaxRtt=0;
         }
         break;
     }
@@ -140,6 +156,8 @@ void CongestionControl::update(CongestionControlInput ipt){
         else{
             output.rate=output.fullrate+output.fullrate*GROWTH_B;
         }
+        output.probeMaxRate = qMax(input.deliverRate,output.probeMaxRate);
+        output.probeMaxRtt = qMax(input.rtt,output.probeMaxRtt);
         //侦测异常
         output.growthQueueFracWindow.insert(input.chunkId,(input.rtt-output.dbase)/(output.dcong-output.dbase));
         output.growthQueueFracWindow.erase(output.growthQueueFracWindow.begin(),output.growthQueueFracWindow.lowerBound(input.end));//删除旧值
@@ -152,6 +170,8 @@ void CongestionControl::update(CongestionControlInput ipt){
     }
     case CongestionResponse:{
         output.rate = output.fullrate * CONG_GAIN;
+        output.probeMaxRate = qMax(input.deliverRate,output.probeMaxRate);
+        output.probeMaxRtt = qMax(input.rtt,output.probeMaxRtt);
         break;
     }
     case ProbeMaxRate1:

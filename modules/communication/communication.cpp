@@ -15,8 +15,9 @@ Communication::Communication(){
     socket_ipv6 = new QUdpSocket;
     socket = socket_stun;
     socket->setSocketOption(QUdpSocket::ReceiveBufferSizeSocketOption,QVariant(INT_MAX));//设置大缓冲区
+    socket->setSocketOption(QUdpSocket::SendBufferSizeSocketOption,QVariant(INT_MAX));
 //    buf.open(QIODevice::ReadWrite);
-    connect(&timer_read,&QTimer::timeout,this,&Communication::on_read);
+    // connect(&timer_read,&QTimer::timeout,this,&Communication::on_read);
     // timer_read.start(10);
     
     //性能
@@ -207,32 +208,35 @@ qint64 Communication::send(ipport host, QByteArray msg){
 }
 
 QNetworkDatagram Communication::readDatagram(){
-    if(!buf.empty()){
-#ifdef NNPYRO_PERFORMANCE_ANALYSIS
-        double time = performanceTimer.nsecsElapsed()/1.e6-performanceTimeQueue.dequeue();
-        if(time>=0.5){
-            nwarning<<"Performance Warning: Datagram has stayed in buffer for"<<time<<"ms.";
-        }
-#endif
-        return buf.dequeue();
-    }
-    else{
-        return QNetworkDatagram();
-    }
+//     if(!buf.empty()){
+// #ifdef NNPYRO_PERFORMANCE_ANALYSIS
+//         double time = performanceTimer.nsecsElapsed()/1.e6-performanceTimeQueue.dequeue();
+//         if(time>=0.5){
+//             nwarning<<"Performance Warning: Datagram has stayed in buffer for"<<time<<"ms.";
+//         }
+// #endif
+//         return buf.dequeue();
+//     }
+//     else{
+//         return QNetworkDatagram();
+//     }
+    return socket->receiveDatagram();
 }
 
 bool Communication::hasPendingDatagrams(){
-    return !buf.empty();
+    // return !buf.empty();
+    return socket->hasPendingDatagrams();
 }
 
 void Communication::on_read(){
-    if(socket->hasPendingDatagrams()){
-        while(socket->hasPendingDatagrams()){
-            buf.enqueue(socket->receiveDatagram());
-#ifdef NNPYRO_PERFORMANCE_ANALYSIS
-            performanceTimeQueue.enqueue(performanceTimer.nsecsElapsed()/1.e6);
-#endif
-        }
-        emit readyRead();
-    }
+//     if(socket->hasPendingDatagrams()){
+//         while(socket->hasPendingDatagrams()){
+//             buf.enqueue(socket->receiveDatagram());
+// #ifdef NNPYRO_PERFORMANCE_ANALYSIS
+//             performanceTimeQueue.enqueue(performanceTimer.nsecsElapsed()/1.e6);
+// #endif
+//         }
+//         emit readyRead();
+//     }
+    emit readyRead();           
 }
