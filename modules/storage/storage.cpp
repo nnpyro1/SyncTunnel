@@ -80,12 +80,12 @@ QByteArray Storage::download(){
 
 
 QByteArray Storage::encode(QByteArray data){
-    return Utils::encode(data,pwd);
+    return Utils::encode(data,username,pwd);
 }
 
 
 QByteArray Storage::decode(QByteArray data){
-    return Utils::decode(data,pwd);
+    return Utils::decode(data,username,pwd);
 }
 
 

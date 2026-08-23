@@ -133,6 +133,9 @@ void RpepEngine::setUsername(QString username){
         return;
     }
     this->username = username;
+    
+    //由于不知道setUsername和setPassword的调用顺序，preporcessedKey将会被赋值两次，其中最后一次的一定是正确的    
+    preprocessedKey=Utils::getSafePassword(username,pwd);    
 }
 
 
@@ -142,7 +145,10 @@ void RpepEngine::setPassword(QString pwd){
         return;
     }
     this->pwd = pwd;
-    preprocessedKey=QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
+    // preprocessedKey=QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
+    
+    //由于不知道setUsername和setPassword的调用顺序，preporcessedKey将会被赋值两次，其中最后一次的一定是正确的
+    preprocessedKey=Utils::getSafePassword(username,pwd);
 }
 
 

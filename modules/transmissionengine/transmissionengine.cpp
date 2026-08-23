@@ -89,7 +89,7 @@ QByteArray TransmissionEngine::encode(const QByteArray &msg){
 //#else   
 //    return msg;
 //#endif
-    return Utils::encode(msg,pwd);
+    // return Utils::encode(msg,pwd);
 }
 
 
@@ -103,7 +103,7 @@ QByteArray TransmissionEngine::decode(const QByteArray &msg){
 //#else
 //    return msg;
 //#endif
-    return Utils::decode(msg,pwd);
+    // return Utils::decode(msg,pwd);
 }
 
 

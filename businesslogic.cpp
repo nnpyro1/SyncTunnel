@@ -1419,12 +1419,12 @@ void BusinessLogic::onDataReceived(QByteArray data, devid_t src){
 
 
 QByteArray BusinessLogic::encode(const QByteArray &msg){
-    return Utils::encode(msg,pwd);
+    return Utils::encode(msg,user_name,pwd);
 }
 
 
 QByteArray BusinessLogic::decode(const QByteArray &msg){
-    return Utils::decode(msg,pwd);
+    return Utils::decode(msg,user_name,pwd);
 }
 
 

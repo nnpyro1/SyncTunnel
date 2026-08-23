@@ -3,6 +3,7 @@
 #include <QSslSocket>
 #include <QSplashScreen>
 #include <QScreen>
+#include <iostream>
 
 
 int nMain(int argc, char *argv[])
@@ -77,6 +78,11 @@ int nMain(int argc, char *argv[])
 
 
 int main(int argc,char *argv[]){
+    if(sodium_init()==-1){
+        std::cerr<<"Sodium init failed!"<<std::endl;
+        return 1;
+    }
+    
     do{
         int ret=nMain(argc,argv);
         if(ret!=EXIT_CODE_RESTART){

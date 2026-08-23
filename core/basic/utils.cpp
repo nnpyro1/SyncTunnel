@@ -10,30 +10,57 @@
 #include <QBuffer>
 
 
-QByteArray Utils::encode(const QByteArray &msg, const QString &pwd){
+QByteArray Utils::getSafePassword(const QString &username, const QString &pwd){
+    QByteArray salt = QCryptographicHash::hash(username.toUtf8()+"SYNCTUNNEL-1",QCryptographicHash::Sha256);
+    QByteArray res;
+    res.resize(32);
+    auto p = pwd.toUtf8();
+    auto data = res.data();
+    int ret = crypto_pwhash(
+        (unsigned char *)data,  
+        32,
+        p.constData(),
+        p.size(),
+        (unsigned char *)salt.data(),//自动截断
+        crypto_pwhash_OPSLIMIT_INTERACTIVE,
+        crypto_pwhash_MEMLIMIT_INTERACTIVE,
+        crypto_pwhash_ALG_ARGON2ID13
+        );
+    sodium_memzero(p.data(),p.size());
+    if(ret!=0){
+        ncritical<<"PWHASH Failed.";
+        return {};
+    }
+    return res;
+}
+
+
+QByteArray Utils::encode(const QByteArray &msg, const QString &username, const QString &pwd){
 #ifndef DEBUG_NO_ENCRYPTION
-    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray key = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
-//    QByteArray iv = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Md5);
-    QByteArray iv;iv.resize(16);
-    QRandomGenerator::system()->generate(iv.begin(),iv.end());
-    QByteArray encode = iv+encription.encode(msg,key,iv)/*.toBase64()*/;
-    return /*qCompress(*/encode/*,9)*/;
+//     QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
+//     QByteArray key = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
+// //    QByteArray iv = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Md5);
+//     QByteArray iv;iv.resize(16);
+//     QRandomGenerator::system()->generate(iv.begin(),iv.end());
+//     QByteArray encode = iv+encription.encode(msg,key,iv)/*.toBase64()*/;
+//     return /*qCompress(*/encode/*,9)*/;
+    return encodeRaw(msg,getSafePassword(username,pwd));
 #else   
     return msg;
 #endif
 }
 
 
-QByteArray Utils::decode(const QByteArray &msg,const QString &pwd){
+QByteArray Utils::decode(const QByteArray &msg, const QString &username, const QString &pwd){
 #ifndef DEBUG_NO_ENCRYPTION
-    if(msg.size()<16)return QByteArray();
-    QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray key = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
-    QByteArray iv = msg.mid(0,16);
-    const auto msg2=msg.mid(16);
-    QByteArray decoded = encription.removePadding(encription.decode(/*QByteArray::fromBase64(msg)*//*qUncompress(*/msg2/*)*/,key,iv));
-    return decoded;
+    // if(msg.size()<16)return QByteArray();
+    // QAESEncryption encription(QAESEncryption::AES_256,QAESEncryption::CBC);
+    // QByteArray key = QCryptographicHash::hash(pwd.toUtf8(),QCryptographicHash::Sha256);
+    // QByteArray iv = msg.mid(0,16);
+    // const auto msg2=msg.mid(16);
+    // QByteArray decoded = encription.removePadding(encription.decode(/*QByteArray::fromBase64(msg)*//*qUncompress(*/msg2/*)*/,key,iv));
+    // return decoded;
+    return decodeRaw(msg,getSafePassword(username,pwd)); 
 #else
     return msg;
 #endif
@@ -42,10 +69,41 @@ QByteArray Utils::decode(const QByteArray &msg,const QString &pwd){
 
 QByteArray Utils::encodeRaw(const QByteArray &msg, const QByteArray &pwd){
 #ifndef DEBUG_NO_ENCRYPTION
-    QAESEncryption aes(QAESEncryption::AES_256,QAESEncryption::CBC);
-    QByteArray iv;iv.resize(16);
-    QRandomGenerator::system()->generate(iv.begin(),iv.end());
-    return iv+aes.encode(msg,pwd,iv);
+    // QAESEncryption aes(QAESEncryption::AES_256,QAESEncryption::CBC);
+    // QByteArray iv;iv.resize(16);
+    // QRandomGenerator::system()->generate(iv.begin(),iv.end());
+    // return iv+aes.encode(msg,pwd,iv);
+    
+    if (pwd.size() != crypto_aead_xchacha20poly1305_ietf_KEYBYTES) {
+        ncritical << "Invalid key length:" << pwd.size();
+        return {};
+    }
+    //消息结构：
+    //Nounce+密文(附带tag)
+    QByteArray ret;
+    ret.resize(msg.size()+crypto_aead_xchacha20poly1305_ietf_ABYTES+crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+    auto data = ret.data();
+    unsigned char nonce[crypto_aead_xchacha20poly1305_ietf_NPUBBYTES];
+    randombytes_buf(nonce,crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+    unsigned long long waste;
+    if(crypto_aead_xchacha20poly1305_ietf_encrypt(
+        (unsigned char *)data+crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
+        &waste,
+        (unsigned char *)msg.constData(),
+        msg.size(),
+        nullptr,
+        0,
+        nullptr,
+        nonce,
+        (unsigned char *)pwd.constData()
+            )!=0){//失败
+        ncritical<<"Encrypt failed.";
+        return {};
+    }
+    else{
+        memcpy(data,nonce,crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+    }
+    return ret;
 #else
     return msg;
 #endif
@@ -54,10 +112,35 @@ QByteArray Utils::encodeRaw(const QByteArray &msg, const QByteArray &pwd){
 
 QByteArray Utils::decodeRaw(const QByteArray &msg, const QByteArray &pwd){
 #ifndef DEBUG_NO_ENCRYPTION
-    const QByteArray &iv=msg.mid(0,16);
-    const QByteArray &msgBody=msg.mid(16);
-    QAESEncryption aes(QAESEncryption::AES_256,QAESEncryption::CBC);
-    return aes.removePadding(aes.decode(msgBody,pwd,iv));
+    // const QByteArray &iv=msg.mid(0,16);
+    // const QByteArray &msgBody=msg.mid(16);
+    // QAESEncryption aes(QAESEncryption::AES_256,QAESEncryption::CBC);
+    // return aes.removePadding(aes.decode(msgBody,pwd,iv));
+    if(msg.size()<crypto_aead_xchacha20poly1305_ietf_NPUBBYTES){
+        ncritical<<"Message Too Short.";
+        return {};
+    }
+    QByteArray ret;
+    ret.resize(msg.size()-crypto_aead_xchacha20poly1305_ietf_NPUBBYTES-crypto_aead_xchacha20poly1305_ietf_ABYTES);
+    auto data=ret.data();
+    unsigned long long waste;
+    auto res=crypto_aead_xchacha20poly1305_ietf_decrypt(
+        (unsigned char *)data,
+        &waste,
+        nullptr,
+        (unsigned char *)msg.constData()+crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
+        msg.size()-crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
+        nullptr,0,
+        (unsigned char *)msg.constData(),
+        (unsigned char *)pwd.constData()
+        );
+    if(res!=0){//解密失败
+        ncritical<<"Decrypt Failure";
+        return {};
+    }
+    else{
+        return ret;
+    }
 #else
     return msg;
 #endif

@@ -18,6 +18,7 @@ Signalling::~Signalling(){
 void Signalling::setPassport(QString username, QString pwd){
     this->username=username;
     this->password=pwd;
+    this->safePwd=Utils::getSafePassword(username,pwd);
 }
 
 
@@ -222,10 +223,12 @@ void Signalling::mqttReadyRead(QByteArray msg){
 
 
 QByteArray Signalling::encode(QByteArray data){
-    return Utils::encode(data,password);
+    // return Utils::encode(data,password);
+    return Utils::encodeRaw(data,safePwd);
 }
 
 
 QByteArray Signalling::decode(QByteArray data){
-    return Utils::decode(data,password);
+    // return Utils::decode(data,password);
+    return Utils::decodeRaw(data,safePwd);
 }

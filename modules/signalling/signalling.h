@@ -60,6 +60,7 @@ private:
 private:
     QString username;
     QString password;
+    QByteArray safePwd;
     device public_ip;
     Devices clients;
     QString mqttHost;

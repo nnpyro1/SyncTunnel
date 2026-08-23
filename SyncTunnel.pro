@@ -90,8 +90,13 @@ win32{
 win32: CONFIG -= console
 win32: CONFIG += windows
 #win32: DEFINES += QT_NEEDS_QMAIN
-win32: QMAKE_LFLAGS += -Wl,-subsystem=windows
-win32: QMAKE_LFLAGS += -Wl,-entry=WinMainCRTStartup
+# win32: QMAKE_LFLAGS += -Wl,-subsystem=windows
+# win32: QMAKE_LFLAGS += -Wl,-entry=WinMainCRTStartup
+win32{
+    INCLUDEPATH += $$PWD/../../libary/libsodium-1.0.22-mingw/libsodium-win64/include
+    LIBS += -L$$PWD/../../libary/libsodium-1.0.22-mingw/libsodium-win64/lib
+    LIBS += -lsodium
+}
 android{
     # QT += androidextras
 }
