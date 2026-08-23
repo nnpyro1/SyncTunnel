@@ -973,6 +973,10 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             QList<chunkid_t> sortedLoss(loss.constBegin(),loss.constEnd());
             std::sort(sortedLoss.begin(),sortedLoss.end());
             for(auto i:sortedLoss){
+                if(isAborted){
+                    abortTransfer();//不需要管是否sendControl失败，因为程序将要退出，接收方看门狗会解决一切
+                    return;
+                }
                 send(transferBuf[i],0,dst);
                 ninfo<<"Data #"<<i<<"Retransferred.";
                 QThread::msleep(50);

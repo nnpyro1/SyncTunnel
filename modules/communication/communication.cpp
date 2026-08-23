@@ -26,8 +26,9 @@ Communication::Communication(){
 #endif
 }
 Communication::~Communication(){
-    delete socket_stun;
-    delete socket_ipv6;
+    delete socket_stun;socket_stun=nullptr;
+    delete socket_ipv6;socket_ipv6=nullptr;
+    socket=nullptr;
 }
 
 Communication::ipport Communication::stun(){
@@ -202,6 +203,7 @@ Communication::ipport Communication::getIPv6(){
 //}
 
 qint64 Communication::send(ipport host, QByteArray msg){
+    if(!socket)return -1;
     int p = socket->writeDatagram(msg,QHostAddress(host.ip),host.port);
     if(p<0) std::clog<<"Communication::send ERROR:Cannot send message!";
     return p;
@@ -220,11 +222,13 @@ QNetworkDatagram Communication::readDatagram(){
 //     else{
 //         return QNetworkDatagram();
 //     }
+    if(!socket)return QNetworkDatagram();
     return socket->receiveDatagram();
 }
 
 bool Communication::hasPendingDatagrams(){
     // return !buf.empty();
+    if(!socket)return false;
     return socket->hasPendingDatagrams();
 }
 
