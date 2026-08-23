@@ -781,130 +781,130 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     
     //2 发送数据包
     // Utils::multiDelay(120);//玄学等待
-    {
-        using namespace std;
-        CongestionControl cc;
-        CongestionControl::CongestionControlOutput ccoutput/* = {INITIAL_RATE}*/;
-        CongestionControl::CongestionControlInput ccinput;
-        QMap<chunkid_t,double> elapsedTimes;
-        QElapsedTimer timer;
-        timer.start();
-        QHash<chunkid_t,chunkid_t> retransferIgnore;//key存储忽略的重传的包，value存储从表中删除项目时需要的Report end
-        deque<chunkid_t> tq;
-        QSet<chunkid_t> tqSet;
-        // ccinput.totalChunks=transferBuf.size()-1;
-        // QElapsedTimer lastReportTimer;
-        QTimer reportReceiveTimer;
-        int reportLossCount = 0;
-        auto conn = connect(this,&RpepEngine::reportReceived,this,[&](ReportMessageHeader report,QList<chunkid_t> loss){
-            transferWatchdog.stop();transferWatchdog.start();//重置看门狗
-            // ndb<<"Report received. loss="<<loss;
-            // if(!std::is_sorted(loss.begin(),loss.end())){
-            //     std::sort(loss.begin(),loss.end());
-            // }
-            // for(auto i=loss.rbegin();i<loss.rend();++i){
-            //     if(!tq.contains(*i)){
-            //         if(retransferIgnore.contains(*i) && retransferIgnore[*i]>report.lastReceive){//过了一个rtt了，允许重传
-            //             retransferIgnore.remove(*i);
-            //         }
-            //         if(!retransferIgnore.contains(*i)){
-            //             // tq.insert(0,*i);
-            //             tq.prepend(*i);//重传
-            //             retransferIgnore.insert(*i,ccinput.chunkId);//一个RTT内不再重传
-            //         }
-            //         else{
-            //             // ninfo<<"Retransfer of Data #"<<*i<<" was ignored.";
-            //         }
-            //     }
-            // }
-            //性能优化
-            QList<chunkid_t> retransferList;
-            retransferList.resize(loss.size());
-            qsizetype retransferSize=0;
-            chunkid_t *retransferListData = retransferList.data();
-            const chunkid_t *lossData = loss.constData();
-            auto lossSize = loss.size();
-            for(qsizetype i=0;i<lossSize;i++){
-                chunkid_t l = lossData[i];
-                if(!tqSet.contains(l)){//仅在不存在时插入
-                    bool cts = retransferIgnore.contains(l);
-                    bool ent = cts && retransferIgnore[l]>report.lastReceive;
-                    if(ent){
-                        retransferIgnore.remove(l);
-                    }
-                    if(!cts || retransferIgnore[l]>report.lastReceive){
-                        retransferListData[retransferSize++]=l;
-                        tqSet.insert(l);
-                        retransferIgnore.insert(l,ccinput.chunkId);
-                    }
+    using namespace std;
+    CongestionControl cc;
+    CongestionControl::CongestionControlOutput ccoutput/* = {INITIAL_RATE}*/;
+    CongestionControl::CongestionControlInput ccinput;
+    QMap<chunkid_t,double> elapsedTimes;
+    QElapsedTimer timer;
+    timer.start();
+    QHash<chunkid_t,chunkid_t> retransferIgnore;//key存储忽略的重传的包，value存储从表中删除项目时需要的Report end
+    deque<chunkid_t> tq;
+    QSet<chunkid_t> tqSet;
+    // ccinput.totalChunks=transferBuf.size()-1;
+    // QElapsedTimer lastReportTimer;
+    QTimer reportReceiveTimer;
+    int reportLossCount = 0;
+    auto conn = connect(this,&RpepEngine::reportReceived,&useless,[&](ReportMessageHeader report,QList<chunkid_t> loss){//随便用一个uselessc的变量管理生命周期
+        transferWatchdog.stop();transferWatchdog.start();//重置看门狗
+        // ndb<<"Report received. loss="<<loss;
+        // if(!std::is_sorted(loss.begin(),loss.end())){
+        //     std::sort(loss.begin(),loss.end());
+        // }
+        // for(auto i=loss.rbegin();i<loss.rend();++i){
+        //     if(!tq.contains(*i)){
+        //         if(retransferIgnore.contains(*i) && retransferIgnore[*i]>report.lastReceive){//过了一个rtt了，允许重传
+        //             retransferIgnore.remove(*i);
+        //         }
+        //         if(!retransferIgnore.contains(*i)){
+        //             // tq.insert(0,*i);
+        //             tq.prepend(*i);//重传
+        //             retransferIgnore.insert(*i,ccinput.chunkId);//一个RTT内不再重传
+        //         }
+        //         else{
+        //             // ninfo<<"Retransfer of Data #"<<*i<<" was ignored.";
+        //         }
+        //     }
+        // }
+        //性能优化
+        QList<chunkid_t> retransferList;
+        retransferList.resize(loss.size());
+        qsizetype retransferSize=0;
+        chunkid_t *retransferListData = retransferList.data();
+        const chunkid_t *lossData = loss.constData();
+        auto lossSize = loss.size();
+        for(qsizetype i=0;i<lossSize;i++){
+            chunkid_t l = lossData[i];
+            if(!tqSet.contains(l)){//仅在不存在时插入
+                bool cts = retransferIgnore.contains(l);
+                bool ent = cts && retransferIgnore[l]>report.lastReceive;
+                if(ent){
+                    retransferIgnore.remove(l);
+                }
+                if(!cts || retransferIgnore[l]>report.lastReceive){
+                    retransferListData[retransferSize++]=l;
+                    tqSet.insert(l);
+                    retransferIgnore.insert(l,ccinput.chunkId);
                 }
             }
-            retransferList.resize(retransferSize);
-            tq.insert(tq.begin(),retransferList.cbegin(),retransferList.cend());
-            
-            ccinput.loss=loss;
-            if(report.isRttAvailable)ccinput.rtt=timer.nsecsElapsed()/1.e6-elapsedTimes[report.lastReceive];
-            ccinput.start=report.start;
-            ccinput.end=report.lastReceive;
-            // if(lastReportTimer.isValid())ccinput.timeToLastReport=lastReportTimer.elapsed();
-            // lastReportTimer.restart();
-            ccinput.elapsedTimes=elapsedTimes;
-            // ccinput.deliverRate=report.deliverRate;
-            if(report.deliverRate>2){//存在deliverRate信息
-                ccinput.deliverRate = ccinput.deliverRate==0? report.deliverRate
-                                                               :report.deliverRate*DELIVER_RATE_EWMA_WEIGHT+ccinput.deliverRate*(1-DELIVER_RATE_EWMA_WEIGHT);
-                
-            }
-            //调用
-            cc.update(ccinput);
-            ccoutput=cc.getOutput();
-            //更新信号
-            emit congestionControlInfoUpdated(ccinput,ccoutput);
-            ccinput.lastEnd=ccinput.end;
-            ccinput.lastSend=ccinput.chunkId;
-            // reportReceiveTimer.stop();
-            reportReceiveTimer.start(MAX_SAFE_NOSEND * MAX_REPORT_OFFSET / qMin(ccoutput.rate,ccinput.deliverRate>2?ccinput.deliverRate:ccoutput.rate) * 1000 + qMax(ccoutput.dcong,ccinput.rtt));
-            reportLossCount=0;
-        });
-        // connect(this,&RpepEngine::transferAborted,&cc,[&isAborted]{isAborted=true;});//侦测是否中断。随便绑定一个同作用域的QObject//已在开头添加
-        connect(&transferWatchdog,&QTimer::timeout,&cc,[this]{abortTransfer();});
-        connect(&reportReceiveTimer,&QTimer::timeout,this,[&]{
-            reportLossCount++;
-            ccoutput.rate/=2.;//速率除以2
-            ninfo<<"Report长时间未接收，速率为"<<ccoutput.rate;
-            auto co = ccoutput;
-            co.stateKeep=-1234;//用来做区分，不是真正的拥塞控制运行
-            emit congestionControlInfoUpdated(ccinput,co);
-            reportReceiveTimer.stop();
-            if(reportLossCount>=5){//阻塞等待Report
-                bool succeeded=false;
-                for(int i=0;i<5;i++){
-                    //构造消息
-                    CommonHeader header;
-                    header.src=deviceId;
-                    header.type=(quint16)MessageType::RequestReport;
-                    //发送消息
-                    send(getHeaderBytes(header),1,dst);
-                    //阻塞等待
-                    QEventLoop loop;
-                    QTimer::singleShot(2*qMax(ccoutput.dcong,ccinput.rtt),&loop,&QEventLoop::quit);//timer需要考虑dcong=0的特殊情况
-                    connect(this,&RpepEngine::reportReceived,&loop,[&]{loop.quit();succeeded=true;});
-                    loop.exec();
-                    if(succeeded){break;}
-                }
-                if(!succeeded){
-                    ncritical<<"客户端"<<getStringByDeviceId(dst)<<"下线"; //#####错误待处理！！！！！#####
-                }
-            }
-            reportReceiveTimer.start(MAX_SAFE_NOSEND * MAX_REPORT_OFFSET / qMin(ccoutput.rate,ccinput.deliverRate) * 1000 + qMax(ccoutput.dcong,ccinput.rtt));
-        });
-        for(int i=0;i<transferBuf.size();i++){
-            tq.push_back(i);
-            tqSet.insert(i);
         }
-        transferWatchdog.start();
-        ccinput.totalChunks=transferBuf.size();
-        ccinput.lastEnd = 0;
+        retransferList.resize(retransferSize);
+        tq.insert(tq.begin(),retransferList.cbegin(),retransferList.cend());
+        
+        ccinput.loss=loss;
+        if(report.isRttAvailable)ccinput.rtt=timer.nsecsElapsed()/1.e6-elapsedTimes[report.lastReceive];
+        ccinput.start=report.start;
+        ccinput.end=report.lastReceive;
+        // if(lastReportTimer.isValid())ccinput.timeToLastReport=lastReportTimer.elapsed();
+        // lastReportTimer.restart();
+        ccinput.elapsedTimes=elapsedTimes;
+        // ccinput.deliverRate=report.deliverRate;
+        if(report.deliverRate>2){//存在deliverRate信息
+            ccinput.deliverRate = ccinput.deliverRate==0? report.deliverRate
+                                                           :report.deliverRate*DELIVER_RATE_EWMA_WEIGHT+ccinput.deliverRate*(1-DELIVER_RATE_EWMA_WEIGHT);
+            
+        }
+        //调用
+        cc.update(ccinput);
+        ccoutput=cc.getOutput();
+        //更新信号
+        emit congestionControlInfoUpdated(ccinput,ccoutput);
+        ccinput.lastEnd=ccinput.end;
+        ccinput.lastSend=ccinput.chunkId;
+        // reportReceiveTimer.stop();
+        reportReceiveTimer.start(MAX_SAFE_NOSEND * MAX_REPORT_OFFSET / qMin(ccoutput.rate,ccinput.deliverRate>2?ccinput.deliverRate:ccoutput.rate) * 1000 + qMax(ccoutput.dcong,ccinput.rtt));
+        reportLossCount=0;
+    });
+    // connect(this,&RpepEngine::transferAborted,&cc,[&isAborted]{isAborted=true;});//侦测是否中断。随便绑定一个同作用域的QObject//已在开头添加
+    connect(&transferWatchdog,&QTimer::timeout,&cc,[this]{abortTransfer();});
+    connect(&reportReceiveTimer,&QTimer::timeout,this,[&]{
+        reportLossCount++;
+        ccoutput.rate/=2.;//速率除以2
+        ninfo<<"Report长时间未接收，速率为"<<ccoutput.rate;
+        auto co = ccoutput;
+        co.stateKeep=-1234;//用来做区分，不是真正的拥塞控制运行
+        emit congestionControlInfoUpdated(ccinput,co);
+        reportReceiveTimer.stop();
+        if(reportLossCount>=5){//阻塞等待Report
+            bool succeeded=false;
+            for(int i=0;i<5;i++){
+                //构造消息
+                CommonHeader header;
+                header.src=deviceId;
+                header.type=(quint16)MessageType::RequestReport;
+                //发送消息
+                send(getHeaderBytes(header),1,dst);
+                //阻塞等待
+                QEventLoop loop;
+                QTimer::singleShot(2*qMax(ccoutput.dcong,ccinput.rtt),&loop,&QEventLoop::quit);//timer需要考虑dcong=0的特殊情况
+                connect(this,&RpepEngine::reportReceived,&loop,[&]{loop.quit();succeeded=true;});
+                loop.exec();
+                if(succeeded){break;}
+            }
+            if(!succeeded){
+                ncritical<<"客户端"<<getStringByDeviceId(dst)<<"下线"; //#####错误待处理！！！！！#####
+            }
+        }
+        reportReceiveTimer.start(MAX_SAFE_NOSEND * MAX_REPORT_OFFSET / qMin(ccoutput.rate,ccinput.deliverRate) * 1000 + qMax(ccoutput.dcong,ccinput.rtt));
+    });
+    for(int i=0;i<transferBuf.size();i++){
+        tq.push_back(i);
+        tqSet.insert(i);
+    }
+    transferWatchdog.start();
+    ccinput.totalChunks=transferBuf.size();
+    ccinput.lastEnd = 0;
+    auto sendUntilTqIsEmpty = [&]{
         while(!tq.empty()){
             if(isAborted){
                 ninfo<<"传输被强制终止";
@@ -912,7 +912,8 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                     transferBuf.clear();
                 }
                 emit eventOccurred(Event::TransferAborted);
-                return Result();
+                // return Result();
+                return;
             }
             int i=tq.front();
             tq.pop_front();
@@ -932,9 +933,14 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             QApplication::processEvents(QEventLoop::ExcludeUserInputEvents,100);
             // ndb<<"rate:"<<ccoutput.rate;
         }
-        disconnect(conn);
+    };
+    
+    sendUntilTqIsEmpty();
+    if(isAborted){
+        return Result();
     }
     
+    //-----
     //3 重传
     while(1){
         //发送___FINISH_TRANSFER___
@@ -977,13 +983,21 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                     abortTransfer();//不需要管是否sendControl失败，因为程序将要退出，接收方看门狗会解决一切
                     return;
                 }
-                send(transferBuf[i],0,dst);
-                ninfo<<"Data #"<<i<<"Retransferred.";
-                QThread::msleep(50);
-                QApplication::processEvents();
-                transferWatchdog.stop();
-                transferWatchdog.start();
+                // send(transferBuf[i],0,dst);
+                // ninfo<<"Data #"<<i<<"Retransferred.";
+                // QThread::msleep(50);
+                // QApplication::processEvents();
+                // transferWatchdog.stop();
+                // transferWatchdog.start();    
             }
+            tq=deque<chunkid_t>(sortedLoss.begin(),sortedLoss.end());
+            tqSet.clear();
+            tqSet=QSet<chunkid_t>(sortedLoss.begin(), sortedLoss.end());
+            sendUntilTqIsEmpty();//快速重传
+            if(isAborted){
+                return;
+            }
+            
             auto res=sendControl("___FINISH_TRANSFER___",(transferBuf.size()),dst);
             if(!res){
                 ncritical<<"Unable to finish transfer";
