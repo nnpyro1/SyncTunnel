@@ -1442,14 +1442,66 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             ncritical<<"Unacceptable state '"<<(int)state<<"' to handle ___FINISH_TRANSFER___";
         }
         //侦测丢包
-        QByteArray msg;
-        for(chunkid_t i=0;i<value.toUInt();i++){
-            if(!receivingBuf.contains(i)){
-                chunkid_t be = ::qToBigEndian(i);
-                char bin[sizeof(be)];
-                memcpy(bin,&be,sizeof(be));
-                msg.append(bin,sizeof(be));
+        // QByteArray msg;
+        // for(chunkid_t i=0;i<value.toUInt();i++){
+        //     if(!receivingBuf.contains(i)){
+        //         chunkid_t be = ::qToBigEndian(i);
+        //         char bin[sizeof(be)];
+        //         memcpy(bin,&be,sizeof(be));
+        //         msg.append(bin,sizeof(be));
+        //     }
+        // }
+        //侦测丢包
+        QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
+        chunkid_t start=0;
+        auto it=receivingBuf.begin();
+        qint64 last=start-1;
+        for(;it!=receivingBuf.end();++it){
+            if(it.key()-last>1){//区间不连续
+                lossRangeList.append(qMakePair(last+1,it.key()-1));
             }
+            last=it.key();
+        }
+        if(!receivingBuf.empty() && receivingBuf.lastKey()!=value.toUInt()-1){//存在尾丢
+            lossRangeList.append(qMakePair(receivingBuf.lastKey()+1,value.toUInt()-1));
+        }
+        if(receivingBuf.empty()){
+            lossRangeList.append(qMakePair(0,value.toUInt()-1));
+        }
+        // if(receivingBuf.lastKey()!=value.toUInt()-1){lossRangeList.append(qMakePair(receivingBuf.lastKey(),value.toUInt()-1));}
+        
+        // for(qint64 i=0,rangeStart=-1;i<value.toUInt();++i){
+        //     if(!receivingBuf.contains(i)){
+        //         if(rangeStart==-1){//区间内第一个丢包
+        //             rangeStart=i;
+        //         }
+        //     }
+        //     if((receivingBuf.contains(i) || i==value.toUInt()-1) && rangeStart!=-1){//区间丢包结束或区间完毕
+        //         lossRangeList.append(qMakePair(rangeStart,i-1));
+        //         rangeStart=-1;
+        //     }
+        // }
+        QByteArray msg;
+        // for(chunkid_t l:loss){
+        //     l=::qToBigEndian(l);
+        //     char lo[sizeof(l)];
+        //     memcpy(lo,&l,sizeof(l));
+        //     msgBody.append(lo,sizeof(l));
+        // }
+        msg.resize(2*lossRangeList.size()*sizeof(chunkid_t));
+        auto ptr = msg.data();
+        auto insertNum = [&](chunkid_t num){
+            num=::qToBigEndian(num);
+            // char src[sizeof(num)];
+            // memcpy(src,&num,sizeof(num));
+            // msgBody.append(src,sizeof(src));
+            //快速插入
+            memcpy(ptr,&num,sizeof(num));
+            ptr+=sizeof(chunkid_t);
+        };
+        for(auto range:std::as_const(lossRangeList)){
+            insertNum(range.first);
+            insertNum(range.second);
         }
         //发送消息
         if(!msg.isEmpty()){
@@ -1491,10 +1543,14 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
         QBuffer buf(&msg);
         buf.open(QBuffer::ReadOnly);
         while(!buf.atEnd()){
-            chunkid_t id;
-            memcpy(&id,buf.read(sizeof(id)).constData(),sizeof(id));
-            id = ::qFromBigEndian(id);
-            loss.insert(id);
+            chunkid_t start,end;
+            memcpy(&start,buf.read(sizeof(start)).constData(),sizeof(start));
+            start = ::qFromBigEndian(start);
+            memcpy(&end,buf.read(sizeof(end)).constData(),sizeof(end));
+            end = ::qFromBigEndian(end);
+            for(chunkid_t i=start;i<=end;i++){
+                loss.insert(i);
+            }
         }
         ninfo<<"请求重传："<<loss;
         emit retransferRequested(loss);
