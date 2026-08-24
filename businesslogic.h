@@ -75,7 +75,13 @@ public:
         CurrentPathSetFailed,
         Debug,//调试用，可能需参数
         FileUploadingFinished,//可选QString error
-        ErrorOccurred,//必选QString error，仅用于Result反馈
+        RpepTransferErrorOccurred,//必选QString error，仅用于Result反馈
+        TransferAborted,
+        Preloading,//有参数i和total
+        PunchFailed,
+        StartTransferFailed,
+        FinishTransferFailed,
+        FileReceived,
     };
     Q_ENUM(BusinessEvent);
     

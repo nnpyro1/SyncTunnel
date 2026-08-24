@@ -1893,7 +1893,7 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
     });
     connect(ui->actionStart_remote,&QAction::triggered,this,[this]{int index=ui->tableWidget_deviceList->currentRow();if(index==-1){QMessageBox::warning(this,"远程控制","请先选中一个设备");return;} ui->tabWidget->setCurrentIndex(2); this->vm->on_start_remote(index);});
     connect(ui->pushButton_remote_stop,&QPushButton::clicked,this,[this]{this->vm->on_stop_remote();});
-    connect(&timer_clearCongestioncontrolInfo,&QTimer::timeout,this,[this]{
+    connect(vm,&ViewModel::transferFinished,this,[this]{
         ui->label_sendInfo_currentPackage->setText("无正在进行的传输任务");
         ui->label_sendInfo_totalPackege->setText("-");
         ui->label_sendInfo_currentRate->setText("-");
@@ -1906,9 +1906,29 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
         ui->label_sendInfo_loss->setText("-");
         ui->label_sendInfo_state->setText("-");
         ui->label_sendInfo_stateKeep->setText("-");
-        this->vm->o_status="加载成功";
+        this->vm->o_status="传输结束";
     });
     connect(vm,&ViewModel::statRequested,this,&MainWindow::onStatRequested);
+    connect(vm,&ViewModel::messageBoxRequested,this,[](QString title,QString content,BusinessLogic::MessageBoxType type,bool doublebtn=false,std::function<void()> actionOnOk=nullptr,std::function<void()> actionOnCancel=nullptr,QString info=QString()){
+        QMessageBox m;
+        m.setWindowTitle(title);
+        m.setText(content);
+        auto t=QMessageBox::Icon::NoIcon;
+        switch(type){
+        case BusinessLogic::MessageBoxType::Information:
+            t=QMessageBox::Icon::Information;
+            break;
+        case BusinessLogic::MessageBoxType::Warning:
+            t=QMessageBox::Icon::Warning;
+            break;
+        case BusinessLogic::MessageBoxType::Critical:
+            t=QMessageBox::Icon::Critical;
+            break;
+        }
+        m.setIcon(t);
+        m.setInformativeText(info);
+        m.exec();
+    });
     
     //其他
     vm->o_current_dir=QDir("files");

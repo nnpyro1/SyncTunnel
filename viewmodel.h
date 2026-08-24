@@ -63,13 +63,14 @@ public slots://以下是直接从BusinessLogic迁移的槽
     
 signals:
     void tempMessageChanged(QString tmpMessage,int maxtime=5000);
-    void messageBoxRequested(QString title,QString content,BusinessLogic::MessageBoxType type,bool doublebtn=false,std::function<void()> actionOnOk=nullptr,std::function<void()> actionOnCancel=nullptr);
+    void messageBoxRequested(QString title,QString content,BusinessLogic::MessageBoxType type,bool doublebtn=false,std::function<void()> actionOnOk=nullptr,std::function<void()> actionOnCancel=nullptr,QString info=QString());
     void destoryShutdownBlock();
     void remoteFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);
     void sendInfoChanged(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
     void debugSignal(QVariantMap args);
     void remoteControlEngineUpdated(RemoteControlEngine *eng);
     void statRequested();
+    void transferFinished();//不分成功还是失败
     
 public://公有Observable
     OBS(QString,status);

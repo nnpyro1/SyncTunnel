@@ -583,7 +583,7 @@ void BusinessLogic::init(){
             emit businessEventOccurred(BusinessEvent::GettingPublicIp);
             break;
         case RpepEngine::Event::Error:
-            emit businessEventOccurred(BusinessLogic::BusinessEvent::ErrorOccurred,args);
+            emit businessEventOccurred(BusinessLogic::BusinessEvent::RpepTransferErrorOccurred,args);
             break;
         case RpepEngine::Event::RegisteringOnline:
             emit businessEventOccurred(BusinessEvent::GettingDeviceList);
@@ -594,6 +594,12 @@ void BusinessLogic::init(){
         case RpepEngine::Event::Punch:
             emit businessEventOccurred(BusinessEvent::ConnectedSuccessfully,{{"ipport",args["id"]}});
             break;
+        case RpepEngine::Event::TransferAborted:
+            emit businessEventOccurred(BusinessEvent::TransferAborted);
+            break;
+        case RpepEngine::Event::Preloading:
+            emit businessEventOccurred(BusinessEvent::Preloading,args);
+            break;
         }
     });
     connect(m_rpepengine,&RpepEngine::deviceUpdated,this,[this]{ninfo<<"设备列表更新";public_ip=m_rpepengine->getPublicIp();clients=m_rpepengine->getAllDevices();emit deviceListUpdated(clients);});
@@ -602,7 +608,7 @@ void BusinessLogic::init(){
     {
         auto ret = m_rpepengine->init();
         if(!ret){
-            emit businessEventOccurred(BusinessEvent::ErrorOccurred,{{"error",ret.errorMessage}});
+            emit businessEventOccurred(BusinessEvent::RpepTransferErrorOccurred,{{"error",ret.errorMessage}});
         }
     }
     connect(m_rpepengine,&RpepEngine::congestionControlInfoUpdated,this,[this](CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt){
@@ -695,6 +701,19 @@ void BusinessLogic::init(){
         }
     });
     connect(m_rpepengine,&RpepEngine::receivingProgressUpdated,this,&BusinessLogic::receivingProgressUpdated);
+    connect(m_rpepengine,&RpepEngine::errorOccurred,this,[this](RpepEngine::Error err){
+        switch(err){
+        case RpepEngine::Error::PublicIp:
+            emit businessEventOccurred(BusinessEvent::PublicIpGetFailed);
+        case RpepEngine::Error::Punch:
+            emit businessEventOccurred(BusinessEvent::PunchFailed);
+        case RpepEngine::Error::StartTransfer:
+            emit businessEventOccurred(BusinessEvent::StartTransferFailed);
+        case RpepEngine::Error::FinishTransfer:
+            emit businessEventOccurred(BusinessEvent::FinishTransferFailed);
+            break;
+        }
+    });
     
     
     //参数处理
@@ -803,7 +822,9 @@ Result BusinessLogic::sendFile(QSet<devid_t> dst,QSet<QString> incremental_sync_
     Result res = m_rpepengine->transfer(Utils::mergeFile(syncFolder,incremental_sync_set),dst);
     if(!res){
         ncritical<<res.errorMessage;
+        emit businessEventOccurred(BusinessEvent::RpepTransferErrorOccurred,{{"error",res.errorMessage}});
     }
+    emit businessEventOccurred(BusinessEvent::SendedSuccessfully);
     return res;
 }
 
@@ -1412,6 +1433,7 @@ void BusinessLogic::onControlReceived(QString key, QVariant value, devid_t src){
 void BusinessLogic::onDataReceived(QByteArray data, devid_t src){
     Utils::releaseFile(data);
     RUN_IN_MAIN_THREAD(playSound(QUrl("qrc:/rc/audio/file_release_successfully.wav")););
+    emit businessEventOccurred(BusinessEvent::FileReceived);
 }
 
 
