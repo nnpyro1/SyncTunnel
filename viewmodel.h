@@ -5,9 +5,6 @@
 #include <businesslogic.h>
 #include <core/basic/observable.h>
 #include <modules/rpepengine/congestioncontrol/congestioncontrol.h>
-#include <QStandardItemModel>
-#include <QStandardItem>
-#include <QStringListModel>
 
 //Q_DECLARE_METATYPE区
 Q_DECLARE_METATYPE(QSet<QString>)
@@ -24,10 +21,10 @@ public:
 public slots://以下是直接从BusinessLogic迁移的槽
     void sendFile(QSet<devid_t> dsts=QSet<devid_t>());
     void on_folder_change(QDir dir);
-    void on_settings_saved(/*QString username_, QString pwd_, QString mqttServer_, 
+    void on_settings_saved(QString username_, QString pwd_, QString mqttServer_, 
                            int mqttPort_, QString githubUser_, QString githubPat_, 
                            QVariant skin_, bool recordLog_, bool disableNotice_, 
-                           QString description_,bool stat_*/);        //当设置保存
+                           QString description_,bool stat_);        //当设置保存
     void on_hangup();                                               //当文件挂起
     void on_download();                                             //文件挂起下载
     void on_sync_pat();                                             //同步Github PAT
@@ -51,26 +48,22 @@ public slots://以下是直接从BusinessLogic迁移的槽
     void on_debug(QVariantMap args={});                             //调试
     
     //后续
-    void openFile(int selected);                                    //打开文件
-    void openFolder();                                              //打开当前目录
-    void refresh();                                                 //同时刷新业务和UI
-    void shutdown();                                                //本机关机
-    void startCopyingRemoteFile();
-    void sendTestMessage();                                         //发送测试消息
-    void openDriveCrypto();                                         //打开DriveCrypto
-    void addFile();                                                 //请求用户添加文件
-    void addIncremental();                                          //将所选文件添加到可选同步列表
-    void removeIncremental();                                       //将所选文件删除到可选同步列表
-    void exit();                                                    //退出APP
-    void restart();                                                 //重启
-    void clearIncremental();                                        //清空可选同步
-    void switchToDfhn();                                            //切换到DFHN
-    void switchToNormal();                                          //切换到普通模式
-    void help();                                                    //打开帮助菜单
+    // void openFile();                                                //打开文件
+    // void openFolder();                                              //打开当前目录
+    // void refresh();                                                 //同时刷新业务和UI
+    // void shutdown();                                                //本机关机
+    // void startCopyingRemoteFile();
+    // void sendTestMessage();                                         //发送测试消息
+    // void openDriveCrypto();                                         //打开DriveCrypto
+    // void addFile();                                                 //请求用户添加文件
+    // void addIncremental();                                          //将所选文件添加到可选同步列表
+    // void removeIncremental();                                       //将所选文件删除到可选同步列表
+    // void exit();                                                    //退出APP
+    // void restart();                                                 //重启
     
 signals:
     void tempMessageChanged(QString tmpMessage,int maxtime=5000);
-    void messageBoxRequested(QString title,QString content,BusinessLogic::MessageBoxType type,bool doublebtn=false,std::function<void ()> actionOnOk=nullptr,std::function<void()> actionOnCancel=nullptr);
+    void messageBoxRequested(QString title,QString content,BusinessLogic::MessageBoxType type,bool doublebtn=false,std::function<void()> actionOnOk=nullptr,std::function<void()> actionOnCancel=nullptr);
     void destoryShutdownBlock();
     void remoteFolderUpdated(QString folder,QSet<QPair<bool,QString>> list);
     void sendInfoChanged(CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt);
@@ -97,13 +90,6 @@ public://公有Observable
 //    QDir o_current_dir;
     QSet<QString> incremental_sync_set;
     OBS(bool,statEnableState);
-public://新的公有Observable和属性区
-    QStringListModel fileModel;
-    QStringListModel incrementalModel;
-    OBS(CongestionControl::CongestionControlInput,ccinput);
-    OBS(CongestionControl::CongestionControlOutput,ccoutput);
-    QStandardItemModel deviceModel;
-    OBS(ipport,mqttServer);
     
 private slots://私有槽
     void on_businessEventOccur(BusinessLogic::BusinessEvent event,QVariantMap map);

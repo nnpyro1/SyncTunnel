@@ -36,7 +36,7 @@ void ViewModel::on_folder_change(QDir dir){
     RUN_IN_CUSTOM_THREAD(bl,bl->on_folder_change(dir););
 }
 
-void ViewModel::on_settings_saved(){
+void ViewModel::on_settings_saved(QString username_, QString pwd_, QString mqttServer_, int mqttPort_, QString githubUser_, QString githubPat_, QVariant skin_, bool recordLog_, bool disableNotice_, QString description_, bool stat_){
     RUN_IN_CUSTOM_THREAD(bl,bl->on_settings_saved(username_,pwd_,mqttServer_,mqttPort_,githubUser_,githubPat_,skin_,recordLog_,disableNotice_,description_,stat_););
 }
 
@@ -114,84 +114,8 @@ device ViewModel::getPublicIp(){
     return public_ip;
 }
 
-
 void ViewModel::on_debug(QVariantMap args){
     RUN_IN_CUSTOM_THREAD(bl,bl->on_debug(args););
-}
-
-
-void ViewModel::openFile(int selected){
-    
-}
-
-
-void ViewModel::openFolder(){
-    
-}
-
-
-void ViewModel::shutdown(){
-    
-}
-
-
-void ViewModel::startCopyingRemoteFile(){
-    
-}
-
-
-void ViewModel::sendTestMessage(){
-    
-}
-
-
-void ViewModel::openDriveCrypto(){
-    
-}
-
-
-void ViewModel::addFile(){
-    
-}
-
-
-void ViewModel::addIncremental(){
-    
-}
-
-
-void ViewModel::removeIncremental(){
-    
-}
-
-
-void ViewModel::exit(){
-    
-}
-
-
-void ViewModel::restart(){
-    
-}
-
-
-void ViewModel::clearIncremental(){
-    
-}
-
-
-void ViewModel::switchToDfhn(){
-    
-}
-
-
-void ViewModel::switchToNormal(){
-    
-}
-
-
-void ViewModel::help(){
-    
 }
 
 
