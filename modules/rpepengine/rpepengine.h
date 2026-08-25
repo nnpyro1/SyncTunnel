@@ -6,6 +6,7 @@
 #include <modules/communication/communication.h>
 #include <modules/rpepengine/congestioncontrol/congestioncontrol.h>
 #include <modules/signalling/signalling.h>
+#include <core/basic/singlewriteblockcache.h>
 
 class RpepEngine : public QObject
 {
@@ -50,7 +51,7 @@ public://公有接口
     void destroy();
     
     //大数据包
-    Result transfer(QByteArray data,QSet<devid_t> destinations);                            //开始分片传输
+    Result transfer(FileByteArray data,QSet<devid_t> destinations);                         //开始分片传输
     void abortTransfer();                                                                   //强制终止传输
     
     //可靠控制消息
@@ -141,8 +142,8 @@ private:
     Result punch(QSet<devid_t> dsts);
     template<typename T>static QByteArray getHeaderBytes(T header);
     template<typename T>static T getHeaderStruct(const QByteArray msg);
-    Result transferData(QByteArray data,devid_t dst);
-    Result preloadData(QByteArray data);                                                //预加载数据存储在transferBuf内
+    Result transferData(FileByteArray data,devid_t dst);
+    Result preloadData(FileByteArray data);                                             //预加载数据存储在transferBuf内
     Result transferPreloadedData(devid_t dst);                                          //使用成员变量transferBuf指定数据，要求transferBuf必需是已加密的完整数据包结构
     QVector<QVector<QPair<ipport,ipport>>> planAutoSend(Devices dsts);                  //自动规划向dsts发送的路径
     void abortReceiving();
@@ -176,7 +177,8 @@ private:
     QSet<devid_t> unconnectedDevices;//打洞失败的设备。
     QMap<QString,QPair<QString,QVariant>> pendingReliableMessages;
     //以下是发送方变量
-    QList<QByteArray> transferBuf;
+    /*QList<QByteArray>*/SingleWriteBlockCache transferBuf;
+    qsizetype transferTotalSize=0;
     devid_t transferDestination = 0;
     QTimer transferWatchdog;//发送方对接收方的看门狗，接收方超过指定时间没有发送Report就取消传输
     //以下是接收方变量

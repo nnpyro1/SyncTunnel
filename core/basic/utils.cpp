@@ -188,6 +188,47 @@ QByteArray Utils::mergeFile(QDir folder, QSet<QString> incremental_sync_set, boo
     return f;
 }
 
+FileByteArray Utils::mergeFileCache(QDir folder, QSet<QString> incremental_sync_set, bool c){
+    FileByteArray f;
+    auto fil = traverseFolder(folder);
+    bool sync_all = incremental_sync_set.empty();
+    foreach(auto fim , fil){
+        auto fi=fim.first;
+        if(fi.isFile()){
+            ninfo<<"处理文件"<<fi.absoluteFilePath();
+            //            ndb<<"文件标识："<<QDir("files").relativeFilePath(fi.absoluteFilePath());
+            if(sync_all || incremental_sync_set.contains(QDir("files/").relativeFilePath(fi.filePath()))){
+                f.append("FILE\n");
+                //            QString filepath = fi.canonicalFilePath();
+                //            QString dirpath = QDir("files/").canonicalPath();
+                //            f += filepath.mid(dirpath.size()+1) + "\n";
+                QString absPath = fi.canonicalFilePath();
+                QString relativePath = QDir("files/../").relativeFilePath(fim.second.absolutePath());
+                f.append(relativePath.toUtf8() + "\n");
+                QFile file(absPath);
+                file.open(QIODevice::ReadOnly);
+                //            f += qCompress(file.readAll(),9).toBase64() + "\n";
+                QByteArray data = qCompress(file.readAll(),9);
+                f.append(QString::number(data.size()).toUtf8() + "\n");
+                if(c)f.append(data);else f.append("[FILE_CONTENTS_HERE]\n");
+            }
+            else{
+                ninfo<<"忽略用户不同步的文件"<<fi.absoluteFilePath();
+            }
+        }
+        else{//无需目录递归DFS
+            ninfo<<"处理目录"<<fi.absoluteFilePath();
+            f.append("DIR\n");
+            QString absPath = fi.canonicalFilePath();
+            QString relativePath = QDir("files/../").relativeFilePath(fi.absoluteFilePath());
+            f.append(relativePath.toUtf8() + "\n");
+            //            f += mergeFile(absPath);
+            //            f += mergeFile(QDir(relativePath),c);
+        }
+    }
+    return f;
+}
+
 
 void Utils::releaseFile( QByteArray msg){
     while(!msg.isEmpty()){//循环读取
@@ -250,6 +291,11 @@ void Utils::releaseFile( QByteArray msg){
 //            }
 //        }
     }
+}
+
+void Utils::releaseFileCache(FileByteArray msg){
+    //####### 后续修改 ########
+    return releaseFile(msg.readAll());
 }
 
 

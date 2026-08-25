@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "filebytearray.h"
 #include <QByteArray>
 #include <QObject>
 #include <QDir>
@@ -25,7 +26,9 @@ public://以下是纯静态函数
     static QByteArray encodeRaw(const QByteArray &msg,const QByteArray &pwd);                               //使用预生成的pwd加密msg
     static QByteArray decodeRaw(const QByteArray &msg,const QByteArray &pwd);                               //使用预生成的pwd解密msg
     static QByteArray mergeFile(QDir folder,QSet<QString> incremental_sync_set=QSet<QString>(),bool c=1);   //合并文件
+    static FileByteArray mergeFileCache(QDir folder,QSet<QString> incremental_sync_set=QSet<QString>(),bool c=1);//合并文件
     static void releaseFile(QByteArray msg);                                                                //释放文件
+    static void releaseFileCache(FileByteArray msg);                                                        //释放文件
     static void multiDelay(float ms, std::function<void ()> dosth=0);                                       //高精度定时
     static QByteArray readLine(QByteArray &ba);                                                             //读取一行并删除这一行，返回不带换行符的消息
     static QMap<QString,QByteArray> generateFileHashMap(QDir baseDir);                                      //更新文件哈希表

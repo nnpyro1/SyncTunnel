@@ -19,8 +19,10 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     ../../libary/Qt-AES/qaesencryption.cpp \
     businesslogic.cpp \
+    core/basic/filebytearray.cpp \
     core/basic/observable.cpp \
     core/basic/qcachedbytearray.cpp \
+    core/basic/singlewriteblockcache.cpp \
     core/basic/utils.cpp \
     core/services/schedule.cpp \
     dialogs/dialog_help.cpp \
@@ -43,8 +45,10 @@ SOURCES += \
 HEADERS += \
     ../../libary/Qt-AES/qaesencryption.h \
     businesslogic.h \
+    core/basic/filebytearray.h \
     core/basic/observable.h \
     core/basic/qcachedbytearray.h \
+    core/basic/singlewriteblockcache.h \
     core/basic/utils.h \
     core/services/schedule.h \
     dialogs/dialog_help.h \

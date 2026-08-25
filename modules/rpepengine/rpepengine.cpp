@@ -270,7 +270,7 @@ void RpepEngine::destroy(){
 }
 
 
-Result RpepEngine::transfer(QByteArray data, QSet<devid_t> destinations){
+Result RpepEngine::transfer(FileByteArray data, QSet<devid_t> destinations){
     if(state!=State::Ready){
         ncritical<<"Unable to transfer when state="<<(int)state;
         return Result("StateCheck\nstate="+QString::number((int)state));
@@ -323,7 +323,7 @@ Result RpepEngine::transfer(QByteArray data, QSet<devid_t> destinations){
             }
         }
         //执行自己的任务
-        return transferData(data,transferTaskQueue.dequeue());
+        return transferData(std::move(data),transferTaskQueue.dequeue());
     }
 }
 
@@ -345,6 +345,7 @@ void RpepEngine::abortTransfer(){
         // transferDestination = 0;
         // transferWatchdog.stop();
         senderReset();
+    transferBuf.clear();
     // });
 }
 
@@ -679,12 +680,12 @@ Result RpepEngine::punch(QSet<devid_t> dsts){
 }
 
 
-Result RpepEngine::transferData(QByteArray data, devid_t dst){
+Result RpepEngine::transferData(FileByteArray data, devid_t dst){
     if(state!=State::Ready){
         ncritical<<"Unable to transfer data when state="<<(int)state;
         return Result("StateCheck\nstate="+QString::number((int)state));
     }
-    auto res1 = preloadData(data);
+    auto res1 = preloadData(std::move(data));
     if(!res1){
         return res1;
     }
@@ -693,8 +694,8 @@ Result RpepEngine::transferData(QByteArray data, devid_t dst){
 }
 
 
-Result RpepEngine::preloadData(QByteArray data){
-    if(!transferBuf.isEmpty()){
+Result RpepEngine::preloadData(FileByteArray data){
+    if(transferBuf.getState()!=transferBuf.Invalid){
         ncritical<<"Unable to preload data with a non-empty buffer";
         return Result("preloadData\nbuffer not empty");
     }
@@ -704,15 +705,19 @@ Result RpepEngine::preloadData(QByteArray data){
     dmh.totalChunkNum = std::ceil(data.size() * 1. / CHUNK_SIZE);
     dmh.src=getIdByDevice(public_ip);
     dmh.type=(int)MessageType::DataPayload;
-    transferBuf.resize(dmh.totalChunkNum);
+    // transferBuf.resize(dmh.totalChunkNum);
+    transferBuf.init(CHUNK_SIZE+sizeof(dmh)+crypto_aead_xchacha20poly1305_ietf_NPUBBYTES+crypto_aead_xchacha20poly1305_ietf_ABYTES);
     for(qsizetype i=0;i<data.size();i+=CHUNK_SIZE){
         QByteArray chunk = data.mid(i,CHUNK_SIZE);
         dmh.chunkId=i/CHUNK_SIZE;
-        transferBuf[dmh.chunkId]=encode(getHeaderBytes(dmh)+chunk);
-        if(dmh.chunkId%13==0){
+        // transferBuf[dmh.chunkId]=encode(getHeaderBytes(dmh)+chunk);
+        transferBuf.append(encode(getHeaderBytes(dmh)+chunk));
+        if(dmh.chunkId%7==0){
             emit eventOccurred(Event::Preloading,{{"i",dmh.chunkId},{"total",dmh.totalChunkNum}});
         }
     }
+    transferBuf.finalize();
+    transferTotalSize=data.size()/CHUNK_SIZE;
     return Result();
 }
 
@@ -897,12 +902,12 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         }
         reportReceiveTimer.start(MAX_SAFE_NOSEND * MAX_REPORT_OFFSET / qMin(ccoutput.rate,ccinput.deliverRate) * 1000 + qMax(ccoutput.dcong,ccinput.rtt));
     });
-    for(int i=0;i<transferBuf.size();i++){
+    for(int i=0;i<transferTotalSize;i++){
         tq.push_back(i);
         tqSet.insert(i);
     }
     transferWatchdog.start();
-    ccinput.totalChunks=transferBuf.size();
+    ccinput.totalChunks=transferTotalSize;
     ccinput.lastEnd = 0;
     auto sendUntilTqIsEmpty = [&]{
         while(!tq.empty()){
@@ -925,7 +930,8 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             memcpy(&db,&drate,sizeof(double));
             db=::qToBigEndian(db);
             memcpy(tmp,&db,sizeof(double));
-            send(transferBuf[i]/*+QByteArray(tmp,sizeof(double))*//*+"DRAT_TP_"*/,0,dst);
+            QByteArray data=transferBuf.read(i);
+            send(data/*transferBuf[i]*//*+QByteArray(tmp,sizeof(double))*//*+"DRAT_TP_"*/,0,dst);
             // ndb<<"Data #"<<i<<" sent.";
             ccinput.chunkId = i;
             elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
@@ -946,7 +952,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         //发送___FINISH_TRANSFER___
         transferWatchdog.stop();
         transferWatchdog.start();
-        auto res=sendControl("___FINISH_TRANSFER___",(transferBuf.size()),dst);
+        auto res=sendControl("___FINISH_TRANSFER___",(transferTotalSize),dst);
         if(!res){
             ncritical<<"Unable to finish transfer";
             // transferBuf.clear();
@@ -998,7 +1004,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                 return;
             }
             
-            auto res=sendControl("___FINISH_TRANSFER___",(transferBuf.size()),dst);
+            auto res=sendControl("___FINISH_TRANSFER___",(transferTotalSize),dst);
             if(!res){
                 ncritical<<"Unable to finish transfer";
                 // transferBuf.clear();
@@ -1118,6 +1124,7 @@ void RpepEngine::senderReset(){
     if(state==State::Transferring){
         transferDestination=0;
         transferWatchdog.stop();
+        transferTotalSize=0;
         state=State::Ready;
     }
     else{
@@ -1529,7 +1536,9 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             //从队列中取出任务并执行
             if(!transferTaskQueue.isEmpty()){
                 QMetaObject::invokeMethod(this,[=,this]{
-                    transferData(data,transferTaskQueue.dequeue());
+                    FileByteArray fba;
+                    fba.append(data);
+                    transferData(std::move(fba),transferTaskQueue.dequeue());
                 });
             }
             receivingWatchdog.stop();
