@@ -28,15 +28,22 @@ void CongestionControl::update(CongestionControlInput ipt){
     QList<quint32> tl;//尾丢
     {
         int last=ipt.end-1;
+        tl.resize(ipt.loss.size());//先用最大大小
+        auto data=tl.data();//性能优化
+        quint32 idx=0;
         for(auto it=ipt.loss.crbegin();it!=ipt.loss.crend();it++){
-            if(last-*it < MAX_DROPTAIL_DIFFERENCE){
-                tl.prepend(*it);
-                last=*it;
+            auto i=*it;
+            if(last-i < MAX_DROPTAIL_DIFFERENCE){
+                // tl.prepend(*it);
+                data[idx++]=i;
+                last=i;
             }
             else{
                 break;
             }
         }
+        tl.resize(idx);//设回正常大小
+        std::reverse(tl.begin(),tl.end());
     }
     //删除随机丢包
     if(tl.size()==1){

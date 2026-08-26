@@ -34,7 +34,7 @@ public:
         quint32 start;
         quint32 end;
         // quint64 timeToLastReport;//距离上一个统计的时间
-        QMap<quint32,double> elapsedTimes;//多包间隔时间
+        QHash<quint32,double> elapsedTimes;//多包间隔时间
         quint32 lastEnd;
         quint32 lastSend;
         double deliverRate;

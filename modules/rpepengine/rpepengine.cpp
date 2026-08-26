@@ -699,25 +699,54 @@ Result RpepEngine::preloadData(FileByteArray data){
         ncritical<<"Unable to preload data with a non-empty buffer";
         return Result("preloadData\nbuffer not empty");
     }
+    if(data.isEmpty()){
+        ncritical<<"Unable to preload data with a empty data";
+        return Result("preloadData\nempty data");
+    }
     //分片加密并写入缓冲区
     DataMessageHeader dmh;
     dmh.chunkId=0;
-    dmh.totalChunkNum = std::ceil(data.size() * 1. / CHUNK_SIZE);
+    dmh.totalChunkNum = (data.size()+(CHUNK_SIZE-1))/CHUNK_SIZE;
     dmh.src=getIdByDevice(public_ip);
     dmh.type=(int)MessageType::DataPayload;
     // transferBuf.resize(dmh.totalChunkNum);
-    transferBuf.init(CHUNK_SIZE+sizeof(dmh)+crypto_aead_xchacha20poly1305_ietf_NPUBBYTES+crypto_aead_xchacha20poly1305_ietf_ABYTES);
+    const int moreSize = sizeof(dmh)
+#ifndef DEBUG_NO_ENCRYPTION
+                         +crypto_aead_xchacha20poly1305_ietf_NPUBBYTES+crypto_aead_xchacha20poly1305_ietf_ABYTES
+#endif
+        ;
+    transferBuf.init(CHUNK_SIZE+moreSize);
     for(qsizetype i=0;i<data.size();i+=CHUNK_SIZE){
         QByteArray chunk = data.mid(i,CHUNK_SIZE);
+        qsizetype paddingSize=0;
+        lastChunkSize=chunk.size()+moreSize;
+        // if(chunk.size()<CHUNK_SIZE){//最后一个
+        //     paddingSize = CHUNK_SIZE-chunk.size();//加密前的差值等于加密后的差值
+        //     lastChunkSize=chunk.size()+moreSize;
+        //     // ndb<<"最后一个处理\npaddingSize"
+        // }
         dmh.chunkId=i/CHUNK_SIZE;
-        // transferBuf[dmh.chunkId]=encode(getHeaderBytes(dmh)+chunk);
-        transferBuf.append(encode(getHeaderBytes(dmh)+chunk));
+        // // transferBuf[dmh.chunkId]=encode(getHeaderBytes(dmh)+chunk);
+        // auto tmp=encode(getHeaderBytes(dmh)+chunk)+QByteArray(paddingSize,0x5B);
+        
+        auto encoded = encode(getHeaderBytes(dmh)+chunk);
+        if(encoded.size()< CHUNK_SIZE+moreSize){//最后一个需要填充
+            lastChunkSize=encoded.size();
+            auto needsPadding = CHUNK_SIZE+moreSize-encoded.size();
+            encoded.append(QByteArray(needsPadding,0x5B));
+        }
+        
+        transferBuf.append(encoded);
         if(dmh.chunkId%7==0){
             emit eventOccurred(Event::Preloading,{{"i",dmh.chunkId},{"total",dmh.totalChunkNum}});
         }
     }
     transferBuf.finalize();
-    transferTotalSize=data.size()/CHUNK_SIZE;
+    transferTotalSize=/*(data.size()+(CHUNK_SIZE-1))/CHUNK_SIZE*/dmh.totalChunkNum;
+    ninfo<<"transferTotalSize:"<<transferTotalSize;
+    if(transferTotalSize==0){
+        return Result("preloadData\ndata too large");//发生回绕
+    }
     return Result();
 }
 
@@ -790,7 +819,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     CongestionControl cc;
     CongestionControl::CongestionControlOutput ccoutput/* = {INITIAL_RATE}*/;
     CongestionControl::CongestionControlInput ccinput;
-    QMap<chunkid_t,double> elapsedTimes;
+    // QMap<chunkid_t,double> elapsedTimes;
     QElapsedTimer timer;
     timer.start();
     QHash<chunkid_t,chunkid_t> retransferIgnore;//key存储忽略的重传的包，value存储从表中删除项目时需要的Report end
@@ -847,12 +876,12 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         tq.insert(tq.begin(),retransferList.cbegin(),retransferList.cend());
         
         ccinput.loss=loss;
-        if(report.isRttAvailable)ccinput.rtt=timer.nsecsElapsed()/1.e6-elapsedTimes[report.lastReceive];
+        if(report.isRttAvailable)ccinput.rtt=timer.nsecsElapsed()/1.e6-ccinput.elapsedTimes[report.lastReceive];
         ccinput.start=report.start;
         ccinput.end=report.lastReceive;
         // if(lastReportTimer.isValid())ccinput.timeToLastReport=lastReportTimer.elapsed();
         // lastReportTimer.restart();
-        ccinput.elapsedTimes=elapsedTimes;
+        // ccinput.elapsedTimes=elapsedTimes;
         // ccinput.deliverRate=report.deliverRate;
         if(report.deliverRate>2){//存在deliverRate信息
             ccinput.deliverRate = ccinput.deliverRate==0? report.deliverRate
@@ -931,10 +960,15 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             db=::qToBigEndian(db);
             memcpy(tmp,&db,sizeof(double));
             QByteArray data=transferBuf.read(i);
+            if(i==transferTotalSize-1){//最后一个包特殊处理
+                auto ls = data.size();
+                data=data.mid(0,lastChunkSize);
+                ndb<<"最后一个包特殊处理,size="<<data.size()<<"截取前size="<<ls;
+            }
             send(data/*transferBuf[i]*//*+QByteArray(tmp,sizeof(double))*//*+"DRAT_TP_"*/,0,dst);
             // ndb<<"Data #"<<i<<" sent.";
             ccinput.chunkId = i;
-            elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
+            ccinput.elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
             Utils::multiDelay(1000/ccoutput.rate,/*[]{QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);}*/nullptr);
             QApplication::processEvents(QEventLoop::ExcludeUserInputEvents,100);
             // ndb<<"rate:"<<ccoutput.rate;
@@ -949,27 +983,9 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     //-----
     //3 重传
     while(1){
-        //发送___FINISH_TRANSFER___
+        //准备发送消息
         transferWatchdog.stop();
         transferWatchdog.start();
-        auto res=sendControl("___FINISH_TRANSFER___",(transferTotalSize),dst);
-        if(!res){
-            ncritical<<"Unable to finish transfer";
-            // transferBuf.clear();
-            // transferDestination = 0;
-            // state=State::Ready;
-            // transferWatchdog.stop();
-            abortTransfer();
-            senderReset();
-            if(transferTaskQueue.empty()){
-                transferBuf.clear();
-            }
-            else{
-                QMetaObject::invokeMethod(this,[this]{transferPreloadedData(transferTaskQueue.dequeue());},Qt::QueuedConnection);
-            }
-            return res;
-        }
-        //等待结果
         QEventLoop loop;
         bool isCompleted = false;
         connect(this,&RpepEngine::transferCompleted,&loop,[&]{
@@ -1022,6 +1038,26 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                 emit errorOccurred(Error::FinishTransfer);
             }
         },Qt::QueuedConnection);
+        
+        //发送消息
+        auto res=sendControl("___FINISH_TRANSFER___",(transferTotalSize),dst);
+        if(!res){
+            ncritical<<"Unable to finish transfer";
+            // transferBuf.clear();
+            // transferDestination = 0;
+            // state=State::Ready;
+            // transferWatchdog.stop();
+            abortTransfer();
+            senderReset();
+            if(transferTaskQueue.empty()){
+                transferBuf.clear();
+            }
+            else{
+                QMetaObject::invokeMethod(this,[this]{transferPreloadedData(transferTaskQueue.dequeue());},Qt::QueuedConnection);
+            }
+            return res;
+        }
+        //等待结果
         loop.exec();
         if(isAborted){
             if(transferTaskQueue.empty()){
@@ -1033,7 +1069,8 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         if(isCompleted){//发送完成
             ndb<<"传输完成,状态重置";
             //清除除了transferBuf以外的所有状态
-            state=State::Ready;
+            // state=State::Ready;
+            senderReset();
             
             //从队列中取出任务
             if(!transferTaskQueue.isEmpty()){
@@ -1424,6 +1461,7 @@ void RpepEngine::onCommunicationReadyRead(){
 
 void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, devid_t src){
     ninfo<<"Control message received.key="<<key<<",value="<<value<<",src="<<getStringByDeviceId(src);
+    static long long testSeq = -1;testSeq++;
     if(key=="___START_TRANSFER___"){
         if(state==State::Ready){
             ninfo<<"transfer accepted.";
@@ -1443,11 +1481,15 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
         emit transferRefused(value.toString());
     }
     if(key=="___FINISH_TRANSFER___"){
-        receivingWatchdog.stop();
-        receivingWatchdog.start();
         if(state!=State::Receiving){
             ncritical<<"Unacceptable state '"<<(int)state<<"' to handle ___FINISH_TRANSFER___";
+            return;
         }
+        ndb<<"totalNum:"<<value.toUInt();
+        auto a = testSeq;
+        auto testSeq=a;
+        receivingWatchdog.stop();
+        receivingWatchdog.start();
         //侦测丢包
         // QByteArray msg;
         // for(chunkid_t i=0;i<value.toUInt();i++){
@@ -1462,18 +1504,18 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
         QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
         chunkid_t start=0;
         auto it=receivingBuf.begin();
-        qint64 last=start-1;
-        for(;it!=receivingBuf.end();++it){
+        qint64 last=(qint64)start-1;
+        for(;it!=receivingBuf.end();++it){  
             if(it.key()-last>1){//区间不连续
                 lossRangeList.append(qMakePair(last+1,it.key()-1));
             }
             last=it.key();
         }
         if(!receivingBuf.empty() && receivingBuf.lastKey()!=value.toUInt()-1){//存在尾丢
-            lossRangeList.append(qMakePair(receivingBuf.lastKey()+1,value.toUInt()-1));
+            lossRangeList.append(qMakePair(receivingBuf.lastKey()+1,(qint64)value.toUInt()-1));
         }
         if(receivingBuf.empty()){
-            lossRangeList.append(qMakePair(0,value.toUInt()-1));
+            lossRangeList.append(qMakePair(0,(qint64)value.toUInt()-1));
         }
         // if(receivingBuf.lastKey()!=value.toUInt()-1){lossRangeList.append(qMakePair(receivingBuf.lastKey(),value.toUInt()-1));}
         
@@ -1506,22 +1548,40 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             memcpy(ptr,&num,sizeof(num));
             ptr+=sizeof(chunkid_t);
         };
+        ndb<<"lossRangeList.empty"<<lossRangeList.empty()<<"seq="<<testSeq;
         for(auto range:std::as_const(lossRangeList)){
             insertNum(range.first);
             insertNum(range.second);
         }
         //发送消息
         if(!msg.isEmpty()){
+            ndb<<"重传"<<testSeq;
             /*RUN_LATER(*/sendControl("___REQUEST_RESEND___",QVariant(msg),src);/*);*/
         }
         else{
+            ndb<<"释放"<<testSeq;
             //发送complete
             /*RUN_LATER(*/sendControl("___TRANSFER_COMPLETE___","",src);/*);*/
             //合并消息，前面已经确保了消息完整性
             QByteArray data;
-            for(auto c : std::as_const(receivingBuf)){
+            /*for(auto c : std::as_const(receivingBuf)){
                 data.append(c);
+            }*/
+            if(receivingBuf.size()!=value.toUInt()){
+                ncritical<<"Too little chunks received.expected "<<value.toUInt()<<",actual "<<receivingBuf.size()<<"seq="<<testSeq;
             }
+            for(auto it=receivingBuf.begin();it!=receivingBuf.end();it++){
+                //断言检测
+                if(it.key()!=(qint64)value.toUInt()-1 &&  it->size()!=CHUNK_SIZE){
+                    ncritical<<"ERROR:Invalid chunk "<<it.key();
+                }
+                data+=it.value();
+            }
+            ndb<<"contains:"<<receivingBuf.contains(44824);
+            if(receivingBuf.contains(44824)){
+                ndb<<"chunk 44824 real payload size:"<<receivingBuf[44824].size();
+            }
+            ndb<<data.size();
             emit dataReceived(data,src);
             //重置状态
             // state=State::Ready;
@@ -1533,6 +1593,7 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             // receivingReportTimer.stop();
             // delivered=0;
             receiverReset();
+            ndb<<"receiver "<<testSeq<<"reset.";
             //从队列中取出任务并执行
             if(!transferTaskQueue.isEmpty()){
                 QMetaObject::invokeMethod(this,[=,this]{

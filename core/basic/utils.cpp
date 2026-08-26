@@ -226,6 +226,7 @@ FileByteArray Utils::mergeFileCache(QDir folder, QSet<QString> incremental_sync_
             //            f += mergeFile(QDir(relativePath),c);
         }
     }
+    ninfo<<"大小:"<<f.size();
     return f;
 }
 

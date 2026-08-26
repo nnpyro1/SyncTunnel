@@ -60,6 +60,13 @@ int nMain(int argc, char *argv[])
     w->show();
     splash.close();
     
+    //线程检测
+    bool isMainThread = false;
+    QMetaObject::invokeMethod(bl,[&]{isMainThread=bl->thread()->isMainThread();},Qt::BlockingQueuedConnection);
+    if(isMainThread){
+        ncritical<<"BusinessLogic runs in main thread";
+    }
+    
     int result = a.exec();
     
     w->deleteLater();
