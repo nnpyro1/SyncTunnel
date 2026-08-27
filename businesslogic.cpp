@@ -1520,6 +1520,14 @@ bool BusinessLogic::stat(){
 
 
 void /*MainWindow::*/log(QtMsgType t, const QMessageLogContext &context, const QString &logstr){
+    //提前调试校验
+    {
+        // if(logstr.contains("imers")){//跨线程操作定时器
+        //     //debuugger
+        //     int a=0;Q_UNUSED(a);
+        // }
+    }
+    
     if(output_to_file){
 //        QMutexLocker locker(&logFileMutex);
         QString time = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss:zzz");

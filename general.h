@@ -13,7 +13,7 @@
 
 
 //工具宏定义
-#define RUN_LATER(sth) QMetaObject::invokeMethod(QThread::currentThread(),[=]{sth},Qt::QueuedConnection)
+#define RUN_LATER(sth) QMetaObject::invokeMethod(this,[=]{sth},Qt::QueuedConnection)
 #define RUN_IN_MAIN_THREAD(sth) QMetaObject::invokeMethod(qApp,[=]{sth},Qt::QueuedConnection)
 #define RUN_IN_CUSTOM_THREAD(obj,sth) QMetaObject::invokeMethod((obj),[=]{sth},Qt::QueuedConnection)
 #define RUN_IN_CUSTOM_THREAD_THIS(obj,sth) QMetaObject::invokeMethod((obj),[=,this]{sth},Qt::QueuedConnection)
