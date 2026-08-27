@@ -819,6 +819,7 @@ Result BusinessLogic::sendFile(QSet<devid_t> dst,QSet<QString> incremental_sync_
     lastSyncDst=dst;
     log.clear();
     // m_transmissionengine->SPTP_send(Utils::mergeFile(QDir("files/"),incremental_sync_set),dst);
+    emit businessEventOccurred(BusinessEvent::MergingFile);
     Result res = m_rpepengine->transfer(Utils::mergeFileCache(syncFolder,incremental_sync_set),dst);
     if(!res){
         ncritical<<res.errorMessage;

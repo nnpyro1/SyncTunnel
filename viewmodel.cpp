@@ -326,6 +326,9 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
     case BusinessLogic::BusinessEvent::FileReceived:
         o_status="接收成功";
         break;
+    case BusinessLogic::BusinessEvent::MergingFile:
+        o_status="正在生成载荷";
+        break;
     }
 }
 

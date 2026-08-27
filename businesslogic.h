@@ -82,6 +82,7 @@ public:
         StartTransferFailed,
         FinishTransferFailed,
         FileReceived,
+        MergingFile,
     };
     Q_ENUM(BusinessEvent);
     
