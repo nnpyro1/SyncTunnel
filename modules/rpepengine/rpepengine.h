@@ -8,6 +8,7 @@
 #include <modules/signalling/signalling.h>
 #include <core/basic/singlewriteblockcache.h>
 
+
 class RpepEngine : public QObject
 {
     Q_OBJECT
@@ -149,6 +150,7 @@ private:
     void abortReceiving();
     void receiverReset();                                                               //接收方重置桩台
     void senderReset();                                                                 //发送方重置状态
+    QByteArray generateLossRange(chunkid_t start);                                      //生成丢包区间序列化后的信息
     
 private://private signals
     Q_SIGNAL void punchReceived(devid_t sender,int seq);
@@ -183,7 +185,8 @@ private:
     QTimer transferWatchdog;//发送方对接收方的看门狗，接收方超过指定时间没有发送Report就取消传输
     qsizetype lastChunkSize=0;//最后一个块的大小
     //以下是接收方变量
-    QMap<chunkid_t,QByteArray> receivingBuf;//接收缓冲区
+    // QMap<chunkid_t,QByteArray> receivingBuf;//接收缓冲区
+    QList<std::optional<QByteArray>> receivingBuf;
     QElapsedTimer lastReportElapsedTime;//上次回复Report的时间
     chunkid_t lastReportChunk;
     devid_t acceptableSender;//接收方可接受的发送方。仅在state=Receiving时允许非零

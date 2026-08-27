@@ -16,109 +16,109 @@ RpepEngine::RpepEngine(QObject *parent)
 {
     transferWatchdog.setInterval(TRANSFER_WATCHDOG_TIMEOUT);
     receivingWatchdog.setInterval(RECEIVING_WATCHDOG_TIMEOUT);
-    connect(&receivingWatchdog,&QTimer::timeout,this,[this]{abortReceiving();});//无需联接transferWatchdog因为在transferPreloadedData内连接
-    connect(&receivingReportTimer,&QTimer::timeout,this,[this]{
-        if(state!=State::Receiving){
-            receivingReportTimer.stop();
-            return ;
-        }
-        if(receivingBuf.isEmpty()){
-            nwarning<<"Receiving buf is empty.";
-            return; 
-        }
-        //侦测丢包
-        chunkid_t start = receivingBuf.lastKey() >REPORT_BATCH?receivingBuf.lastKey()-REPORT_BATCH:0;
-        QList<chunkid_t> loss;
-        for(chunkid_t i=start;i<receivingBuf.lastKey();i++){
-            if(!receivingBuf.contains(i)){
-                loss.append(i);
-            }
-        }
-        // ninfo<<"Report:loss="<<loss;
-        // //构造报文
-        // ReportMessageHeader rmh;
-        // rmh.src=deviceId;
-        // rmh.type=(quint16)MessageType::Report;
-        // rmh.isRttAvailable=/*isRttAvailable*/false;
-        // rmh.start=start;
-        // rmh.isEmpty=loss.isEmpty();
-        // rmh.lastReceive=receivingBuf.lastKey();
-        // auto e=lastReportElapsedTime.elapsed();
-        // rmh.deliverRate= e!=0?delivered*1000./e:1;
-        // if(rmh.deliverRate<1||rmh.deliverRate>10000){
-        //     nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
-        // }
-        // QByteArray msgBody;
-        // for(chunkid_t l:loss){
-        //     l=::qToBigEndian(l);
-        //     char lo[sizeof(l)];
-        //     memcpy(lo,&l,sizeof(l));
-        //     msgBody.append(lo,sizeof(l));
-        // }
-        // chunkid_t start = dmh.chunkId>REPORT_BATCH?dmh.chunkId-REPORT_BATCH:0;
-        QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
-        loss.append(UINT_MAX);//用于输出最后一个区间
-        if(!std::is_sorted(loss.begin(),loss.end())){std::sort(loss.begin(),loss.end());}
-        for(chunkid_t i=0,last=0,start=0;i<loss.size();i++){
-            if(loss[i]-last>1){//生成连续闭合区间
-                lossRangeList.append(qMakePair(start,last));
-                start=loss[i];
-            }
-            last=loss[i];
-        }
-        if(!lossRangeList.empty() && lossRangeList[0]==qMakePair(0u,0u)){lossRangeList.pop_front();}//删除第一个[0,0]区间                
-        ninfo<<"Report(timeout)"/*":loss="<<loss*/<<"lossRangeList"<<lossRangeList;
-        //构造报文
-        // ReportMessageHeader rmh;
-        // rmh.src=deviceId;
-        // rmh.type=(quint16)MessageType::Report;
-        // rmh.isRttAvailable=/*isRttAvailable*/true;
-        // rmh.start=start;
-        // rmh.isEmpty=loss.isEmpty();
-        // rmh.lastReceive=dmh.chunkId;
-        // auto e=lastReportElapsedTime.elapsed();
-        // rmh.deliverRate= e!=0?delivered*1000./e:1;
-        ReportMessageHeader rmh;
-        rmh.src=deviceId;
-        rmh.type=(quint16)MessageType::Report;
-        rmh.isRttAvailable=/*isRttAvailable*/false;
-        rmh.start=start;
-        rmh.isEmpty=loss.isEmpty();
-        rmh.lastReceive=receivingBuf.lastKey();
-        auto e=lastReportElapsedTime.elapsed();
-        rmh.deliverRate=/* e!=0?delivered*1000./e:1;
-        if(rmh.deliverRate<1||rmh.deliverRate>10000){
-            nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
-        }
-        if(rmh.deliverRate<1||rmh.deliverRate>10000){
-            nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
-        }*/0;
-        QByteArray msgBody;
-        // for(chunkid_t l:loss){
-        //     l=::qToBigEndian(l);
-        //     char lo[sizeof(l)];
-        //     memcpy(lo,&l,sizeof(l));
-        //     msgBody.append(lo,sizeof(l));
-        // }
-        auto insertNum = [&](chunkid_t num){
-            num=::qToBigEndian(num);
-            char src[sizeof(num)];
-            memcpy(src,&num,sizeof(num));
-            msgBody.append(src,sizeof(src));
-        };
-        for(auto range:std::as_const(lossRangeList)){
-            insertNum(range.first);
-            insertNum(range.second);
-        }
-        //发送
-        send(getHeaderBytes(rmh)+msgBody,1,acceptableSender);
-        lastReportElapsedTime.restart();
-        delivered=0;
-        lastReportChunk=receivingBuf.lastKey();
-        int interval = receivingReportTimer.interval();
-        receivingReportTimer.stop();
-        receivingReportTimer.start(2*interval);
-    });
+    // connect(&receivingWatchdog,&QTimer::timeout,this,[this]{abortReceiving();});//无需联接transferWatchdog因为在transferPreloadedData内连接
+    // connect(&receivingReportTimer,&QTimer::timeout,this,[this]{
+    //     if(state!=State::Receiving){
+    //         receivingReportTimer.stop();
+    //         return ;
+    //     }
+    //     if(receivingBuf.isEmpty()){
+    //         nwarning<<"Receiving buf is empty.";
+    //         return; 
+    //     }
+    //     //侦测丢包
+    //     chunkid_t start = receivingBuf.lastKey() >REPORT_BATCH?receivingBuf.lastKey()-REPORT_BATCH:0;
+    //     QList<chunkid_t> loss;
+    //     for(chunkid_t i=start;i<receivingBuf.lastKey();i++){
+    //         if(!receivingBuf.contains(i)){
+    //             loss.append(i);
+    //         }
+    //     }
+    //     // ninfo<<"Report:loss="<<loss;
+    //     // //构造报文
+    //     // ReportMessageHeader rmh;
+    //     // rmh.src=deviceId;
+    //     // rmh.type=(quint16)MessageType::Report;
+    //     // rmh.isRttAvailable=/*isRttAvailable*/false;
+    //     // rmh.start=start;
+    //     // rmh.isEmpty=loss.isEmpty();
+    //     // rmh.lastReceive=receivingBuf.lastKey();
+    //     // auto e=lastReportElapsedTime.elapsed();
+    //     // rmh.deliverRate= e!=0?delivered*1000./e:1;
+    //     // if(rmh.deliverRate<1||rmh.deliverRate>10000){
+    //     //     nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
+    //     // }
+    //     // QByteArray msgBody;
+    //     // for(chunkid_t l:loss){
+    //     //     l=::qToBigEndian(l);
+    //     //     char lo[sizeof(l)];
+    //     //     memcpy(lo,&l,sizeof(l));
+    //     //     msgBody.append(lo,sizeof(l));
+    //     // }
+    //     // chunkid_t start = dmh.chunkId>REPORT_BATCH?dmh.chunkId-REPORT_BATCH:0;
+    //     QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
+    //     loss.append(UINT_MAX);//用于输出最后一个区间
+    //     if(!std::is_sorted(loss.begin(),loss.end())){std::sort(loss.begin(),loss.end());}
+    //     for(chunkid_t i=0,last=0,start=0;i<loss.size();i++){
+    //         if(loss[i]-last>1){//生成连续闭合区间
+    //             lossRangeList.append(qMakePair(start,last));
+    //             start=loss[i];
+    //         }
+    //         last=loss[i];
+    //     }
+    //     if(!lossRangeList.empty() && lossRangeList[0]==qMakePair(0u,0u)){lossRangeList.pop_front();}//删除第一个[0,0]区间                
+    //     ninfo<<"Report(timeout)"/*":loss="<<loss*/<<"lossRangeList"<<lossRangeList;
+    //     //构造报文
+    //     // ReportMessageHeader rmh;
+    //     // rmh.src=deviceId;
+    //     // rmh.type=(quint16)MessageType::Report;
+    //     // rmh.isRttAvailable=/*isRttAvailable*/true;
+    //     // rmh.start=start;
+    //     // rmh.isEmpty=loss.isEmpty();
+    //     // rmh.lastReceive=dmh.chunkId;
+    //     // auto e=lastReportElapsedTime.elapsed();
+    //     // rmh.deliverRate= e!=0?delivered*1000./e:1;
+    //     ReportMessageHeader rmh;
+    //     rmh.src=deviceId;
+    //     rmh.type=(quint16)MessageType::Report;
+    //     rmh.isRttAvailable=/*isRttAvailable*/false;
+    //     rmh.start=start;
+    //     rmh.isEmpty=loss.isEmpty();
+    //     rmh.lastReceive=receivingBuf.lastKey();
+    //     auto e=lastReportElapsedTime.elapsed();
+    //     rmh.deliverRate=/* e!=0?delivered*1000./e:1;
+    //     if(rmh.deliverRate<1||rmh.deliverRate>10000){
+    //         nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
+    //     }
+    //     if(rmh.deliverRate<1||rmh.deliverRate>10000){
+    //         nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
+    //     }*/0;
+    //     QByteArray msgBody;
+    //     // for(chunkid_t l:loss){
+    //     //     l=::qToBigEndian(l);
+    //     //     char lo[sizeof(l)];
+    //     //     memcpy(lo,&l,sizeof(l));
+    //     //     msgBody.append(lo,sizeof(l));
+    //     // }
+    //     auto insertNum = [&](chunkid_t num){
+    //         num=::qToBigEndian(num);
+    //         char src[sizeof(num)];
+    //         memcpy(src,&num,sizeof(num));
+    //         msgBody.append(src,sizeof(src));
+    //     };
+    //     for(auto range:std::as_const(lossRangeList)){
+    //         insertNum(range.first);
+    //         insertNum(range.second);
+    //     }
+    //     //发送
+    //     send(getHeaderBytes(rmh)+msgBody,1,acceptableSender);
+    //     lastReportElapsedTime.restart();
+    //     delivered=0;
+    //     lastReportChunk=receivingBuf.lastKey();
+    //     int interval = receivingReportTimer.interval();
+    //     receivingReportTimer.stop();
+    //     receivingReportTimer.start(2*interval);
+    // });
 }
 
 RpepEngine::~RpepEngine()
@@ -766,7 +766,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     QObject useless;
     connect(this,&RpepEngine::transferAborted,&useless,[&isAborted]{isAborted=true;});//侦测是否中断。随便绑定一个同作用域的QObject
     {
-        auto res = sendControl("___START_TRANSFER___","",dst);
+        auto res = sendControl("___START_TRANSFER___",transferTotalSize,dst);
         if(!res){
             ncritical<<"Unable to start a transfer."<<res.errorMessage;
             senderReset();
@@ -1181,6 +1181,52 @@ void RpepEngine::senderReset(){
 }
 
 
+QByteArray RpepEngine::generateLossRange(chunkid_t startReport){
+    if(state!=State::Receiving){
+        ncritical<<"Unable to generate lossRange when state="<<(int)state;
+        return {};
+    }
+    
+    QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
+    qint64 start=-1;
+    auto receivingBufSize = receivingBuf.size();
+    for(chunkid_t i=startReport;i<receivingBufSize;++i){
+        if(receivingBuf[i].has_value()){//收到
+            if(start>=0){//需要闭合区间
+                lossRangeList.append(qMakePair(start,i-1));
+                start=-1;
+            }
+        }
+        else{//丢失
+            if(start<0){//设置start
+                start=i;
+            }
+        }
+        
+        //添加最后一个
+        if(i==receivingBufSize-1 && start>=0){
+            lossRangeList.append(qMakePair(start,i));
+        }
+    }
+    
+    //性能优化插入
+    QByteArray ret;
+    ret.resize(lossRangeList.size()*2*sizeof(chunkid_t));
+    auto data = ret.data();
+    auto insert = [data](qsizetype i,chunkid_t num){
+        num=::qToBigEndian(num);
+        memcpy(data+i*sizeof(chunkid_t),&num,sizeof(chunkid_t));
+    };
+    qsizetype i=0;
+    for(auto p:lossRangeList){
+        insert(i++,p.first);
+        insert(i++,p.second);
+    }
+    
+    return ret;
+}
+
+
 void RpepEngine::onCommunicationReadyRead(){
     int datagram_cnt=0;
     while(m_communication->hasPendingDatagrams()){
@@ -1218,6 +1264,7 @@ void RpepEngine::onCommunicationReadyRead(){
             continue;
         }
         
+        //解密开销30us，下面代码目标50us
         switch((MessageType)header.type){
         case MessageType::Punch:{
             qint8 seq=msg[0];
@@ -1312,8 +1359,20 @@ void RpepEngine::onCommunicationReadyRead(){
             }
             chunkid_t chunkId;
             if(header.type==(int)MessageType::RequestReport){
-                chunkId=receivingBuf.lastKey();
+                // chunkId=receivingBuf.lastKey();
+                //遍历找到最后一个有效
+                chunkId=0;
+                if(receivingBuf.size()==0){
+                    chunkId=0;
+                }
+                else for(qint64 i=receivingBuf.size()-1;i>=0;--i){
+                        if(receivingBuf[i].has_value()){
+                            chunkId=i;
+                            break;
+                        }
+                }
             }
+            QElapsedTimer tmpPerfTimer;tmpPerfTimer.start();
             if(header.type==static_cast<int>(MessageType::DataPayload)){
                 //加入接收缓冲区
                 DataMessageHeader dmh;
@@ -1324,7 +1383,11 @@ void RpepEngine::onCommunicationReadyRead(){
                 dmh=getHeaderStruct<DataMessageHeader>(rawMsg);
                 chunkId=dmh.chunkId;
                 QByteArray payload = rawMsg.mid(sizeof(dmh));
-                receivingBuf.insert(dmh.chunkId,payload);
+                // receivingBuf.insert(dmh.chunkId,payload);
+                if(receivingBuf.size()<=dmh.chunkId){
+                    receivingBuf.resize(dmh.totalChunkNum);
+                }
+                receivingBuf[dmh.chunkId]=payload;
                 // ndb<<"Data #"<<dmh.chunkId<<" received.";
                 if(!lastReportElapsedTime.isValid()){
                     lastReportElapsedTime.start();
@@ -1347,81 +1410,88 @@ void RpepEngine::onCommunicationReadyRead(){
             }
             receivingWatchdog.stop();
             receivingWatchdog.start();
+            {
+                auto usecs = tmpPerfTimer.nsecsElapsed()/1.e3;
+                if(usecs>10){
+                    ndb<<"Performance microseconds:"<<usecs;
+                }
             //条件回复Report
             if(lastReportElapsedTime.elapsed()>=MAX_REPORT_TIMEOUT || chunkId >= lastReportChunk+MAX_REPORT_OFFSET || header.type==(int)MessageType::RequestReport){
                 // bool isRttAvailable = dmh.chunkId >= lastReportChunk+MAX_REPORT_OFFSET;
                 //侦测丢包
                 chunkid_t start = chunkId>REPORT_BATCH?chunkId-REPORT_BATCH:0;
-                // QList<chunkid_t> loss;
-                // for(chunkid_t i=start;i<chunkId;i++){
-                //     if(!receivingBuf.contains(i)){
-                //         loss.append(i);
-                //     }
+                // // QList<chunkid_t> loss;
+                // // for(chunkid_t i=start;i<chunkId;i++){
+                // //     if(!receivingBuf.contains(i)){
+                // //         loss.append(i);
+                // //     }
+                // // }
+                // QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
+                // // loss.append(UINT_MAX);//用于输出最后一个区间
+                // // if(!std::is_sorted(loss.begin(),loss.end())){std::sort(loss.begin(),loss.end());}
+                // // for(chunkid_t i=0,last=0,start=0;i<loss.size();i++){
+                // //     if(loss[i]-last>1){//生成连续闭合区间
+                // //         lossRangeList.append(qMakePair(start,last));
+                // //         start=loss[i];
+                // //     }
+                // //     last=loss[i];
+                // // }
+                // // if(!lossRangeList.empty() && lossRangeList[0]==qMakePair(0u,0u)){lossRangeList.pop_front();}//删除第一个[0,0]区间
+                // // ninfo<<"Report"/*":loss="<<loss*/<<"lossRangeList"<<lossRangeList;
+                // auto it=receivingBuf.upperBound(start);
+                // if(it!=receivingBuf.begin()){
+                //     --it;
+                //     if(it.key()<start)start=it.key();
                 // }
-                QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
-                // loss.append(UINT_MAX);//用于输出最后一个区间
-                // if(!std::is_sorted(loss.begin(),loss.end())){std::sort(loss.begin(),loss.end());}
-                // for(chunkid_t i=0,last=0,start=0;i<loss.size();i++){
-                //     if(loss[i]-last>1){//生成连续闭合区间
-                //         lossRangeList.append(qMakePair(start,last));
-                //         start=loss[i];
+                // qint64 last=start-1;
+                // for(;it!=receivingBuf.end();++it){
+                //     if(it.key()-last>1){//区间不连续
+                //         lossRangeList.append(qMakePair(last+1,it.key()-1));
                 //     }
-                //     last=loss[i];
+                //     last=it.key();
                 // }
-                // if(!lossRangeList.empty() && lossRangeList[0]==qMakePair(0u,0u)){lossRangeList.pop_front();}//删除第一个[0,0]区间                
-                // ninfo<<"Report"/*":loss="<<loss*/<<"lossRangeList"<<lossRangeList;
-                auto it=receivingBuf.upperBound(start);
-                if(it!=receivingBuf.begin()){
-                    --it;
-                    if(it.key()<start)start=it.key();
-                }
-                qint64 last=start-1;
-                for(;it!=receivingBuf.end();++it){
-                    if(it.key()-last>1){//区间不连续
-                        lossRangeList.append(qMakePair(last+1,it.key()-1));
-                    }
-                    last=it.key();
-                }
                 //构造报文
+                QByteArray body = generateLossRange(start);
                 ReportMessageHeader rmh;
                 rmh.src=deviceId;
                 rmh.type=(quint16)MessageType::Report;
                 rmh.isRttAvailable=/*isRttAvailable*/true;
                 rmh.start=start;
-                rmh.isEmpty=lossRangeList.isEmpty();
+                rmh.isEmpty=body.isEmpty();
                 rmh.lastReceive=chunkId;
                 auto e=lastReportElapsedTime.nsecsElapsed()/1.e6;
                 rmh.deliverRate= e!=0?delivered*1000./e:1;
                 // if(rmh.deliverRate<1||rmh.deliverRate>10000){
                 //     nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
                 // }
-                QByteArray msgBody;
-                // for(chunkid_t l:loss){
-                //     l=::qToBigEndian(l);
-                //     char lo[sizeof(l)];
-                //     memcpy(lo,&l,sizeof(l));
-                //     msgBody.append(lo,sizeof(l));
+                // QByteArray msgBody;
+                // // for(chunkid_t l:loss){
+                // //     l=::qToBigEndian(l);
+                // //     char lo[sizeof(l)];
+                // //     memcpy(lo,&l,sizeof(l));
+                // //     msgBody.append(lo,sizeof(l));
+                // // }
+                // msgBody.resize(2*lossRangeList.size()*sizeof(chunkid_t));
+                // auto ptr = msgBody.data();
+                // auto insertNum = [&](chunkid_t num){
+                //     num=::qToBigEndian(num);
+                //     // char src[sizeof(num)];
+                //     // memcpy(src,&num,sizeof(num));
+                //     // msgBody.append(src,sizeof(src));
+                //     //快速插入
+                //     memcpy(ptr,&num,sizeof(num));
+                //     ptr+=sizeof(chunkid_t);
+                // };
+                // for(auto range:std::as_const(lossRangeList)){
+                //     insertNum(range.first);
+                //     insertNum(range.second);
                 // }
-                msgBody.resize(2*lossRangeList.size()*sizeof(chunkid_t));
-                auto ptr = msgBody.data();
-                auto insertNum = [&](chunkid_t num){
-                    num=::qToBigEndian(num);
-                    // char src[sizeof(num)];
-                    // memcpy(src,&num,sizeof(num));
-                    // msgBody.append(src,sizeof(src));
-                    //快速插入
-                    memcpy(ptr,&num,sizeof(num));
-                    ptr+=sizeof(chunkid_t);
-                };
-                for(auto range:std::as_const(lossRangeList)){
-                    insertNum(range.first);
-                    insertNum(range.second);
-                }
                 //发送
-                send(getHeaderBytes(rmh)+msgBody,1,header.src);
+                send(getHeaderBytes(rmh)+body,1,header.src);
                 lastReportElapsedTime.restart();
                 delivered=0;
                 lastReportChunk=chunkId;
+            }
             }
             break;
         }
@@ -1484,6 +1554,8 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             state=State::Receiving;
             acceptableSender=src;
             /*RUN_LATER(*/sendControl("___ACCEPT_TRANSFER___","",src);/*);*/
+            //初始化缓冲区
+            receivingBuf.resize(value.toUInt());
         }
         else{
             /*RUN_LATER(*/sendControl("___REFUSE_TRANSFER___","state="+QString::number((int)state),src);/*);*/
@@ -1517,59 +1589,60 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
         //     }
         // }
         //侦测丢包
-        QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
-        chunkid_t start=0;
-        auto it=receivingBuf.begin();
-        qint64 last=(qint64)start-1;
-        for(;it!=receivingBuf.end();++it){  
-            if(it.key()-last>1){//区间不连续
-                lossRangeList.append(qMakePair(last+1,it.key()-1));
-            }
-            last=it.key();
-        }
-        if(!receivingBuf.empty() && receivingBuf.lastKey()!=value.toUInt()-1){//存在尾丢
-            lossRangeList.append(qMakePair(receivingBuf.lastKey()+1,(qint64)value.toUInt()-1));
-        }
-        if(receivingBuf.empty()){
-            lossRangeList.append(qMakePair(0,(qint64)value.toUInt()-1));
-        }
-        // if(receivingBuf.lastKey()!=value.toUInt()-1){lossRangeList.append(qMakePair(receivingBuf.lastKey(),value.toUInt()-1));}
+        // QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
+        // chunkid_t start=0;
+        // auto it=receivingBuf.begin();
+        // qint64 last=(qint64)start-1;
+        // for(;it!=receivingBuf.end();++it){  
+        //     if(it.key()-last>1){//区间不连续
+        //         lossRangeList.append(qMakePair(last+1,it.key()-1));
+        //     }
+        //     last=it.key();
+        // }
+        // if(!receivingBuf.empty() && receivingBuf.lastKey()!=value.toUInt()-1){//存在尾丢
+        //     lossRangeList.append(qMakePair(receivingBuf.lastKey()+1,(qint64)value.toUInt()-1));
+        // }
+        // if(receivingBuf.empty()){
+        //     lossRangeList.append(qMakePair(0,(qint64)value.toUInt()-1));
+        // }
+        // // if(receivingBuf.lastKey()!=value.toUInt()-1){lossRangeList.append(qMakePair(receivingBuf.lastKey(),value.toUInt()-1));}
         
-        // for(qint64 i=0,rangeStart=-1;i<value.toUInt();++i){
-        //     if(!receivingBuf.contains(i)){
-        //         if(rangeStart==-1){//区间内第一个丢包
-        //             rangeStart=i;
-        //         }
-        //     }
-        //     if((receivingBuf.contains(i) || i==value.toUInt()-1) && rangeStart!=-1){//区间丢包结束或区间完毕
-        //         lossRangeList.append(qMakePair(rangeStart,i-1));
-        //         rangeStart=-1;
-        //     }
+        // // for(qint64 i=0,rangeStart=-1;i<value.toUInt();++i){
+        // //     if(!receivingBuf.contains(i)){
+        // //         if(rangeStart==-1){//区间内第一个丢包
+        // //             rangeStart=i;
+        // //         }
+        // //     }
+        // //     if((receivingBuf.contains(i) || i==value.toUInt()-1) && rangeStart!=-1){//区间丢包结束或区间完毕
+        // //         lossRangeList.append(qMakePair(rangeStart,i-1));
+        // //         rangeStart=-1;
+        // //     }
+        // // }
+        // QByteArray msg;
+        // // for(chunkid_t l:loss){
+        // //     l=::qToBigEndian(l);
+        // //     char lo[sizeof(l)];
+        // //     memcpy(lo,&l,sizeof(l));
+        // //     msgBody.append(lo,sizeof(l));
+        // // }
+        // msg.resize(2*lossRangeList.size()*sizeof(chunkid_t));
+        // auto ptr = msg.data();
+        // auto insertNum = [&](chunkid_t num){
+        //     num=::qToBigEndian(num);
+        //     // char src[sizeof(num)];
+        //     // memcpy(src,&num,sizeof(num));
+        //     // msgBody.append(src,sizeof(src));
+        //     //快速插入
+        //     memcpy(ptr,&num,sizeof(num));
+        //     ptr+=sizeof(chunkid_t);
+        // };
+        // ndb<<"lossRangeList.empty"<<lossRangeList.empty()<<"seq="<<testSeq;
+        // for(auto range:std::as_const(lossRangeList)){
+        //     insertNum(range.first);
+        //     insertNum(range.second);
         // }
-        QByteArray msg;
-        // for(chunkid_t l:loss){
-        //     l=::qToBigEndian(l);
-        //     char lo[sizeof(l)];
-        //     memcpy(lo,&l,sizeof(l));
-        //     msgBody.append(lo,sizeof(l));
-        // }
-        msg.resize(2*lossRangeList.size()*sizeof(chunkid_t));
-        auto ptr = msg.data();
-        auto insertNum = [&](chunkid_t num){
-            num=::qToBigEndian(num);
-            // char src[sizeof(num)];
-            // memcpy(src,&num,sizeof(num));
-            // msgBody.append(src,sizeof(src));
-            //快速插入
-            memcpy(ptr,&num,sizeof(num));
-            ptr+=sizeof(chunkid_t);
-        };
-        ndb<<"lossRangeList.empty"<<lossRangeList.empty()<<"seq="<<testSeq;
-        for(auto range:std::as_const(lossRangeList)){
-            insertNum(range.first);
-            insertNum(range.second);
-        }
         //发送消息
+        QByteArray msg = generateLossRange(0);
         if(!msg.isEmpty()){
             ndb<<"重传"<<testSeq;
             /*RUN_LATER(*/sendControl("___REQUEST_RESEND___",QVariant(msg),src);/*);*/
@@ -1587,17 +1660,24 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
                 ncritical<<"Too little chunks received.expected "<<value.toUInt()<<",actual "<<receivingBuf.size()<<"seq="<<testSeq;
             }
             for(auto it=receivingBuf.begin();it!=receivingBuf.end();it++){
-                //断言检测
-                if(it.key()!=(qint64)value.toUInt()-1 &&  it->size()!=CHUNK_SIZE){
-                    ncritical<<"ERROR:Invalid chunk "<<it.key();
+                // //断言检测
+                // if(it.key()!=(qint64)value.toUInt()-1 &&  it->size()!=CHUNK_SIZE){
+                //     ncritical<<"ERROR:Invalid chunk "<<it.key();
+                // }
+                // data+=it.value();
+                if(!it->has_value()){
+                    ncritical<<"Invalid data";
+                    abortReceiving();
+                    receiverReset();
+                    return;
                 }
-                data+=it.value();
+                data+=it->value();
             }
-            ndb<<"contains:"<<receivingBuf.contains(44824);
-            if(receivingBuf.contains(44824)){
-                ndb<<"chunk 44824 real payload size:"<<receivingBuf[44824].size();
-            }
-            ndb<<data.size();
+            // ndb<<"contains:"<<receivingBuf.contains(44824);
+            // if(receivingBuf.contains(44824)){
+            //     ndb<<"chunk 44824 real payload size:"<<receivingBuf[44824].size();
+            // }
+            // ndb<<data.size();
             emit dataReceived(data,src);
             //重置状态
             // state=State::Ready;
