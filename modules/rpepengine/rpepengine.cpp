@@ -655,8 +655,10 @@ Result RpepEngine::punch(QSet<devid_t> dsts){
     }
     
     //等待
-    QTimer::singleShot(5000,&loop,&::QEventLoop::quit);
-    loop.exec();
+    if(!dsts.empty()){//不空
+        QTimer::singleShot(5000,&loop,&::QEventLoop::quit);
+        loop.exec();
+    }
     
     //判断
     auto offlineDevices = dsts;
