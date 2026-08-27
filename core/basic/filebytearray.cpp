@@ -76,7 +76,8 @@ QByteArray FileByteArray::mid(qsizetype pos, qsizetype len) const{
     }
     else{
         if(pos+len>size()){
-            return {};
+            // return {};
+            return f->readAll();
         }
         return f->read(len);
     }

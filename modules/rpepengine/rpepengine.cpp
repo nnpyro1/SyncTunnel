@@ -729,10 +729,15 @@ Result RpepEngine::preloadData(FileByteArray data){
         // // transferBuf[dmh.chunkId]=encode(getHeaderBytes(dmh)+chunk);
         // auto tmp=encode(getHeaderBytes(dmh)+chunk)+QByteArray(paddingSize,0x5B);
         
+        if(chunk.isEmpty()){
+            ncritical<<"Chunk #"<<dmh.chunkId<<"is empty";
+        }
         auto encoded = encode(getHeaderBytes(dmh)+chunk);
         if(encoded.size()< CHUNK_SIZE+moreSize){//最后一个需要填充
             lastChunkSize=encoded.size();
+            ndb<<"encoded.size="<<encoded.size();
             auto needsPadding = CHUNK_SIZE+moreSize-encoded.size();
+            ndb<<"needsPadding="<<needsPadding;
             encoded.append(QByteArray(needsPadding,0x5B));
         }
         
@@ -962,8 +967,8 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             QByteArray data=transferBuf.read(i);
             if(i==transferTotalSize-1){//最后一个包特殊处理
                 auto ls = data.size();
-                data=data.mid(0,lastChunkSize);
-                ndb<<"最后一个包特殊处理,size="<<data.size()<<"截取前size="<<ls;
+                data=data.left(lastChunkSize);
+                ndb<<"最后一个包特殊处理,size="<<data.size()<<"截取前size="<<ls<<"lastChunkSize="<<lastChunkSize;
             }
             send(data/*transferBuf[i]*//*+QByteArray(tmp,sizeof(double))*//*+"DRAT_TP_"*/,0,dst);
             // ndb<<"Data #"<<i<<" sent.";
