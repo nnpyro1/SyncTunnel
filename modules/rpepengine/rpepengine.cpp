@@ -857,7 +857,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         //         }
         //     }
         // }
-        //性能优化
+        //性能优化 性能筛查通过，高性能       
         QList<chunkid_t> retransferList;
         retransferList.resize(loss.size());
         qsizetype retransferSize=0;
@@ -882,14 +882,16 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         retransferList.resize(retransferSize);
         tq.insert(tq.begin(),retransferList.cbegin(),retransferList.cend());
         
+        //从此到结束存在性能问题（已解决）
         ccinput.loss=loss;
-        if(report.isRttAvailable)ccinput.rtt=timer.nsecsElapsed()/1.e6-ccinput.elapsedTimes[report.lastReceive];
+        if(report.isRttAvailable)ccinput.rtt=timer.nsecsElapsed()/1.e6-ccinput.elapsedTimes.value(report.lastReceive);//此处elapsedTimes的性能问题已解决
         ccinput.start=report.start;
         ccinput.end=report.lastReceive;
         // if(lastReportTimer.isValid())ccinput.timeToLastReport=lastReportTimer.elapsed();
         // lastReportTimer.restart();
         // ccinput.elapsedTimes=elapsedTimes;
         // ccinput.deliverRate=report.deliverRate;
+        //性能问题结束
         if(report.deliverRate>2){//存在deliverRate信息
             ccinput.deliverRate = ccinput.deliverRate==0? report.deliverRate
                                                            :report.deliverRate*DELIVER_RATE_EWMA_WEIGHT+ccinput.deliverRate*(1-DELIVER_RATE_EWMA_WEIGHT);
@@ -899,6 +901,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         cc.update(ccinput);
         ccoutput=cc.getOutput();
         //更新信号
+        //性能存疑，但不是瓶颈
         emit congestionControlInfoUpdated(ccinput,ccoutput);
         ccinput.lastEnd=ccinput.end;
         ccinput.lastSend=ccinput.chunkId;
@@ -945,6 +948,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     transferWatchdog.start();
     ccinput.totalChunks=transferTotalSize;
     ccinput.lastEnd = 0;
+    ccinput.elapsedTimes.reserve(transferTotalSize);
     auto sendUntilTqIsEmpty = [&]{
         while(!tq.empty()){
             if(isAborted){
@@ -1178,7 +1182,9 @@ void RpepEngine::senderReset(){
 
 
 void RpepEngine::onCommunicationReadyRead(){
+    int datagram_cnt=0;
     while(m_communication->hasPendingDatagrams()){
+        datagram_cnt++;
 #ifdef NNPYRO_PERFORMANCE_ANALYSIS
         QElapsedTimer performanceTimer;
         performanceTimer.start();
@@ -1463,6 +1469,9 @@ void RpepEngine::onCommunicationReadyRead(){
         }
 #endif
     }
+    // if(datagram_cnt>3){
+    //     ndb<<"datagram_cnt="<<datagram_cnt;
+    // }
 }
 
 

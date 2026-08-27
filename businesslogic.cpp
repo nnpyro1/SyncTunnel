@@ -613,6 +613,9 @@ void BusinessLogic::init(){
     }
     connect(m_rpepengine,&RpepEngine::congestionControlInfoUpdated,this,[this](CongestionControl::CongestionControlInput ipt,CongestionControl::CongestionControlOutput opt){
         emit sendInfoChanged(ipt,opt);
+
+        //输出拥塞控制日志
+        if(0)//开关，注释掉即可启用
 #ifdef QT_DEBUG
         if(1)
 #else
