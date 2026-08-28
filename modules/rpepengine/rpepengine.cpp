@@ -490,7 +490,7 @@ void RpepEngine::reset(){
     transferBuf.clear();
     transferWatchdog.stop();
     transferDestination = 0;
-    receivingBuf.clear();
+    // receivingBuf.clear();
     lastReportElapsedTime.invalidate();
     lastReportChunk=-1;
     acceptableSender=0;
@@ -1153,7 +1153,7 @@ void RpepEngine::abortReceiving(){
 
 void RpepEngine::receiverReset(){
     if(state==State::Receiving){
-        receivingBuf.clear();
+        // receivingBuf.clear();
         lastReportElapsedTime.invalidate();
         lastReportChunk=0;
         acceptableSender=0;
@@ -1191,7 +1191,7 @@ QByteArray RpepEngine::generateLossRange(chunkid_t startReport){
     qint64 start=-1;
     auto receivingBufSize = receivingBuf.size();
     for(chunkid_t i=startReport;i<receivingBufSize;++i){
-        if(receivingBuf[i].has_value()){//收到
+        if(receivingBuf.hasValue(i)){//收到
             if(start>=0){//需要闭合区间
                 lossRangeList.append(qMakePair(start,i-1));
                 start=-1;
@@ -1366,7 +1366,7 @@ void RpepEngine::onCommunicationReadyRead(){
                     chunkId=0;
                 }
                 else for(qint64 i=receivingBuf.size()-1;i>=0;--i){
-                        if(receivingBuf[i].has_value()){
+                        if(receivingBuf.hasValue(i)){
                             chunkId=i;
                             break;
                         }
@@ -1384,10 +1384,11 @@ void RpepEngine::onCommunicationReadyRead(){
                 chunkId=dmh.chunkId;
                 QByteArray payload = rawMsg.mid(sizeof(dmh));
                 // receivingBuf.insert(dmh.chunkId,payload);
-                if(receivingBuf.size()<=dmh.chunkId){
-                    receivingBuf.resize(dmh.totalChunkNum);
-                }
-                receivingBuf[dmh.chunkId]=payload;
+                // if(receivingBuf.size()<=dmh.chunkId){
+                    // receivingBuf.resize(dmh.totalChunkNum);
+                // }
+                // receivingBuf[dmh.chunkId]=payload;
+                receivingBuf.write(dmh.chunkId,payload);
                 // ndb<<"Data #"<<dmh.chunkId<<" received.";
                 if(!lastReportElapsedTime.isValid()){
                     lastReportElapsedTime.start();
@@ -1555,7 +1556,8 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             acceptableSender=src;
             /*RUN_LATER(*/sendControl("___ACCEPT_TRANSFER___","",src);/*);*/
             //初始化缓冲区
-            receivingBuf.resize(value.toUInt());
+            // receivingBuf.resize(value.toUInt());
+            receivingBuf.init(CHUNK_SIZE,value.toUInt());
         }
         else{
             /*RUN_LATER(*/sendControl("___REFUSE_TRANSFER___","state="+QString::number((int)state),src);/*);*/
@@ -1659,26 +1661,26 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             if(receivingBuf.size()!=value.toUInt()){
                 ncritical<<"Too little chunks received.expected "<<value.toUInt()<<",actual "<<receivingBuf.size()<<"seq="<<testSeq;
             }
-            for(auto it=receivingBuf.begin();it!=receivingBuf.end();it++){
-                // //断言检测
-                // if(it.key()!=(qint64)value.toUInt()-1 &&  it->size()!=CHUNK_SIZE){
-                //     ncritical<<"ERROR:Invalid chunk "<<it.key();
-                // }
-                // data+=it.value();
-                if(!it->has_value()){
-                    ncritical<<"Invalid data";
-                    abortReceiving();
-                    receiverReset();
-                    return;
-                }
-                data+=it->value();
-            }
+            // for(auto it=receivingBuf.begin();it!=receivingBuf.end();it++){
+            //     // //断言检测
+            //     // if(it.key()!=(qint64)value.toUInt()-1 &&  it->size()!=CHUNK_SIZE){
+            //     //     ncritical<<"ERROR:Invalid chunk "<<it.key();
+            //     // }
+            //     // data+=it.value();
+            //     if(!it->has_value()){
+            //         ncritical<<"Invalid data";
+            //         abortReceiving();
+            //         receiverReset();
+            //         return;
+            //     }
+            //     data+=it->value();
+            // }
             // ndb<<"contains:"<<receivingBuf.contains(44824);
             // if(receivingBuf.contains(44824)){
             //     ndb<<"chunk 44824 real payload size:"<<receivingBuf[44824].size();
             // }
             // ndb<<data.size();
-            emit dataReceived(data,src);
+            emit dataReceived(receivingBuf.takeAwayWholeData().readAll(),src);
             //重置状态
             // state=State::Ready;
             // receivingBuf.clear();

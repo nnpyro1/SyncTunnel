@@ -22,6 +22,7 @@ SOURCES += \
     core/basic/filebytearray.cpp \
     core/basic/observable.cpp \
     core/basic/qcachedbytearray.cpp \
+    core/basic/singlereadblockcache.cpp \
     core/basic/singlewriteblockcache.cpp \
     core/basic/utils.cpp \
     core/services/schedule.cpp \
@@ -48,6 +49,7 @@ HEADERS += \
     core/basic/filebytearray.h \
     core/basic/observable.h \
     core/basic/qcachedbytearray.h \
+    core/basic/singlereadblockcache.h \
     core/basic/singlewriteblockcache.h \
     core/basic/utils.h \
     core/services/schedule.h \

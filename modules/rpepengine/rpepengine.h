@@ -7,6 +7,7 @@
 #include <modules/rpepengine/congestioncontrol/congestioncontrol.h>
 #include <modules/signalling/signalling.h>
 #include <core/basic/singlewriteblockcache.h>
+#include <singlereadblockcache.h>
 
 
 class RpepEngine : public QObject
@@ -186,7 +187,7 @@ private:
     qsizetype lastChunkSize=0;//最后一个块的大小
     //以下是接收方变量
     // QMap<chunkid_t,QByteArray> receivingBuf;//接收缓冲区
-    QList<std::optional<QByteArray>> receivingBuf;
+    /*QList<std::optional<QByteArray>>*/SingleReadBlockCache receivingBuf;
     QElapsedTimer lastReportElapsedTime;//上次回复Report的时间
     chunkid_t lastReportChunk;
     devid_t acceptableSender;//接收方可接受的发送方。仅在state=Receiving时允许非零

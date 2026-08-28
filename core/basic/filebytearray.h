@@ -13,6 +13,7 @@ public:
     FileByteArray();
     FileByteArray(const FileByteArray &) = delete;
     FileByteArray(FileByteArray &&) noexcept;
+    explicit FileByteArray(QTemporaryFile *f) noexcept;
     FileByteArray &operator=(const FileByteArray &) noexcept = delete;
     FileByteArray &operator=(FileByteArray &&) noexcept;
     ~FileByteArray();

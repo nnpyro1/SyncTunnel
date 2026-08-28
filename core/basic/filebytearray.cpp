@@ -16,6 +16,11 @@ FileByteArray::FileByteArray(FileByteArray &&rhs) noexcept{
 }
 
 
+FileByteArray::FileByteArray(QTemporaryFile *f) noexcept{
+    this->f=f;
+}
+
+
 FileByteArray::~FileByteArray(){
     delete f;
 }
