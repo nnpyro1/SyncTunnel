@@ -38,11 +38,11 @@ public:
     QByteArray read(qsizetype idx);     //读取idx处的区块
     
 private:
-    State state;
-    QTemporaryFile *file;
+    State state=Invalid;
+    QTemporaryFile *file=nullptr;
     QMap<qsizetype,QByteArray> cache;
     QMutex mutex;//掌管cache
-    SingleWriteBlockCacheWorkingThread *thread;
+    SingleWriteBlockCacheWorkingThread *thread=nullptr;
     QAtomicInteger<qsizetype> chunkSize;
     QAtomicInteger<qsizetype> maxRead;
     QAtomicInteger<qsizetype> currentRead;
