@@ -26,8 +26,8 @@ public:
     FileByteArray takeAwayWholeData();
     
 private:
-    QTemporaryFile *f;
-    SingleReadBlockCacheWorkingThread *thread;
+    QTemporaryFile *f=nullptr;;
+    SingleReadBlockCacheWorkingThread *thread=nullptr;
     QHash<qsizetype,QByteArray> buf;
     QMutex bufMutex;
     QBitArray written;

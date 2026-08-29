@@ -96,9 +96,9 @@ private://私有函数
     void on_read();
     
 private://私有变量&对象
-    QUdpSocket *socket;
-    QUdpSocket *socket_stun;
-    QUdpSocket *socket_ipv6;
+    QUdpSocket *socket=nullptr;
+    QUdpSocket *socket_stun=nullptr;
+    QUdpSocket *socket_ipv6=nullptr;
     ipport stun_host = /*{"stun.miwifi.com",3478}*//*{"stun.l.google.com",19302}*/{"stun.chat.bilibili.com",3478};
     QQueue<QNetworkDatagram> buf;
     QTimer timer_read;

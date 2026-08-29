@@ -40,7 +40,7 @@ public:
     
     
 private:
-    QTemporaryFile *f;
+    QTemporaryFile *f=nullptr;
 };
 
 #endif // FILEBYTEARRAY_H

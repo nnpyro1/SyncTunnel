@@ -912,6 +912,11 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     // connect(this,&RpepEngine::transferAborted,&cc,[&isAborted]{isAborted=true;});//侦测是否中断。随便绑定一个同作用域的QObject//已在开头添加
     connect(&transferWatchdog,&QTimer::timeout,&cc,[this]{abortTransfer();});
     connect(&reportReceiveTimer,&QTimer::timeout,this,[&]{
+        if(state!=State::Transferring){
+            ncritical<<"state="<<(int)state;
+            reportReceiveTimer.stop();//停止以防重新触发
+            return;
+        }
         reportLossCount++;
         ccoutput.rate/=2.;//速率除以2
         ninfo<<"Report长时间未接收，速率为"<<ccoutput.rate;
@@ -927,6 +932,9 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                 header.src=deviceId;
                 header.type=(quint16)MessageType::RequestReport;
                 //发送消息
+                if(isAborted){
+                    return;
+                }
                 send(getHeaderBytes(header),1,dst);
                 //阻塞等待
                 QEventLoop loop;
@@ -1069,7 +1077,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             return res;
         }
         //等待结果
-        loop.exec();
+        if(!isCompleted){loop.exec();}
         if(isAborted){
             if(transferTaskQueue.empty()){
                 transferBuf.clear();
@@ -1337,7 +1345,7 @@ void RpepEngine::onCommunicationReadyRead(){
                     QString key=pair.first;
                     QVariant value = pair.second;
                     if(key.startsWith("___")&&key.endsWith("___")){
-                        RUN_LATER({onPrivateControlMessageReceived(key,value,header.src);});
+                        /*RUN_LATER*/({onPrivateControlMessageReceived(key,value,header.src);});
                     }
                     else{
                         emit controlReceived(key,value,header.src);
@@ -1554,13 +1562,13 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             ninfo<<"transfer accepted.";
             state=State::Receiving;
             acceptableSender=src;
-            /*RUN_LATER(*/sendControl("___ACCEPT_TRANSFER___","",src);/*);*/
+            RUN_LATER_THIS(sendControl("___ACCEPT_TRANSFER___","",src););
             //初始化缓冲区
             // receivingBuf.resize(value.toUInt());
             receivingBuf.init(CHUNK_SIZE,value.toUInt());
         }
         else{
-            /*RUN_LATER(*/sendControl("___REFUSE_TRANSFER___","state="+QString::number((int)state),src);/*);*/
+            RUN_LATER_THIS(sendControl("___REFUSE_TRANSFER___","state="+QString::number((int)state),src););
             ninfo<<"transfer refused.state="+QString::number((int)state);
         }
     }
@@ -1647,12 +1655,12 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
         QByteArray msg = generateLossRange(0);
         if(!msg.isEmpty()){
             ndb<<"重传"<<testSeq;
-            /*RUN_LATER(*/sendControl("___REQUEST_RESEND___",QVariant(msg),src);/*);*/
+            RUN_LATER_THIS(sendControl("___REQUEST_RESEND___",QVariant(msg),src););
         }
         else{
             ndb<<"释放"<<testSeq;
             //发送complete
-            /*RUN_LATER(*/sendControl("___TRANSFER_COMPLETE___","",src);/*);*/
+            RUN_LATER_THIS(sendControl("___TRANSFER_COMPLETE___","",src););
             //合并消息，前面已经确保了消息完整性
             QByteArray data;
             /*for(auto c : std::as_const(receivingBuf)){

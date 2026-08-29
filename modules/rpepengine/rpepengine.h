@@ -168,13 +168,13 @@ private slots:
     void onPrivateControlMessageReceived(QString key, QVariant value, devid_t src);
     
 private:
-    Communication *m_communication;
-    Signalling *m_signalling;
+    Communication *m_communication=nullptr;;
+    Signalling *m_signalling=nullptr;
     
     QString username,pwd;
     ipport mqttBroker;
     ipport public_ip;
-    devid_t deviceId;
+    devid_t deviceId=0;
     State state = RpepEngine::State::Invalid;
     Devices devices;
     QSet<devid_t> unconnectedDevices;//打洞失败的设备。
@@ -189,8 +189,8 @@ private:
     // QMap<chunkid_t,QByteArray> receivingBuf;//接收缓冲区
     /*QList<std::optional<QByteArray>>*/SingleReadBlockCache receivingBuf;
     QElapsedTimer lastReportElapsedTime;//上次回复Report的时间
-    chunkid_t lastReportChunk;
-    devid_t acceptableSender;//接收方可接受的发送方。仅在state=Receiving时允许非零
+    chunkid_t lastReportChunk=0;
+    devid_t acceptableSender=0;//接收方可接受的发送方。仅在state=Receiving时允许非零
     QTimer receivingWatchdog;
     QTimer receivingReportTimer;
     chunkid_t delivered=0;
