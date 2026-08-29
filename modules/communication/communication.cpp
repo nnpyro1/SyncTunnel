@@ -263,7 +263,7 @@ void Communication::keepAlive(){
         qWarning()<<"ERROR:"<<socket->errorString();
         
     }
-    ndb<<"保活:"<<request.toHex();
+    // ndb<<"保活:"<<request.toHex();
 }
 
 void Communication::on_read(){

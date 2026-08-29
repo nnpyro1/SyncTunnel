@@ -151,7 +151,7 @@ private:
     void abortReceiving();
     void receiverReset();                                                               //接收方重置桩台
     void senderReset();                                                                 //发送方重置状态
-    QByteArray generateLossRange(chunkid_t start);                                      //生成丢包区间序列化后的信息
+    QByteArray generateLossRange(chunkid_t startReport, chunkid_t endReport);           //生成丢包区间序列化后的信息
     
 private://private signals
     Q_SIGNAL void punchReceived(devid_t sender,int seq);

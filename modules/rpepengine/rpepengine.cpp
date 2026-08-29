@@ -1191,8 +1191,7 @@ void RpepEngine::senderReset(){
     }
 }
 
-
-QByteArray RpepEngine::generateLossRange(chunkid_t startReport){
+QByteArray RpepEngine::generateLossRange(chunkid_t startReport, chunkid_t endReport){
     if(state!=State::Receiving){
         ncritical<<"Unable to generate lossRange when state="<<(int)state;
         return {};
@@ -1200,7 +1199,7 @@ QByteArray RpepEngine::generateLossRange(chunkid_t startReport){
     
     QList<QPair<chunkid_t,chunkid_t>> lossRangeList;
     qint64 start=-1;
-    auto receivingBufSize = receivingBuf.size();
+    auto &receivingBufSize = endReport;
     for(chunkid_t i=startReport;i<receivingBufSize;++i){
         if(receivingBuf.hasValue(i)){//收到
             if(start>=0){//需要闭合区间
@@ -1463,7 +1462,7 @@ void RpepEngine::onCommunicationReadyRead(){
                 //     last=it.key();
                 // }
                 //构造报文
-                QByteArray body = generateLossRange(start);
+                QByteArray body = generateLossRange(start,chunkId);
                 ReportMessageHeader rmh;
                 rmh.src=deviceId;
                 rmh.type=(quint16)MessageType::Report;
@@ -1655,7 +1654,7 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
         //     insertNum(range.second);
         // }
         //发送消息
-        QByteArray msg = generateLossRange(0);
+        QByteArray msg = generateLossRange(0,receivingBuf.size());
         if(!msg.isEmpty()){
             ndb<<"重传"<<testSeq;
             RUN_LATER_THIS(sendControl("___REQUEST_RESEND___",QVariant(msg),src););
