@@ -18,13 +18,13 @@ SingleReadBlockCache::~SingleReadBlockCache(){
         ndb<<"停止前Thread正在运行："<<thread->isRunning();
         thread->quit();
         ndb<<"析构4";
-        ndb<<"停止成功:"<<thread->wait(5000);
+        ndb<<"停止成功:"<<thread->wait(50000);
         ndb<<"析构5";
-        if(!thread->isFinished()){
-            ndb<<"析构5‑1";
-            thread->terminate();
-            ndb<<"析构5‑2";
-        }
+        // if(!thread->isFinished()){
+        //     ndb<<"析构5‑1";
+        //     // thread->terminate();
+        //     ndb<<"析构5‑2";
+        // }
         
         //迁移f到当前线程再销毁
         if(f){
@@ -110,10 +110,10 @@ FileByteArray SingleReadBlockCache::takeAwayWholeData(){
     // 停止并等待子线程完全结束
     thread->safeStop();
     thread->quit();
-    thread->wait(5000);
-    if(!thread->isFinished()){
-        thread->terminate();
-    }
+    thread->wait(50000);
+    // if(!thread->isFinished()){
+    //     thread->terminate();
+    // }
     
     // 子线程已退出，迁移 QTemporaryFile 到主线程
     f->moveToThread(QThread::currentThread());
@@ -151,6 +151,7 @@ void SingleReadBlockCacheWorkingThread::run(){
         }
         
         if(c.needsStop){
+            c.f->moveToThread(c.currentThread);
             return;
         }
         
@@ -181,6 +182,7 @@ void SingleReadBlockCacheWorkingThread::run(){
         {
             QMutexLocker locker(&c.bufMutex);
             if(c.needsTakeaway){
+                c.f->moveToThread(c.currentThread);
                 return;
             }
         }

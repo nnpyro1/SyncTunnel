@@ -1382,7 +1382,6 @@ void RpepEngine::onCommunicationReadyRead(){
                         }
                 }
             }
-            QElapsedTimer tmpPerfTimer;tmpPerfTimer.start();
             if(header.type==static_cast<int>(MessageType::DataPayload)){
                 //加入接收缓冲区
                 DataMessageHeader dmh;
@@ -1422,10 +1421,6 @@ void RpepEngine::onCommunicationReadyRead(){
             receivingWatchdog.stop();
             receivingWatchdog.start();
             {
-                auto usecs = tmpPerfTimer.nsecsElapsed()/1.e3;
-                if(usecs>10){
-                    ndb<<"Performance microseconds:"<<usecs;
-                }
             //条件回复Report
             if(lastReportElapsedTime.elapsed()>=MAX_REPORT_TIMEOUT || chunkId >= lastReportChunk+MAX_REPORT_OFFSET || header.type==(int)MessageType::RequestReport){
                 // bool isRttAvailable = dmh.chunkId >= lastReportChunk+MAX_REPORT_OFFSET;
@@ -1507,6 +1502,7 @@ void RpepEngine::onCommunicationReadyRead(){
             break;
         }
         case MessageType::Report:{
+            QElapsedTimer tmpPerfTimer;tmpPerfTimer.start();
             if(state!=State::Transferring){
                 ncritical<<"Unacceptable state '"<<(int)state<<"' to handle Report message";
             }
@@ -1535,6 +1531,10 @@ void RpepEngine::onCommunicationReadyRead(){
                 }
             }
             emit reportReceived(rmh,loss);
+            auto usecs = tmpPerfTimer.nsecsElapsed()/1.e3;
+            if(usecs>50){
+                ndb<<"Performance microseconds:"<<usecs;
+            }
             break;
         }
         case MessageType::External:
