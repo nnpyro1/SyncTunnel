@@ -92,6 +92,8 @@ public://函数
     inline void setStunServer(ipport server){stun_host=server;}         //设置服务器
     bool hasPendingDatagrams();                                         //是否有等待中数据包
     
+    void keepAlive();                                                   //保活
+    
 private://私有函数
     void on_read();
     

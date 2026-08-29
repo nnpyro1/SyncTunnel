@@ -240,7 +240,10 @@ Result RpepEngine::init(){
     emit eventOccurred(Event::Ready);
     timer_keepAlive.setSingleShot(false);
     timer_keepAlive.start(KEEPALIVE_INTERVAL);
-    connect(&timer_keepAlive,&QTimer::timeout,this,[this]{CommonHeader h;h.type=(int)MessageType::KeepAlive;h.src=deviceId;send(getHeaderBytes(h));});
+    connect(&timer_keepAlive,&QTimer::timeout,this,[this]{
+        CommonHeader h;h.type=(int)MessageType::KeepAlive;h.src=deviceId;send(getHeaderBytes(h));
+        m_communication->keepAlive();
+    });
     return Result();
 }
 

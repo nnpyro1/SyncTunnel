@@ -232,6 +232,40 @@ bool Communication::hasPendingDatagrams(){
     return socket->hasPendingDatagrams();
 }
 
+void Communication::keepAlive(){
+    // QByteArray msg;
+    // msg.append('\x00');
+    // msg.append('\x11');
+    // msg.append('\x00');
+    // msg.append('\x00');
+    // msg.append('\x21');
+    // msg.append('\x12');
+    // msg.append('\xA4');
+    // msg.append('\x42');
+    // for(int i=0;i<12;i++){
+    //     msg.append(QRandomGenerator::global()->bounded(256));
+    // }
+    // send(stun_host,msg);
+    // ndb<<"保活报文发出:"<<msg;
+    QByteArray request;
+    request.append('\x00').append('\x11');
+    request.append('\x00').append('\x00');
+    request.append('\x21').append('\x12').append('\xA4').append('\x42'); // Magic Cookie
+    for (int i = 0; i < 12; ++i) {// 添加随机事务ID (12字节)
+        request.append(static_cast<char>(QRandomGenerator::global()->bounded(256)));
+    }
+    //    qDebug()<<"Communication::stun var:request :"<<request.toInt();
+    
+    
+    //向服务器请求
+    int sent = socket->writeDatagram(request,QHostAddress(QHostInfo::fromName(stun_host.ip).addresses()[0]),stun_host.port);
+    if(sent == -1){
+        qWarning()<<"ERROR:"<<socket->errorString();
+        
+    }
+    ndb<<"保活:"<<request.toHex();
+}
+
 void Communication::on_read(){
 //     if(socket->hasPendingDatagrams()){
 //         while(socket->hasPendingDatagrams()){
