@@ -860,7 +860,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         //         }
         //     }
         // }
-        //性能优化 性能筛查通过，高性能       
+        //性能优化 性能筛查通过，中性能50us
         QList<chunkid_t> retransferList;
         retransferList.resize(loss.size());
         qsizetype retransferSize=0;
@@ -901,7 +901,12 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             
         }
         //调用
+        QElapsedTimer tmpPerfTimer;tmpPerfTimer.start();
         cc.update(ccinput);
+        auto usecs = tmpPerfTimer.nsecsElapsed()/1.e3;
+        if(usecs>/*50*/10){
+            ndb<<"Performance microseconds:"<<usecs;
+        }
         ccoutput=cc.getOutput();
         //更新信号
         //性能存疑，但不是瓶颈
@@ -1502,7 +1507,6 @@ void RpepEngine::onCommunicationReadyRead(){
             break;
         }
         case MessageType::Report:{
-            QElapsedTimer tmpPerfTimer;tmpPerfTimer.start();
             if(state!=State::Transferring){
                 ncritical<<"Unacceptable state '"<<(int)state<<"' to handle Report message";
             }
@@ -1510,17 +1514,28 @@ void RpepEngine::onCommunicationReadyRead(){
             ReportMessageHeader rmh=getHeaderStruct<ReportMessageHeader>(rawMsg);
             QList<chunkid_t> loss;
             if(!rmh.isEmpty){//只有头中标记有丢包才读取
-                QBuffer mbody;mbody.open(QBuffer::ReadWrite);
-                mbody.write(rawMsg.mid(sizeof(rmh)));
-                mbody.seek(0);
-                // loss.reserve(500);
-                while(!mbody.atEnd()){
+                // QBuffer mbody;mbody.open(QBuffer::ReadWrite);
+                // mbody.write(rawMsg.mid(sizeof(rmh)));
+                // mbody.seek(0);
+                loss.reserve(200);
+                // const QByteArray &mbody = rawMsg.mid(sizeof(rmh));
+                auto srcPtr = rawMsg.data()+sizeof(rmh);
+                auto totalSize = rawMsg.size()-sizeof(rmh);
+                auto srcEnd = srcPtr+totalSize;
+                for(;srcPtr<srcEnd;srcPtr+=2*sizeof(chunkid_t)){
+                    if(srcEnd-srcPtr<(ptrdiff_t)(2*sizeof(chunkid_t))){
+                        break;
+                    }
                     chunkid_t start,end;
-                    memcpy(&start,mbody.read(sizeof(chunkid_t)).constData(),sizeof(chunkid_t));
+                    memcpy(&start,srcPtr/*mbody.read(sizeof(chunkid_t)).constData()*/,sizeof(chunkid_t));
                     start=::qFromBigEndian(start);
-                    memcpy(&end,mbody.read(sizeof(chunkid_t)).constData(),sizeof(chunkid_t));
+                    memcpy(&end,srcPtr+sizeof(chunkid_t)/*mbody.read(sizeof(chunkid_t)).constData()*/,sizeof(chunkid_t));
                     end=::qFromBigEndian(end);
                     //快速插入
+                    if(end<start){
+                        ncritical<<"Bad end"<<end<<"<start"<<start;
+                        continue;
+                    }
                     auto size = loss.size();
                     loss.resize(loss.size()+end-start+1);
                     auto ptr = loss.data()+size;
@@ -1531,10 +1546,6 @@ void RpepEngine::onCommunicationReadyRead(){
                 }
             }
             emit reportReceived(rmh,loss);
-            auto usecs = tmpPerfTimer.nsecsElapsed()/1.e3;
-            if(usecs>50){
-                ndb<<"Performance microseconds:"<<usecs;
-            }
             break;
         }
         case MessageType::External:
