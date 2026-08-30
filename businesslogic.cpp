@@ -615,7 +615,7 @@ void BusinessLogic::init(){
         emit sendInfoChanged(ipt,opt);
 
         //输出拥塞控制日志
-        if(0)//开关，注释掉即可启用
+        // if(0)//开关，注释掉即可启用
 #ifdef QT_DEBUG
         if(1)
 #else
@@ -674,14 +674,13 @@ void BusinessLogic::init(){
             QString stateName;
             switch(opt.state)
             {
-            case CongestionControl::Startup: stateName = "Startup"; break;
-            case CongestionControl::Drain:   stateName = "Drain";   break;
-            case CongestionControl::CongestionResponse: stateName = "CongestionResponse"; break;
-            case CongestionControl::Growth:  stateName = "Growth";  break;
+            case CongestionControl::StartupUp: stateName = "StartupUp"; break;
+            case CongestionControl::StartupDown:   stateName = "StartupDown";   break;
+            case CongestionControl::ProbeMaxRateGrowth: stateName = "PMRGrowth"; break;
+            case CongestionControl::ProbeMaxRateUp:  stateName = "PMRUp";  break;
             // default: stateName = "Unknown";
-            case CongestionControl::ProbeMaxRate1:stateName = "PMR1";  break;
-            case CongestionControl::ProbeMaxRate2:stateName = "PMR2";  break;
-            case CongestionControl::SafeGrowth:stateName = "SafeGrowth";  break;
+            case CongestionControl::ProbeMaxRateDown:stateName = "PMRDown";  break;
+            case CongestionControl::Push:stateName = "Push";  break;
             }
             cells << wrapCsvCell(stateName);
             
@@ -691,7 +690,7 @@ void BusinessLogic::init(){
             cells << wrapCsvCell(QString::number(opt.dcong));
             cells << wrapCsvCell(QString::number(opt.fullrate));
             cells << wrapCsvCell(QString::number(opt.lastRttReportEnd));
-            cells << wrapCsvCell(QString::number(opt.probeTimeout));
+            cells << wrapCsvCell(""/*QString::number(opt.probeTimeout)*/);
             cells << wrapCsvCell(QString::number(opt.probeMaxRate));
             cells << wrapCsvCell(QString::number(opt.probeMaxRtt));
             

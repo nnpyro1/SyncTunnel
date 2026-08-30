@@ -901,13 +901,13 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             
         }
         //调用
-        QElapsedTimer tmpPerfTimer;tmpPerfTimer.start();
         cc.update(ccinput);
+        QElapsedTimer tmpPerfTimer;tmpPerfTimer.start();
+        ccoutput=cc.getOutput();
         auto usecs = tmpPerfTimer.nsecsElapsed()/1.e3;
         if(usecs>/*50*/10){
             ndb<<"Performance microseconds:"<<usecs;
         }
-        ccoutput=cc.getOutput();
         //更新信号
         //性能存疑，但不是瓶颈
         emit congestionControlInfoUpdated(ccinput,ccoutput);
