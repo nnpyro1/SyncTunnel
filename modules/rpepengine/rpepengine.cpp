@@ -870,12 +870,16 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         for(qsizetype i=0;i<lossSize;i++){
             chunkid_t l = lossData[i];
             if(!tqSet.contains(l)){//仅在不存在时插入
-                bool cts = retransferIgnore.contains(l);
-                bool ent = cts && retransferIgnore[l]>report.lastReceive;
-                if(ent){
-                    retransferIgnore.remove(l);
+                auto val = retransferIgnore.find(l);
+                // bool cts = retransferIgnore.contains(l);
+                // bool ent = cts && retransferIgnore[l]>report.lastReceive;
+                bool canRetransfer = false;
+                bool contains=val!=retransferIgnore.end();
+                if(/*ent*/contains && val.value()>report.lastReceive){
+                    retransferIgnore.erase(val);
+                    canRetransfer=true;
                 }
-                if(!cts || retransferIgnore[l]>report.lastReceive){
+                if(!contains || canRetransfer/*retransferIgnore[l]*//*val.value()>report.lastReceive*/){//要么一开始就不包含，要么被删掉了
                     retransferListData[retransferSize++]=l;
                     tqSet.insert(l);
                     retransferIgnore.insert(l,ccinput.chunkId);
@@ -902,12 +906,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         }
         //调用
         cc.update(ccinput);
-        QElapsedTimer tmpPerfTimer;tmpPerfTimer.start();
         ccoutput=cc.getOutput();
-        auto usecs = tmpPerfTimer.nsecsElapsed()/1.e3;
-        if(usecs>/*50*/10){
-            ndb<<"Performance microseconds:"<<usecs;
-        }
         //更新信号
         //性能存疑，但不是瓶颈
         emit congestionControlInfoUpdated(ccinput,ccoutput);
@@ -966,6 +965,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     ccinput.lastEnd = 0;
     ccinput.elapsedTimes.reserve(transferTotalSize);
     auto sendUntilTqIsEmpty = [&]{
+        QElapsedTimer delayTimer;delayTimer.start();
         while(!tq.empty()){
             if(isAborted){
                 ninfo<<"传输被强制终止";
@@ -996,9 +996,14 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             // ndb<<"Data #"<<i<<" sent.";
             ccinput.chunkId = i;
             ccinput.elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
-            Utils::multiDelay(1000/ccoutput.rate,/*[]{QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);}*/nullptr);
+            Utils::multiDelay(qMin(0.,1000/ccoutput.rate-delayTimer.nsecsElapsed()/1e6),/*[]{QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);}*/nullptr);
+            delayTimer.restart();
             QApplication::processEvents(QEventLoop::ExcludeUserInputEvents,100);
             // ndb<<"rate:"<<ccoutput.rate;
+            
+            //性能测量工具
+            // QElapsedTimer tmpPerfTimer;tmpPerfTimer.start();
+            // auto usecs = tmpPerfTimer.nsecsElapsed()/1.e3; if(usecs>/*50*/10){ndb<<"Performance microseconds:"<<usecs;}
         }
     };
     

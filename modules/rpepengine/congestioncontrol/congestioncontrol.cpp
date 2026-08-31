@@ -113,7 +113,7 @@ void CongestionControl::update(CongestionControlInput ipt){
                 output.state=/*Push*/ input.deliverRate<(output.rate+output.fullrate)/2?Push:ProbeMaxRateGrowth;
                 if(output.state==ProbeMaxRateGrowth){
                     output.pmrgEnterEnd=input.end;
-                    output.pmrgEnterId=input.chunkId;                    
+                    output.pmrgEnterId=input.chunkId;
                 }
                 //清除状态并EWMA
                 output.dcong = output.probeMaxRtt * PROBE_RTT_WEIGHT + output.dcong * (1-PROBE_RTT_WEIGHT);
@@ -164,7 +164,7 @@ void CongestionControl::update(CongestionControlInput ipt){
         //     output.lastRttReportEnd=input.chunkId+1;
         //     output.stateKeep=0;
         // }
-        if(output.lastRttReportEnd<=input.end){            
+        if(output.lastRttReportEnd<=input.end){
             output.lastRttReportEnd=input.end+1;
             if(output.pushQueueFrac<PMR_DOWN_BUF-PUSH_DELTA ||
                 output.pushQueueFrac>PMR_DOWN_BUF+PUSH_DELTA){
@@ -254,7 +254,7 @@ void CongestionControl::update(CongestionControlInput ipt){
         else{
             output.rttAvgRd=input.deliverRate*(1-PMR_UP_DELIVERRATE_EWMA_WEIGHT)+output.rttAvgRd*PMR_UP_DELIVERRATE_EWMA_WEIGHT;
         }
-        break;  
+        break;
     }
     case ProbeMaxRateDown:{
         output.rate = qMax( output.fullrate - ( output.fullrate*(input.rtt-output.dbase) - output.fullrate*(output.dcong-output.dbase)*PMR_DOWN_BUF ) / output.dbase , DRAIN_MIN_RATE_FRAC * output.fullrate);

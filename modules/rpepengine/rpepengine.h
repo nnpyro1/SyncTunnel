@@ -214,7 +214,7 @@ private:
     static const int TRANSFER_WATCHDOG_TIMEOUT = 20000;
     static const int RECEIVING_WATCHDOG_TIMEOUT = 20000;
     static const int MAX_SAFE_NOSEND = 4;
-    constexpr static const double DELIVER_RATE_EWMA_WEIGHT = 0.3;
+    constexpr static const double DELIVER_RATE_EWMA_WEIGHT = 0.1;
 };
 
 #endif // RPEPENGINE_H
