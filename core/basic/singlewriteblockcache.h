@@ -60,7 +60,7 @@ private:
     bool needsWake=false;
     
     static constexpr const qsizetype PRE_CHUNKS = 200;
-    static constexpr const qsizetype AFTER_CHUNKS = 1000;
+    static constexpr const qsizetype AFTER_CHUNKS = 500;
     
 public:
     explicit SingleWriteBlockCacheWorkingThread(SingleWriteBlockCache &c);

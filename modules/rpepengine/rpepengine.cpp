@@ -963,7 +963,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     transferWatchdog.start();
     ccinput.totalChunks=transferTotalSize;
     ccinput.lastEnd = 0;
-    ccinput.elapsedTimes.reserve(transferTotalSize);
+    ccinput.elapsedTimes.reserve(transferTotalSize*1.01);
     auto sendUntilTqIsEmpty = [&]{
         QElapsedTimer delayTimer;delayTimer.start();
         while(!tq.empty()){
@@ -976,9 +976,13 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                 // return Result();
                 return;
             }
+            QElapsedTimer tmpTimer;tmpTimer.start();
             int i=tq.front();
+            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"1"<<us;tmpTimer.restart();}
             tq.pop_front();
+            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"2"<<us;tmpTimer.restart();}
             tqSet.remove(i);
+            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"3"<<us;tmpTimer.restart();}
             // ccinput.chunkId=i;
             //转换rate
             quint64 db;
@@ -986,16 +990,21 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             memcpy(&db,&drate,sizeof(double));
             db=::qToBigEndian(db);
             memcpy(tmp,&db,sizeof(double));
+            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"3.1"<<us;tmpTimer.restart();}
             QByteArray data=transferBuf.read(i);
+            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"4"<<us;tmpTimer.restart();}
             if(i==transferTotalSize-1){//最后一个包特殊处理
                 auto ls = data.size();
                 data=data.left(lastChunkSize);
                 ndb<<"最后一个包特殊处理,size="<<data.size()<<"截取前size="<<ls<<"lastChunkSize="<<lastChunkSize;
             }
+            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"5"<<us;tmpTimer.restart();}
             send(data/*transferBuf[i]*//*+QByteArray(tmp,sizeof(double))*//*+"DRAT_TP_"*/,0,dst);
+            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>50)ndb<<"6"<<us;tmpTimer.restart();}
             // ndb<<"Data #"<<i<<" sent.";
             ccinput.chunkId = i;
             ccinput.elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
+            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"7"<<us;tmpTimer.restart();}
             Utils::multiDelay(qMin(0.,1000/ccoutput.rate-delayTimer.nsecsElapsed()/1e6),/*[]{QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);}*/nullptr);
             delayTimer.restart();
             QApplication::processEvents(QEventLoop::ExcludeUserInputEvents,100);

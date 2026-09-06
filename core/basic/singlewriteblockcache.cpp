@@ -93,14 +93,18 @@ QByteArray SingleWriteBlockCache::read(qsizetype idx){
         QByteArray ret;
         bool got = true;
         {
+            // QElapsedTimer timer;timer.start();
             QMutexLocker locker(&mutex);
-            if(cache.contains(idx)){
-                ret = cache.value(idx);
+            auto it = cache.constFind(idx);
+            if(/*cache.contains(idx)*/it!=cache.end()){
+                // ret = cache.value(idx);
+                ret=*it;
             }
             else{//读取
                 // locker.unlock();
                 got=false;
             }
+            // double us=timer.nsecsElapsed()/1e3;if(us>20)ndb<<"超时"<<us;
         }
         //加载到内存
         if(idx>maxRead){

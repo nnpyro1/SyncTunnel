@@ -630,13 +630,15 @@ void BusinessLogic::init(){
             QStringList cells;
             
             // ---------------------- 0. 时间戳 ----------------------
-            cells << wrapCsvCell(QString::number(ipt.elapsedTimes[ipt.chunkId]));
+            auto timeIt = ipt.elapsedTimes.constFind(ipt.chunkId);
+            auto time = timeIt!=ipt.elapsedTimes.constEnd()?*timeIt:0;
+            cells << wrapCsvCell(QString::number(time));
             // ---------------------- 1. loss 数组：空格分隔数字串 ----------------------
             QString lossStr;
             if (!ipt.loss.isEmpty())
             {
                 QStringList lossItems;
-                for (quint32 num : ipt.loss)
+                for (quint32 num : std::as_const(ipt.loss))
                     lossItems << QString::number(num);
                 lossStr = lossItems.join(" ");
             }
