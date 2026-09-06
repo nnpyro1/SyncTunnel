@@ -138,6 +138,7 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
         o_description=map["description"].toString();
         o_ipv6UsageState=map["ipv6usage"].toBool();
         o_disableNoticeState=map["disablenotice"].toBool();
+        o_mqttBroker=ipport{map["mqtt_ip"].toString(),static_cast<quint16>(map["mqtt_port"].toInt())};
         break;
     case BusinessLogic::BusinessEvent::AutoSyncEnableStateUpdated:
         o_autoSyncState=map["state"].toBool();
@@ -304,7 +305,7 @@ void ViewModel::on_businessEventOccur(BusinessLogic::BusinessEvent event, QVaria
         }
         
         emit messageBoxRequested("错误","Oh No!出错了!",BusinessLogic::MessageBoxType::Critical,false,nullptr,nullptr,
-                                 "错误:\n"+errorString+"\n\n建议的解决方案:\n"+suggestion+"\n\n原始错误文本:"+errors.join("\n")+"\n\n\nPS:若遇到棘手的问题，请联系nnpyro@outlook.com或在https://synctunnel.fwh.is/docs/troubleshooting.html反馈，您的反馈十分珍贵"
+                                 "错误:\n"+errorString+"\n\n建议的解决方案:\n"+suggestion+"\n\n原始错误文本:\n"+errors.join("\n")+"\n\n\nPS:若遇到棘手的问题，请联系nnpyro@outlook.com或在https://synctunnel.fwh.is/docs/troubleshooting.html反馈，您的反馈十分珍贵"
         );
     }
         break;

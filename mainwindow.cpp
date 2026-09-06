@@ -1952,12 +1952,13 @@ MainWindow::MainWindow(ViewModel *vm, QWidget *parent, std::function<void (QStri
             ui->tableWidget_deviceList->setItem(row_index,3,new QTableWidgetItem(QString(client.flag==Communication::DFHNDevice?"**":"")+(client==public_ip?"(本机)":"")+(client.flag==Communication::DFHNDevice?"(DFHN)":"")+client.description+"("+QMetaEnum::fromType<Communication::DeviceFlag>().valueToKey(client.flag)+")"));
         }
     });
-    vm->o_user_name.use(this,[=]{ui->lineEdit_settings_username->setText(vm->o_user_name);});
-    vm->o_pwd.use(this,[=]{ui->lineEdit_settings_pwd->setText(vm->o_pwd);});
-    vm->o_description.use(this,[=]{ui->lineEdit_settings_description->setText(vm->o_description);});
-    vm->o_disableNoticeState.use(this,[=]{ui->checkBox_settings_disableNotice->setChecked(vm->o_disableNoticeState);});
-    vm->o_ipv6UsageState.use(this,[=]{ui->checkBox_settings_ipv6->setChecked(vm->o_ipv6UsageState);});
-    vm->o_statEnableState.use(this,[=]{ui->checkBox_settings_stat->setChecked(vm->o_statEnableState);});
+    vm->o_user_name.use(this,[=, this]{ui->lineEdit_settings_username->setText(vm->o_user_name);});
+    vm->o_pwd.use(this,[=, this]{ui->lineEdit_settings_pwd->setText(vm->o_pwd);});
+    vm->o_description.use(this,[=, this]{ui->lineEdit_settings_description->setText(vm->o_description);});
+    vm->o_disableNoticeState.use(this,[=, this]{ui->checkBox_settings_disableNotice->setChecked(vm->o_disableNoticeState);});
+    vm->o_ipv6UsageState.use(this,[=, this]{ui->checkBox_settings_ipv6->setChecked(vm->o_ipv6UsageState);});
+    vm->o_statEnableState.use(this,[=, this]{ui->checkBox_settings_stat->setChecked(vm->o_statEnableState);});
+    vm->o_mqttBroker.use(this,[=,this]{ui->lineEdit_settings_mqttServer->setText(vm->o_mqttBroker.get().ip);ui->spinBox_settings_mqttPort->setValue(vm->o_mqttBroker.get().port);});
     ninfo<<"当前工作目录："<<QDir::currentPath();
     
     //安卓全屏策略

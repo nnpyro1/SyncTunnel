@@ -91,6 +91,7 @@ public://公有Observable
 //    QDir o_current_dir;
     QSet<QString> incremental_sync_set;
     OBS(bool,statEnableState);
+    OBS(ipport,mqttBroker);
     
 private slots://私有槽
     void on_businessEventOccur(BusinessLogic::BusinessEvent event,QVariantMap map);

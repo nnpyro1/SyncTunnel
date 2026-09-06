@@ -773,7 +773,7 @@ void BusinessLogic::init(){
     ndb<<syncFolder.absolutePath();
     
     //同步设置
-    emit businessEventOccurred(BusinessEvent::SettingsUpdated,{{"username",user_name},{"password",pwd},{"description",device_description},{"ipv6usage",use_ipv6},{"disablenotice",json_settings["disable_notice"].toBool()},{"stat",settings.value("ApplicationSettings/stat").toBool()}});
+    emit businessEventOccurred(BusinessEvent::SettingsUpdated,{{"username",user_name},{"password",pwd},{"description",device_description},{"ipv6usage",use_ipv6},{"disablenotice",json_settings["disable_notice"].toBool()},{"stat",settings.value("ApplicationSettings/stat").toBool()},{"mqtt_ip",mqtt_server.ip},{"mqtt_port",mqtt_server.port}});
     
     //发送统计信息
     stat();
