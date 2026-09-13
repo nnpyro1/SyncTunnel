@@ -91,6 +91,8 @@ public://函数
     QNetworkDatagram readDatagram();                                    //读取数据包
     inline void setStunServer(ipport server){stun_host=server;}         //设置服务器
     bool hasPendingDatagrams();                                         //是否有等待中数据包
+    int error();                                                        //读取错误
+    QString errorString();
     
     void keepAlive();                                                   //保活
     

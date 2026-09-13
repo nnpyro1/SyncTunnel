@@ -102,6 +102,7 @@ win32{
     INCLUDEPATH += $$PWD/../../libary/libsodium-1.0.22-mingw/libsodium-win64/include
     LIBS += -L$$PWD/../../libary/libsodium-1.0.22-mingw/libsodium-win64/lib
     LIBS += -lsodium
+    LIBS += -lws2_32
 }
 android{
     # QT += androidextras

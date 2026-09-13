@@ -232,6 +232,15 @@ bool Communication::hasPendingDatagrams(){
     return socket->hasPendingDatagrams();
 }
 
+
+int Communication::error(){
+    return socket->error();
+}
+
+QString Communication::errorString(){
+    return socket->errorString();
+}
+
 void Communication::keepAlive(){
     // QByteArray msg;
     // msg.append('\x00');

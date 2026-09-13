@@ -9,6 +9,9 @@
 #include <QApplication>
 #include <algorithm>
 #include <QSignalSpy>
+#ifdef Q_OS_WIN
+#include <winsock.h>
+#endif
 
 
 RpepEngine::RpepEngine(QObject *parent)
@@ -382,6 +385,9 @@ Result RpepEngine::sendControl(QString key, QVariant value, devid_t destination)
         });
         for(int i=0;i<MAX_RELIABLE_RETRIES;i++){//最大重试6次
             if(!received){
+                if(!m_communication){
+                    return Result("sendControl\ndestroyed");
+                }
                 send(msg,1,destination);
                 QTimer::singleShot(RELIABLE_INTERVAL,&loop,&QEventLoop::quit);
                 loop.exec();
@@ -414,6 +420,9 @@ Result RpepEngine::sendControl(QString key, QVariant value, devid_t destination)
         });
         for(int i=0;i<MAX_RELIABLE_RETRIES;i++){//最大重试6次
             if(!received){
+                if(!m_communication){
+                    return Result("sendControl\ndestroyed");
+                }
                 send(msg,1,destination);
                 QTimer::singleShot(RELIABLE_INTERVAL,&loop,&QEventLoop::quit);
                 loop.exec();
@@ -601,7 +610,14 @@ void RpepEngine::send(QByteArray msg, bool e, int d){
         for(auto dst:dsts){
             ret=m_communication->send(devices.value(dst),msg);
             if(ret<0){
-                ncritical<<"发送消息失败 目标"<<getStringByDeviceId(dst);
+#ifdef Q_OS_WIN
+                int WSA=WSAGetLastError();
+#endif
+                ncritical<<"发送消息失败 目标"<<getStringByDeviceId(dst)<<"错误"<<m_communication->error()<<m_communication->errorString()
+#ifdef Q_OS_WIN
+                          <<"WSA Error:"<<WSA;
+#endif
+                    ;
             }
         }
     }
@@ -612,7 +628,14 @@ void RpepEngine::send(QByteArray msg, bool e, int d){
         }
         ret=m_communication->send(devices.value(d),msg);
         if(ret<0){
-            ncritical<<"发送消息失败 目标"<<getStringByDeviceId(d)<<" 返回"<<ret<<" 实际"<<msg.size();
+#ifdef Q_OS_WIN
+            int WSA=WSAGetLastError();
+#endif
+            ncritical<<"发送消息失败 目标"<<getStringByDeviceId(d)<<" 返回"<<ret<<" 实际"<<msg.size()<<" 错误"<<m_communication->error()<<m_communication->errorString()
+#ifdef Q_OS_WIN
+                      <<"WSA Error:"<<WSA
+#endif
+                ;
         }
     }
 }
@@ -965,6 +988,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     ccinput.lastEnd = 0;
     ccinput.elapsedTimes.reserve(transferTotalSize*1.01);
     auto sendUntilTqIsEmpty = [&]{
+        cc.reset();
         QElapsedTimer delayTimer;delayTimer.start();
         while(!tq.empty()){
             if(isAborted){
@@ -978,11 +1002,11 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             }
             QElapsedTimer tmpTimer;tmpTimer.start();
             int i=tq.front();
-            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"1"<<us;tmpTimer.restart();}
+            // {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"1"<<us;tmpTimer.restart();}
             tq.pop_front();
-            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"2"<<us;tmpTimer.restart();}
+            // {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"2"<<us;tmpTimer.restart();}
             tqSet.remove(i);
-            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"3"<<us;tmpTimer.restart();}
+            // {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"3"<<us;tmpTimer.restart();}
             // ccinput.chunkId=i;
             //转换rate
             quint64 db;
@@ -990,22 +1014,22 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
             memcpy(&db,&drate,sizeof(double));
             db=::qToBigEndian(db);
             memcpy(tmp,&db,sizeof(double));
-            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"3.1"<<us;tmpTimer.restart();}
+            // {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"3.1"<<us;tmpTimer.restart();}
             QByteArray data=transferBuf.read(i);
-            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"4"<<us;tmpTimer.restart();}
+            // {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"4"<<us;tmpTimer.restart();}
             if(i==transferTotalSize-1){//最后一个包特殊处理
                 auto ls = data.size();
                 data=data.left(lastChunkSize);
                 ndb<<"最后一个包特殊处理,size="<<data.size()<<"截取前size="<<ls<<"lastChunkSize="<<lastChunkSize;
             }
-            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"5"<<us;tmpTimer.restart();}
+            // {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"5"<<us;tmpTimer.restart();}
             send(data/*transferBuf[i]*//*+QByteArray(tmp,sizeof(double))*//*+"DRAT_TP_"*/,0,dst);
-            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>50)ndb<<"6"<<us;tmpTimer.restart();}
+            // {double us=tmpTimer.nsecsElapsed()/1e3;if(us>50)ndb<<"6"<<us;tmpTimer.restart();}
             // ndb<<"Data #"<<i<<" sent.";
             ccinput.chunkId = i;
             ccinput.elapsedTimes.insert(i,timer.nsecsElapsed()/1.e6);
-            {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"7"<<us;tmpTimer.restart();}
-            Utils::multiDelay(qMin(0.,1000/ccoutput.rate-delayTimer.nsecsElapsed()/1e6),/*[]{QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);}*/nullptr);
+            // {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"7"<<us;tmpTimer.restart();}
+            Utils::multiDelay(qMax(0.,1000/ccoutput.rate-delayTimer.nsecsElapsed()/1e6),/*[]{QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);}*/nullptr);
             delayTimer.restart();
             QApplication::processEvents(QEventLoop::ExcludeUserInputEvents,100);
             // ndb<<"rate:"<<ccoutput.rate;

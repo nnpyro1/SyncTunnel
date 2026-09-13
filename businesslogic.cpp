@@ -674,16 +674,23 @@ void BusinessLogic::init(){
             
             // 枚举状态字符串
             QString stateName;
+#define enumToStr(nm) case CongestionControl::nm: stateName = #nm;  break;
             switch(opt.state)
             {
-            case CongestionControl::StartupUp: stateName = "StartupUp"; break;
-            case CongestionControl::StartupDown:   stateName = "StartupDown";   break;
-            case CongestionControl::ProbeMaxRateGrowth: stateName = "PMRGrowth"; break;
-            case CongestionControl::ProbeMaxRateUp:  stateName = "PMRUp";  break;
-            // default: stateName = "Unknown";
-            case CongestionControl::ProbeMaxRateDown:stateName = "PMRDown";  break;
-            case CongestionControl::Push:stateName = "Push";  break;
+            // case CongestionControl::StartupUp: stateName = "StartupUp"; break;
+            // case CongestionControl::StartupDown:   stateName = "StartupDown";   break;
+            // case CongestionControl::ProbeMaxRateGrowth: stateName = "PMRGrowth"; break;
+            // case CongestionControl::ProbeMaxRateUp:  stateName = "PMRUp";  break;
+            // // default: stateName = "Unknown";
+            // case CongestionControl::ProbeMaxRateDown:stateName = "PMRDown";  break;
+            // case CongestionControl::Push:stateName = "Push";  break;
+                enumToStr(Startup)
+                enumToStr(PmrBelowR0)
+                enumToStr(PmrBack)
+                enumToStr(PmrUp)
+                enumToStr(PmrDown)
             }
+#undef enumToStr
             cells << wrapCsvCell(stateName);
             
             cells << wrapCsvCell(QString::number(opt.stateKeep));
@@ -693,8 +700,8 @@ void BusinessLogic::init(){
             cells << wrapCsvCell(QString::number(opt.fullrate));
             cells << wrapCsvCell(QString::number(opt.lastRttReportEnd));
             cells << wrapCsvCell(""/*QString::number(opt.probeTimeout)*/);
-            cells << wrapCsvCell(QString::number(opt.probeMaxRate));
-            cells << wrapCsvCell(QString::number(opt.probeMaxRtt));
+            // cells << wrapCsvCell(QString::number(opt.probeMaxRate));
+            // cells << wrapCsvCell(QString::number(opt.probeMaxRtt));
             
             // 拼接整行CSV，逗号分隔单元格，换行结尾
             QString line = cells.join(",") + "\n";
