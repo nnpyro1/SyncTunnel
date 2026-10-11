@@ -122,6 +122,7 @@ RpepEngine::RpepEngine(QObject *parent)
     //     receivingReportTimer.stop();
     //     receivingReportTimer.start(2*interval);
     // });
+    globalTimer.restart();
 }
 
 RpepEngine::~RpepEngine()
@@ -498,6 +499,8 @@ void RpepEngine::reset(){
         ncritical<<"Unacceptable state to reset";
         return;
     }
+    if(state==State::Transferring)senderReset();
+    if(state==State::Receiving)receiverReset();
     state=State::Ready;
     transferBuf.clear();
     transferWatchdog.stop();
@@ -862,6 +865,8 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
     // QElapsedTimer lastReportTimer;
     QTimer reportReceiveTimer;
     int reportLossCount = 0;
+    chunkid_t lastReportEnd = 0;//上次收到Report的end
+    bool isReportEchoSent = false;//当前repot的echo是否已经发送
     auto conn = connect(this,&RpepEngine::reportReceived,&useless,[&](ReportMessageHeader report,QList<chunkid_t> loss){//随便用一个uselessc的变量管理生命周期
         transferWatchdog.stop();transferWatchdog.start();//重置看门狗
         // ndb<<"Report received. loss="<<loss;
@@ -922,7 +927,7 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         // ccinput.elapsedTimes=elapsedTimes;
         // ccinput.deliverRate=report.deliverRate;
         //性能问题结束
-        if(report.deliverRate>2){//存在deliverRate信息
+        if(report.deliverRate>0){//存在deliverRate信息
             ccinput.deliverRate = ccinput.deliverRate==0? report.deliverRate
                                                            :report.deliverRate*DELIVER_RATE_EWMA_WEIGHT+ccinput.deliverRate*(1-DELIVER_RATE_EWMA_WEIGHT);
             
@@ -938,6 +943,10 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
         // reportReceiveTimer.stop();
         reportReceiveTimer.start(MAX_SAFE_NOSEND * MAX_REPORT_OFFSET / qMin(ccoutput.rate,ccinput.deliverRate>2?ccinput.deliverRate:ccoutput.rate) * 1000 + qMax(ccoutput.dcong,ccinput.rtt));
         reportLossCount=0;
+        if(report.lastReceive>lastReportEnd){
+            lastReportEnd=report.lastReceive;
+            isReportEchoSent=false;
+        }
     });
     // connect(this,&RpepEngine::transferAborted,&cc,[&isAborted]{isAborted=true;});//侦测是否中断。随便绑定一个同作用域的QObject//已在开头添加
     connect(&transferWatchdog,&QTimer::timeout,&cc,[this]{abortTransfer();});
@@ -1021,6 +1030,16 @@ Result RpepEngine::transferPreloadedData(devid_t dst){
                 auto ls = data.size();
                 data=data.left(lastChunkSize);
                 ndb<<"最后一个包特殊处理,size="<<data.size()<<"截取前size="<<ls<<"lastChunkSize="<<lastChunkSize;
+            }
+            if(!isReportEchoSent){
+                char buf[sizeof(chunkid_t)];
+                auto tmp=lastReportEnd;
+                tmp=::qToBigEndian(tmp);
+                memcpy(buf,&tmp,sizeof(chunkid_t));
+                data.reserve(data.size()+sizeof(chunkid_t)+8);
+                data.append(buf,sizeof(chunkid_t));
+                data.append("ECHO_TP_");
+                isReportEchoSent=true;
             }
             // {double us=tmpTimer.nsecsElapsed()/1e3;if(us>10)ndb<<"5"<<us;tmpTimer.restart();}
             send(data/*transferBuf[i]*//*+QByteArray(tmp,sizeof(double))*//*+"DRAT_TP_"*/,0,dst);
@@ -1215,6 +1234,8 @@ void RpepEngine::receiverReset(){
         receivingReportTimer.stop();
         delivered=0;
         state=State::Ready;
+        receivingSnapshots.clear();
+        receivingDeliverRate=0;
     }
     else{
         ncritical<<"Unable to reset receiver when state="<<(int)state;
@@ -1282,6 +1303,17 @@ QByteArray RpepEngine::generateLossRange(chunkid_t startReport, chunkid_t endRep
 
 void RpepEngine::onCommunicationReadyRead(){
     int datagram_cnt=0;
+#ifdef QT_DEBUG
+    isProcessingMessage=true;
+    QMetaObject::invokeMethod(this,[this]{
+        if(isProcessingMessage==true){
+            ncritical<<"### BUG DETECTED ###\n在处理消息时开启了事件循环\n####################";
+            forever{
+                QThread::msleep(100);//用来卡住调试器
+            }
+        }
+    },Qt::QueuedConnection);
+#endif
     while(m_communication->hasPendingDatagrams()){
         datagram_cnt++;
 #ifdef NNPYRO_PERFORMANCE_ANALYSIS
@@ -1303,6 +1335,23 @@ void RpepEngine::onCommunicationReadyRead(){
                 //翻转
                 tmp=::qFromBigEndian(tmp);
                 memcpy(&rate,&tmp,sizeof(double));
+            }
+            else if(id=="ECHO"){
+                QByteArray rt = undecoded.right(sizeof(chunkid_t));
+                undecoded.chop(sizeof(chunkid_t));
+                chunkid_t echo;
+                memcpy(&echo,rt.constData(),sizeof(chunkid_t));
+                echo=::qFromBigEndian(echo);
+                //计算交付速率
+                double time = globalTimer.nsecsElapsed()/1e6;
+                auto it = receivingSnapshots.find(echo);
+                if(it!=receivingSnapshots.constEnd()){
+                    double deltaDelivered = delivered-it->first;
+                    double deltaTime = time-it->second;
+                    receivingDeliverRate = deltaDelivered/deltaTime*1000;
+                    ndb<<"deliverRate:"<<deltaDelivered<<"/"<<deltaTime<<"="<<receivingDeliverRate;
+                    receivingSnapshots.erase(it);
+                }
             }
         }
         QByteArray rawMsg = decode(undecoded);
@@ -1448,6 +1497,7 @@ void RpepEngine::onCommunicationReadyRead(){
                 emit receivingProgressUpdated(dmh.chunkId,dmh.totalChunkNum);
                 //增加交付计数
                 delivered++;
+                receivingSnapshots.insert(chunkId,qMakePair(delivered,globalTimer.nsecsElapsed()/1e6));
                 //重置定时器
                 // receivingReportTimer.stop();
                 // if(rate!=0){
@@ -1508,8 +1558,10 @@ void RpepEngine::onCommunicationReadyRead(){
                 rmh.start=start;
                 rmh.isEmpty=body.isEmpty();
                 rmh.lastReceive=chunkId;
-                auto e=lastReportElapsedTime.nsecsElapsed()/1.e6;
-                rmh.deliverRate= e!=0?delivered*1000./e:1;
+                // auto e=lastReportElapsedTime.nsecsElapsed()/1.e6;
+                // rmh.deliverRate= e!=0?delivered*1000./e:1;
+                rmh.deliverRate=receivingDeliverRate;
+                receivingDeliverRate=0;//注意：当设置为0的时候，下次将发送0的deliverRate，表示无交付速率信息可用，发送方丢弃
                 // if(rmh.deliverRate<1||rmh.deliverRate>10000){
                 //     nwarning<<"DeliverRate="<<rmh.deliverRate<<" delivered="<<delivered<<" elapsed="<<e;
                 // }
@@ -1538,7 +1590,7 @@ void RpepEngine::onCommunicationReadyRead(){
                 //发送
                 send(getHeaderBytes(rmh)+body,1,header.src);
                 lastReportElapsedTime.restart();
-                delivered=0;
+                // delivered=0;
                 lastReportChunk=chunkId;
             }
             }
@@ -1599,9 +1651,12 @@ void RpepEngine::onCommunicationReadyRead(){
         }
 #endif
     }
-    // if(datagram_cnt>3){
-    //     ndb<<"datagram_cnt="<<datagram_cnt;
-    // }
+    /*if(datagram_cnt>3)*/{
+        // ndb<<"datagram_cnt="<<datagram_cnt;
+    }
+#ifdef QT_DEBUG
+    isProcessingMessage=false;
+#endif
 }
 
 
@@ -1617,6 +1672,7 @@ void RpepEngine::onPrivateControlMessageReceived(QString key, QVariant value, de
             //初始化缓冲区
             // receivingBuf.resize(value.toUInt());
             receivingBuf.init(CHUNK_SIZE,value.toUInt());
+            receivingSnapshots.reserve(value.toUInt());
         }
         else{
             RUN_LATER_THIS(sendControl("___REFUSE_TRANSFER___","state="+QString::number((int)state),src););

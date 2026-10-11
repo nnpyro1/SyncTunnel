@@ -14,10 +14,10 @@ void CongestionControl::reset()
 
 void CongestionControl::update(CongestionControlInput ipt){
     //仅用于测试！！！
-    // {
-    //     output.rate=4000;
-    //     return;
-    // }
+    {
+        output.rate=1000;
+        return;
+    }
     
     input=ipt;
     ++output.stateKeep;

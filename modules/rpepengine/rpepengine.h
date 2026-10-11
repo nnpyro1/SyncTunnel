@@ -194,10 +194,17 @@ private:
     QTimer receivingWatchdog;
     QTimer receivingReportTimer;
     chunkid_t delivered=0;
+    QHash<chunkid_t,QPair<chunkid_t,double>> receivingSnapshots;//接收方储存的用于测量交付速率的快照，key=当前lastrRceive，value=当前时刻的(delivered,globalTimer.nsecsElapsed()/1e6)
+    double receivingDeliverRate=0;
     //专有成员结束
     QQueue<devid_t> transferTaskQueue;
     QTimer timer_keepAlive;
     QByteArray preprocessedKey;//预处理过的密码
+    QElapsedTimer globalTimer;//所有人都可以用的timer,禁止restart
+    //调试相关变量
+#ifdef QT_DEBUG
+    bool isProcessingMessage = false;
+#endif
     
     static const int MAX_STUN_RETRIES = 3;
     static const int CURRENT_VERSION = 1;
@@ -213,7 +220,7 @@ private:
     static const int KEEPALIVE_INTERVAL = 15000;
     static const int TRANSFER_WATCHDOG_TIMEOUT = 20000;
     static const int RECEIVING_WATCHDOG_TIMEOUT = 20000;
-    static const int MAX_SAFE_NOSEND = 4;
+    static const int MAX_SAFE_NOSEND = 8;
     constexpr static const double DELIVER_RATE_EWMA_WEIGHT = 0.1;
 };
 
